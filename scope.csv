@@ -1,0 +1,14 @@
+http://www.proz.com
+homepage	entrypoint	//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']/@href	companies
+companies	next	//div[@style='background-color:#E2E1C5;']//div[@id='pager_string']/font//a[contains(., ' Next ')]	companies
+companies	details	//tr/td[@colspan='2']//h2/a	detailsPage
+detailsPage	profile	//tr/td[@align='right']/a	profilePage
+detailsPage	name	//h1/text()	null
+detailsPage	address	//div[@class='rdbx']/div[@class='contact_column']/div[@style='padding-left:5px;']/text()	null
+detailsPage	contact	//div[@class='rdbx']//div[@style='padding-left:10px;']/text()	null
+detailsPage	website	//div[@class='rdbx']/div[@class='contact_column']/a[@target]	null
+detailsPage	employees	//div[@class='rdbx']/div[@class='contact_column']/text()[contains(.,'employees')]	null
+detailsPage	languages	//div[@class='rdbx']/div[@class='contact_column']/text()[contains(.,'languages supported')]	null
+detailsPage	logo	//img[@alt='logo']	null
+profilePage	name	//font[@size='4']/strong/text()	null
+profilePage	website	//td[text()=' Website']/../td[2]//a	null
