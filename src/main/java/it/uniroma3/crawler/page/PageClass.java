@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Deprecated
 public class PageClass {
 	private String name;
 	private Map<String,List<String>> xPathNavigation;

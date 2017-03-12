@@ -22,9 +22,11 @@ public class Writer extends UntypedActor {
 	}
 
 	final CsvWriter writer;
+	private Integer count;
 	
 	public Writer(String fileName) {
-		this.writer = new CsvWriter(fileName, ',', Charset.forName("UTF-8"));
+		this.writer = new CsvWriter(fileName, '\t', Charset.forName("UTF-8"));
+		this.count = 0;
 	}
 
 	@Override
@@ -32,7 +34,11 @@ public class Writer extends UntypedActor {
 		if (message instanceof String[]) {
 			String[] record = (String[]) message;
 			this.writer.writeRecord(record);
-			this.writer.close();
+			count++;
+			if (count==3) {
+				this.writer.close();
+				getContext().stop(getSelf());
+			}
 		}
 		else unhandled(message);
 	}

@@ -12,6 +12,7 @@ import com.csvreader.CsvReader;
 
 import it.uniroma3.crawler.page.PageClass;
 
+@Deprecated
 public class CrawlScope {
 	private static final char DELIMITER = '\t';
 	private URI urlBase;
