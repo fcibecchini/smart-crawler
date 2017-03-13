@@ -20,6 +20,7 @@ import it.uniroma3.crawler.util.HtmlUtils;
 import it.uniroma3.crawler.util.XPathUtils;
 import it.uniroma3.crawler.writer.Writer;
 
+@Deprecated
 public class EntryFetcher extends UntypedActor {
 	
 	public static Props props(final String url, final Queue<PageClass> classes) {

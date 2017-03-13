@@ -2,7 +2,6 @@ package it.uniroma3.crawler.model;
 
 public abstract class DataType {
 	private String xpath;
-	private String content;
 	
 	public String getXPath() {
 		return this.xpath;
@@ -11,15 +10,10 @@ public abstract class DataType {
 	public void setXPath(String xpath) {
 		this.xpath = xpath;
 	}
-
-	public void setDataContent(String content) {
-		this.content = content;
-	}
 	
-	public String getDataContent() {
-		return this.content;
-	}
-	
+    /* Extract the expected value with this DataType XPath
+     * An HtmlPage should be expected as the input parameter 
+     * */
 	public abstract String extract(Object object);
 	
 }

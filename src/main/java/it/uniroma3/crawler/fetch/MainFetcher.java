@@ -18,6 +18,7 @@ import it.uniroma3.crawler.page.PageClass;
 import it.uniroma3.crawler.util.HtmlUtils;
 import it.uniroma3.crawler.util.XPathUtils;
 
+@Deprecated
 public class MainFetcher extends UntypedActor {
 	
 	public static Props props(PageClass pageClass, String urlBase) {

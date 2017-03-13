@@ -8,6 +8,7 @@ import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.japi.Creator;
 
+@Deprecated
 public class Writer extends UntypedActor {
 	
 	public static Props props(String fileName) {
