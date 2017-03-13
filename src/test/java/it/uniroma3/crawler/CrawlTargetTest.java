@@ -2,6 +2,8 @@ package it.uniroma3.crawler;
 
 import static org.junit.Assert.*;
 
+import java.util.List;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -61,6 +63,21 @@ public class CrawlTargetTest {
 		assertEquals(profilePage.getName(), "profilePage");
 		assertTrue(profilePage.isEndPage());
 		assertTrue(profilePage.isDataPage());
+	}
+	
+	@Test
+	public void testInitCrawlingTarget_testFindPageClass() {
+		target.initCrawlingTarget();
+		PageClass entry = target.getEntryPageClass();
+		List<String> entryXPaths = entry.getNavigationXPaths();
+		PageClass companies = entry.getDestinationByXPath(entryXPaths.get(0));
+		List<String> companiesXPaths = companies.getNavigationXPaths();
+		String next = companiesXPaths.get(0);
+		String details = companiesXPaths.get(1);
+		
+		assertEquals(companies.getName(), "companies");
+		assertEquals(companies, companies.getDestinationByXPath(next));
+		assertEquals(companies.getDestinationByXPath(details).getName(), "detailsPage");
 	}
 
 }
