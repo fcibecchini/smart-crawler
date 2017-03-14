@@ -66,6 +66,10 @@ public class CrawlURL {
 		return this.record;
 	}
 	
+	public int compareTo(CrawlURL c2) {
+		return this.getPageClass().compareTo(c2.getPageClass());
+	}
+	
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;

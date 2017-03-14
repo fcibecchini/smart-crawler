@@ -4,6 +4,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Random;
 
 import com.csvreader.CsvReader;
@@ -52,6 +54,9 @@ public class CrawlTarget {
 					pageSrc.addData(xpath, type);
 				}
 			}
+			// set depth hierarchy for page classes
+			setHierarchy();
+			
 		} catch (FileNotFoundException e) {
 			System.err.println("Could not find target configuration file");
 		} catch (IOException e) {
@@ -77,6 +82,25 @@ public class CrawlTarget {
 	
 	private PageClass getPageClass(HashSet<PageClass> pClasses, String name) {
 		return pClasses.stream().filter(pc -> pc.getName().equals(name)).findAny().orElse(null);
+	}
+	
+	private void setHierarchy() {
+		Queue<PageClass> classes = new LinkedList<>();
+		classes.add(entryClass);
+		PageClass current, next = null;
+		int depth = 0;
+		while (!classes.isEmpty()) {
+			current = classes.poll();
+			current.setDepth(depth);
+			if (!current.isEndPage()) {
+				for (String xpath : current.getNavigationXPaths()) {
+					next = current.getDestinationByXPath(xpath);
+					// avoid page class loops
+					if (!current.equals(next)) classes.add(next);
+				}
+			}
+			depth++;
+		}
 	}
 
 }

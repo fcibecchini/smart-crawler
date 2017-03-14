@@ -8,7 +8,7 @@ import akka.actor.Inbox;
 import akka.actor.Props;
 import it.uniroma3.crawler.target.CrawlTarget;
 import it.uniroma3.crawler.actors.fetch.CrawlFetcher;
-import it.uniroma3.crawler.actors.frontier.FIFOUrlFrontier;
+import it.uniroma3.crawler.actors.frontier.*;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
@@ -60,7 +60,7 @@ public class CrawlController {
     	CrawlURL entryPoint = CrawlURLFactory.getCrawlUrl(base.toString(), entry);
     	
     	final ActorSystem system = ActorSystem.create("CrawlSystem");
-    	frontier = system.actorOf(Props.create(FIFOUrlFrontier.class));
+    	frontier = system.actorOf(Props.create(BreadthFirstUrlFrontier.class));
     	final ActorRef fetcher = system.actorOf(Props.create(CrawlFetcher.class));
     	
     	final Inbox inbox = Inbox.create(system);

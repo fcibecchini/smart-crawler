@@ -1,4 +1,4 @@
-package it.uniroma3.crawler;
+package it.uniroma3.crawler.model;
 
 import static org.junit.Assert.*;
 

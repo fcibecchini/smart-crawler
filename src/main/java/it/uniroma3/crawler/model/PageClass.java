@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 public class PageClass {
 	private String name;
+	private int depth;
 	private long waitTime;
 	private List<PageClassLink> links;
 	private List<DataType> dataTypes;
@@ -27,6 +28,14 @@ public class PageClass {
 	
 	public void setWaitTime(long time) {
 		this.waitTime = time;
+	}
+	
+	public void setDepth(int depth) {
+		this.depth = depth;
+	}
+	
+	public int getDepth() {
+		return this.depth;
 	}
 	
 	public PageClass getDestinationByXPath(String xpath) {
@@ -83,6 +92,10 @@ public class PageClass {
 	
 	public boolean isDataPage() {
 		return !this.dataTypes.isEmpty();
+	}
+	
+	public int compareTo(PageClass pc2) {
+		return this.getDepth() - pc2.getDepth();
 	}
 	
 	public int hashCode() {

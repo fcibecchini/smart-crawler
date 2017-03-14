@@ -1,4 +1,4 @@
-package it.uniroma3.crawler;
+package it.uniroma3.crawler.target;
 
 import static org.junit.Assert.*;
 
@@ -78,6 +78,20 @@ public class CrawlTargetTest {
 		assertEquals(companies.getName(), "companies");
 		assertEquals(companies, companies.getDestinationByXPath(next));
 		assertEquals(companies.getDestinationByXPath(details).getName(), "detailsPage");
+	}
+	
+	@Test
+	public void testInitCrawlingTarget_testDepthHierarchy() {
+		target.initCrawlingTarget();
+		PageClass entry = target.getEntryPageClass();
+		PageClass companies = entry.getDestinationByXPath("//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']");
+		PageClass detPage = companies.getDestinationByXPath("//tr/td[@colspan='2']//h2/a");
+		PageClass profPage = detPage.getDestinationByXPath("//tr/td[@align='right']/a");
+		
+		assertEquals(entry.getDepth(), 0);
+		assertEquals(companies.getDepth(), 1);
+		assertEquals(detPage.getDepth(), 2);
+		assertEquals(profPage.getDepth(), 3);
 	}
 
 }
