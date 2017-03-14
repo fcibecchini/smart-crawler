@@ -9,53 +9,54 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import it.uniroma3.crawler.CrawlController;
-import it.uniroma3.crawler.actors.schedule.CrawlLinkScheduler;
 import it.uniroma3.crawler.actors.write.CrawlDataWriter;
-import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.DataType;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.util.XPathUtils;
 
 public class CrawlExtractor extends UntypedActor {
-	private ActorRef crawlWriter, linkScheduler;
-	private CrawlController controller;
+	private ActorRef crawlWriter;
+	private String urlBase;
 	
 	public CrawlExtractor() {
-		this.controller = CrawlController.getInstance();
+		this.urlBase = CrawlController.getInstance().getUrlBase();
 		this.crawlWriter = getContext().actorOf(Props.create(CrawlDataWriter.class));
-		this.linkScheduler = getContext().actorOf(Props.create(CrawlLinkScheduler.class));
 	}
 	
 	@Override
 	public void onReceive(Object message) throws Throwable {
 		if (message instanceof CrawlURL) {
 			CrawlURL cUrl = (CrawlURL) message;
+			setOutLinks(cUrl);
+			setDataRecord(cUrl);
+			// send cUrl with inserted data to writer
 			crawlWriter.tell(cUrl, getSelf());
-			extractAndSendLinks(cUrl);
-			extractAndSendData(cUrl);
 		}
 		else unhandled(message);
 	}
 	
 	@SuppressWarnings("unchecked")
-	private void extractAndSendLinks(CrawlURL cUrl) {
+	private void setOutLinks(CrawlURL cUrl) {
 		PageClass src = cUrl.getPageClass();
 		List<String> navXPaths = src.getNavigationXPaths();
 		for (String xPath : navXPaths) {
 			List<HtmlAnchor> links = 
 					(List<HtmlAnchor>) XPathUtils.getByMatchingXPath(cUrl.getPageContent(), xPath);
-			for (HtmlAnchor link : links) {
-				String url = controller.getUrlBase() + link.getHrefAttribute();
+			for (HtmlAnchor anchor : links) {
+				String link = anchor.getHrefAttribute();
+				// TODO needs more checks...
+				if (!link.contains("http")) {
+					link = urlBase + link;
+				}
 				PageClass dest = src.getDestinationByXPath(xPath);
-				CrawlURL newCUrl = CrawlURLFactory.getCrawlUrl(url, dest);
-				// send new crawl url to scheduler for further processing
-				linkScheduler.tell(newCUrl, getSelf());
+				
+				cUrl.addOutLink(link, dest);
 			}
 		}
 	}
 	
-	private void extractAndSendData(CrawlURL cUrl) {
+	private void setDataRecord(CrawlURL cUrl) {
 		PageClass src = cUrl.getPageClass();
 		if (src.isDataPage()) {
 			List<String> dataXPaths = src.getDataXPaths();
@@ -67,9 +68,8 @@ public class CrawlExtractor extends UntypedActor {
 				values.add(value);
 			}
 			String[] record = values.toArray(new String[dataXPaths.size()]);
-			// send record to writer
-			crawlWriter.tell(record, getSelf());
+			
+			cUrl.setRecord(record);
 		}
-
 	}
 }

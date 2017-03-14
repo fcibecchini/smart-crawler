@@ -1,7 +1,6 @@
 package it.uniroma3.crawler;
 
 import java.net.URI;
-import java.util.Queue;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -41,6 +40,14 @@ public class CrawlController {
     	return this.rndTime;
     }
     
+    public ActorRef getFrontier() {
+    	return this.frontier;
+    }
+    
+    public String getUrlBase() {
+    	return this.target.getUrlBase().toString();
+    }
+    
     public void setTarget(String config, long waitTime, int roundTime) {
     	this.waitTime = waitTime;
     	this.rndTime = roundTime;
@@ -62,24 +69,4 @@ public class CrawlController {
     	
     }
     
-    public ActorRef getFrontier() {
-    	return this.frontier;
-    }
-    
-    public String getUrlBase() {
-    	return this.target.getUrlBase().toString();
-    }
-    
-    @Deprecated
-    public void fetchRequests(String urlBase, 
-    		it.uniroma3.crawler.page.PageClass homePage, Queue<it.uniroma3.crawler.page.PageClass> classes) {
-    	// ActorSystem is a heavy object: create only one per application
-    	final ActorSystem system = ActorSystem.create("CrawlSystem");
-    	final ActorRef entryFetcher = system.actorOf(it.uniroma3.crawler.fetch.EntryFetcher.props(urlBase, classes), "entryFetcher");
-    	
-    	final Inbox inbox = Inbox.create(system);
-    	inbox.send(entryFetcher, homePage);
-    	
-    }
-
 }
