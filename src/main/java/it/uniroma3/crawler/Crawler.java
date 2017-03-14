@@ -1,20 +1,27 @@
 package it.uniroma3.crawler;
 
+import java.util.logging.Logger;
+
+import akka.actor.ActorSystem;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
+
 public class Crawler {
-	private String scopeFile;
 	
 	public static void main(String[] args) {
-		Crawler crawler = new Crawler("scope.csv");
+		Crawler crawler = new Crawler();
 		crawler.crawl();
 	}
-	
-	public Crawler(String config) {
-		this.scopeFile = config;
-	}
-	
+		
 	public void crawl() {
-		CrawlController controller = CrawlController.getInstance();
-		controller.setTarget(scopeFile, 1500, 1000, 5);
-		controller.startCrawling();
+		final Logger logger = Logger.getLogger(Crawler.class.getName());
+		final ActorSystem system = ActorSystem.create("CrawlSystem");
+		CrawlController.getInstance().startCrawling(system);
+		try {
+			Await.result(system.whenTerminated(), Duration.Inf());
+			logger.fine("Terminating crawling");
+		} catch (Exception e) {
+			logger.warning("Failed while waiting termination");
+		}
 	}
 }

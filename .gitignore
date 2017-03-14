@@ -1,5 +1,6 @@
 /target/
-result.csv
+result*.csv
 .project
 .classpath
 /.settings/
+/html/

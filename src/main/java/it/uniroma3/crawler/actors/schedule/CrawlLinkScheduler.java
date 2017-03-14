@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 
-import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import it.uniroma3.crawler.CrawlController;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
@@ -29,9 +28,6 @@ public class CrawlLinkScheduler extends UntypedActor {
 			// send to Frontier
 			schedule(newCUrls);
 		}
-		else if (message.equals("Stop")) {
-			context().system().stop(getSelf());
-		}
 		else unhandled(message);
 	}
 	
@@ -49,7 +45,6 @@ public class CrawlLinkScheduler extends UntypedActor {
 	}
 	
 	private void schedule(List<CrawlURL> newCUrls) {
-		//ActorRef frontier = controller.getFrontier();
 		newCUrls.stream().forEach(curl -> getSender().tell(curl, getSelf()));
 	}
 }

@@ -21,8 +21,8 @@ public class CrawlDataWriter extends UntypedActor {
 	private CrawlController controller;
 	
 	public CrawlDataWriter() {
-		this.csvWriter = new CsvWriter
-				("./result.csv", '\t', Charset.forName("UTF-8"));
+		String fileName = "./result"+getSelf().path().name()+".csv";
+		this.csvWriter = new CsvWriter(fileName, '\t', Charset.forName("UTF-8"));
 		this.counter = 0;
 		this.directory = new File("html/");
 		directory.mkdir();
@@ -41,9 +41,6 @@ public class CrawlDataWriter extends UntypedActor {
 			// save data of interest
 			savePage(page, pageClassName);
 			saveRecord(record);
-		}
-		else if (message.equals("Stop")) {
-			context().stop(getSelf());
 		}
 		else unhandled(message);
 	}

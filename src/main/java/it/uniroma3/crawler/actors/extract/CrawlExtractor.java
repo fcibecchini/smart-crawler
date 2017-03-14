@@ -34,10 +34,6 @@ public class CrawlExtractor extends UntypedActor {
 			// send cUrl with inserted data to writer
 			crawlWriter.forward(cUrl, getContext());
 		}
-		else if (message.equals("Stop")) {
-			crawlWriter.tell("Stop", getSelf());
-			context().stop(getSelf());
-		}
 		else unhandled(message);
 	}
 	

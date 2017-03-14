@@ -17,6 +17,7 @@ public class CrawlTarget {
 	private URI urlBase;
 	private String configFile;
 	private PageClass entryClass;
+	private HashSet<PageClass> pClasses;
 	private long pause;
 	private int roundTime;
 	
@@ -34,6 +35,10 @@ public class CrawlTarget {
 		return this.entryClass;
 	}
 	
+	public HashSet<PageClass> getClasses() {
+		return this.pClasses;
+	}
+	
 	public void initCrawlingTarget() {
 		try {
 			CsvReader reader = new CsvReader(configFile, DELIMITER);
@@ -41,7 +46,7 @@ public class CrawlTarget {
 			String urlBase = reader.get(0);
 			this.urlBase = URI.create(urlBase);
 			
-			HashSet<PageClass> pClasses = getPageClasses();
+			this.pClasses = getPageClasses();
 			while (reader.readRecord()) {
 				PageClass pageSrc = getPageClass(pClasses, reader.get(0));
 				String type = reader.get(1);
