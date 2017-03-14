@@ -30,11 +30,7 @@ public class CrawlFetcher extends UntypedActor {
 
 	@Override
 	public void onReceive(Object message) throws Throwable {
-		if (message.equals("start crawling")) {
-			controller.getFrontier().tell("next", getSelf());
-		}
-		
-		else if (message instanceof CrawlURL) {
+		if (message instanceof CrawlURL) {
 			CrawlURL cUrl = (CrawlURL) message;
 			String url = cUrl.getStringUrl();
 			HtmlPage body = HtmlUtils.getPage(url, webClient, log);
@@ -50,6 +46,9 @@ public class CrawlFetcher extends UntypedActor {
 			
 			// send cUrl to extractor for further processing
 			extractor.tell(cUrl, getSelf());
+			
+			// request next cUrl to Frontier
+			controller.getFrontier().tell("next", getSelf());
 		}
 		else unhandled(message);
 

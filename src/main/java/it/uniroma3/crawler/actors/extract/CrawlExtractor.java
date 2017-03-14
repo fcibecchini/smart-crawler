@@ -21,7 +21,8 @@ public class CrawlExtractor extends UntypedActor {
 	
 	public CrawlExtractor() {
 		this.urlBase = CrawlController.getInstance().getUrlBase();
-		this.crawlWriter = getContext().actorOf(Props.create(CrawlDataWriter.class));
+		this.crawlWriter = getContext().actorOf(Props.create(CrawlDataWriter.class), 
+				"dataWriter"+getSelf().path().name());
 	}
 	
 	@Override

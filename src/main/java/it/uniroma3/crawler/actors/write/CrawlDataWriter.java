@@ -7,17 +7,18 @@ import java.nio.charset.Charset;
 import com.csvreader.CsvWriter;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
-import akka.actor.ActorRef;
-import akka.actor.Props;
 import akka.actor.UntypedActor;
-import it.uniroma3.crawler.actors.schedule.CrawlLinkScheduler;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
+import it.uniroma3.crawler.CrawlController;
 import it.uniroma3.crawler.model.CrawlURL;
 
 public class CrawlDataWriter extends UntypedActor {
+	LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 	private CsvWriter csvWriter;
 	private File directory;
 	private int counter;
-	private ActorRef linkScheduler;
+	private CrawlController controller;
 	
 	public CrawlDataWriter() {
 		this.csvWriter = new CsvWriter
@@ -25,7 +26,7 @@ public class CrawlDataWriter extends UntypedActor {
 		this.counter = 0;
 		this.directory = new File("html/");
 		directory.mkdir();
-		this.linkScheduler = getContext().actorOf(Props.create(CrawlLinkScheduler.class));
+		this.controller = CrawlController.getInstance();
 	}
 
 	@Override
@@ -36,7 +37,7 @@ public class CrawlDataWriter extends UntypedActor {
 			String pageClassName = cUrl.getPageClass().getName();
 			String[] record = cUrl.getRecord();
 			// send cUrl to scheduler
-			linkScheduler.tell(cUrl, getSelf());
+			controller.getScheduler().tell(cUrl, getSelf());
 			// save data of interest
 			savePage(page, pageClassName);
 			saveRecord(record);
@@ -44,16 +45,26 @@ public class CrawlDataWriter extends UntypedActor {
 		else unhandled(message);
 	}
 	
-	private void savePage(HtmlPage page, String pageClassName) throws IOException {
-		page.save(new File(getPageFileName(pageClassName)));
+	private void savePage(HtmlPage page, String pageClassName) {
+		try {
+			page.save(new File(directory.toString() + "/"+ getPageFileName(pageClassName)));
+		} catch (IOException e) {
+			log.error("Can't save Html page");
+		}
 	}
 	
-	private void saveRecord(String[] record) throws IOException {
-		if (record!=null) csvWriter.writeRecord(record);
+	private void saveRecord(String[] record) {
+		if (record!=null) {
+			try {
+				csvWriter.writeRecord(record);
+			} catch (IOException e) {
+				log.error("Can't save record to csv");
+			}
+		}
 	}
 	
 	private String getPageFileName(String pageClassName) {
-		return directory + pageClassName + ++counter+".html";
+		return pageClassName + ++counter+".html";
 	}
 
 }

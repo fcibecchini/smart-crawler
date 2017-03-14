@@ -7,8 +7,8 @@ import akka.actor.ActorSystem;
 import akka.actor.Inbox;
 import akka.actor.Props;
 import it.uniroma3.crawler.target.CrawlTarget;
-import it.uniroma3.crawler.actors.fetch.CrawlFetcher;
 import it.uniroma3.crawler.actors.frontier.*;
+import it.uniroma3.crawler.actors.schedule.CrawlLinkScheduler;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
@@ -17,6 +17,7 @@ public class CrawlController {
     private static CrawlController instance = null;
     private CrawlTarget target;
     private ActorRef frontier;
+    private ActorRef scheduler;
     private long waitTime;
     private int rndTime;
 
@@ -44,6 +45,10 @@ public class CrawlController {
     	return this.frontier;
     }
     
+    public ActorRef getScheduler() {
+    	return this.scheduler;
+    }
+    
     public String getUrlBase() {
     	return this.target.getUrlBase().toString();
     }
@@ -61,12 +66,12 @@ public class CrawlController {
     	CrawlURL entryPoint = CrawlURLFactory.getCrawlUrl(base.toString(), entry);
     	
     	final ActorSystem system = ActorSystem.create("CrawlSystem");
-    	frontier = system.actorOf(Props.create(BreadthFirstUrlFrontier.class));
-    	final ActorRef fetcher = system.actorOf(Props.create(CrawlFetcher.class));
+    	frontier = system.actorOf(Props.create(BreadthFirstUrlFrontier.class), "frontier");
+    	scheduler = system.actorOf(Props.create(CrawlLinkScheduler.class), "linkScheduler");
     	
     	final Inbox inbox = Inbox.create(system);
     	inbox.send(frontier, entryPoint);
-    	inbox.send(fetcher, "start crawling");
+    	inbox.send(frontier, "start crawling");
     	
     }
     
