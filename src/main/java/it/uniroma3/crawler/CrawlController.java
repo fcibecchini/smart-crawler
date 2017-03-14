@@ -52,6 +52,7 @@ public class CrawlController {
     	this.waitTime = waitTime;
     	this.rndTime = roundTime;
     	this.target = new CrawlTarget(config, waitTime, roundTime);
+    	this.target.initCrawlingTarget();
     }
     
     public void startCrawling() {
