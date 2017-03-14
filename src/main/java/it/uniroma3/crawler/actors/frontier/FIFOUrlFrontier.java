@@ -54,7 +54,7 @@ public class FIFOUrlFrontier extends UntypedActor implements UrlFrontier {
 		else if (message instanceof CrawlURL) {
 			// store the received url
 			CrawlURL cUrl = (CrawlURL) message;
-			urlsQueue.add(cUrl);
+			scheduleUrl(cUrl);
 		}
 		
 		else unhandled(message);
