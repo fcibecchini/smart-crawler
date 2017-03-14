@@ -40,9 +40,9 @@ public class CrawlLinkScheduler extends UntypedActor {
 	}
 	
 	private void setWaitTime(List<CrawlURL> newCUrls) {
-		newCUrls.stream().forEach(
-				cUrl -> cUrl.getPageClass().setWaitTime(
-						controller.getWaitTime() + random.nextInt(controller.getRoundTime())));
+		long waitTime = controller.getWaitTime();
+		int randTime = controller.getRoundTime();
+		newCUrls.stream().forEach(cUrl -> cUrl.getPageClass().setWaitTime(waitTime + random.nextInt(randTime)));
 	}
 	
 	private void schedule(List<CrawlURL> newCUrls) {
