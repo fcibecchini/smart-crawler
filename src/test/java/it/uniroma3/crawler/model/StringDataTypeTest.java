@@ -29,5 +29,13 @@ public class StringDataTypeTest {
 		String string = stringType.extract(page);
 		assertEquals(string, "ViewGlobally");
 	}
+	
+	@Test
+	public void testExtract_notFound() {
+		DataType stringType = new StringDataType(); 
+		stringType.setXPath("//h1/a");
+		String string = stringType.extract(page);
+		assertEquals(string, "");
+	}
 
 }

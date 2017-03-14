@@ -11,7 +11,7 @@ public class UrlDataType extends DataType {
 	public String extract(Object object) {
 		HtmlPage page = (HtmlPage) object;
 		final List<?> nodes = page.getByXPath(getXPath());
-		if (nodes.isEmpty()) return null;
+		if (nodes.isEmpty()) return "";
 		HtmlAnchor targetSite = (HtmlAnchor) nodes.get(0);
 		return targetSite.getHrefAttribute();
 	}

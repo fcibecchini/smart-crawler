@@ -11,10 +11,12 @@ public class ImgDataType extends DataType {
 	@Override
 	public String extract(Object object) {
 		HtmlPage page = (HtmlPage) object;
-		String logo = StringUtils.substringBefore(
-				StringUtils.substringAfterLast(
-						XPathUtils.extractByXPath(page, getXPath()),"/"),">");
-		return logo.replaceAll("\"", "");
+		String extracted = XPathUtils.extractByXPath(page, getXPath());
+		if (extracted != null)
+			return StringUtils.substringBefore(
+					StringUtils.substringAfterLast(extracted,"/"),">")
+					.replaceAll("\"", "");
+		return "";
 	}
 
 }

@@ -9,8 +9,9 @@ public class StringDataType extends DataType {
 	@Override
 	public String extract(Object object) {
 		HtmlPage page = (HtmlPage) object;
-		String string = XPathUtils.extractByXPath(page, getXPath());
-		return string.replaceAll("\"", "");
+		String extracted = XPathUtils.extractByXPath(page, getXPath());
+		if (extracted != null) return extracted.replaceAll("\"", "");
+		return "";
 	}
 
 }
