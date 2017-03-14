@@ -14,7 +14,7 @@ public class Crawler {
 	
 	public void crawl() {
 		CrawlController controller = CrawlController.getInstance();
-		controller.setTarget(scopeFile, 2000, 1000);
+		controller.setTarget(scopeFile, 1500, 1000, 5);
 		controller.startCrawling();
 	}
 }

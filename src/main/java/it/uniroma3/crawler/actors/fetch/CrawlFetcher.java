@@ -45,10 +45,18 @@ public class CrawlFetcher extends UntypedActor {
 			}
 			
 			// send cUrl to extractor for further processing
-			extractor.tell(cUrl, getSelf());
+			extractor.forward(cUrl, getContext());
 			
 			// request next cUrl to Frontier
+			getSender().tell("next", getSelf());
+		}
+		else if (message.equals("Start")) {
+			// first request
 			controller.getFrontier().tell("next", getSelf());
+		}
+		else if (message.equals("Stop")) {
+			extractors.stream().forEach(child -> child.tell("Stop", getSelf()));
+			context().system().stop(getSelf());
 		}
 		else unhandled(message);
 
@@ -58,5 +66,10 @@ public class CrawlFetcher extends UntypedActor {
 		return extractors.stream()
 				.filter(e -> e.path().name().equals(name))
 				.findAny().orElse(null);
+	}
+	
+	@Override
+	public void postStop() {
+		this.webClient.close();
 	}
 }

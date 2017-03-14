@@ -22,7 +22,7 @@ public class CrawlExtractor extends UntypedActor {
 	public CrawlExtractor() {
 		this.urlBase = CrawlController.getInstance().getUrlBase();
 		this.crawlWriter = getContext().actorOf(Props.create(CrawlDataWriter.class), 
-				"dataWriter"+getSelf().path().name());
+				getSelf().path().name()+"Writer");
 	}
 	
 	@Override
@@ -32,7 +32,11 @@ public class CrawlExtractor extends UntypedActor {
 			setOutLinks(cUrl);
 			setDataRecord(cUrl);
 			// send cUrl with inserted data to writer
-			crawlWriter.tell(cUrl, getSelf());
+			crawlWriter.forward(cUrl, getContext());
+		}
+		else if (message.equals("Stop")) {
+			crawlWriter.tell("Stop", getSelf());
+			context().stop(getSelf());
 		}
 		else unhandled(message);
 	}

@@ -37,10 +37,13 @@ public class CrawlDataWriter extends UntypedActor {
 			String pageClassName = cUrl.getPageClass().getName();
 			String[] record = cUrl.getRecord();
 			// send cUrl to scheduler
-			controller.getScheduler().tell(cUrl, getSelf());
+			controller.getScheduler().forward(cUrl, getContext());
 			// save data of interest
 			savePage(page, pageClassName);
 			saveRecord(record);
+		}
+		else if (message.equals("Stop")) {
+			context().stop(getSelf());
 		}
 		else unhandled(message);
 	}
@@ -65,6 +68,11 @@ public class CrawlDataWriter extends UntypedActor {
 	
 	private String getPageFileName(String pageClassName) {
 		return pageClassName + ++counter+".html";
+	}
+	
+	@Override
+	public void postStop() {
+		this.csvWriter.close();
 	}
 
 }
