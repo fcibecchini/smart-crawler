@@ -52,11 +52,13 @@ public class XPathUtils {
 	
 	public static List<?> getByMatchingXPath(HtmlPage page, String xpath) {
 		final List<?> nodes = page.getByXPath(xpath);
-		assertNotNull(nodes);
+		if (nodes==null) return nodes;
+		/*
+		assertNotNull(nodes);		
 		assertFalse(nodes.isEmpty());
-		for(Object node : nodes) {
+		/*for(Object node : nodes) {
 			assertNotNull(node);
-		}
+		}*/
 		return nodes;
 	}
 	
