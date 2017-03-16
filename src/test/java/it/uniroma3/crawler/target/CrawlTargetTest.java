@@ -12,16 +12,12 @@ import it.uniroma3.crawler.target.CrawlTarget;
 
 public class CrawlTargetTest {
 	private String configFile;
-	private long pause;
-	private int rndTime;
 	private CrawlTarget target;
 
 	@Before
 	public void setUp() throws Exception {
 		this.configFile = "scope.csv";
-		this.pause = 2000;
-		this.rndTime = 1000;
-		this.target = new CrawlTarget(configFile, pause, rndTime);
+		this.target = new CrawlTarget(configFile);
 	}
 
 	@Test
