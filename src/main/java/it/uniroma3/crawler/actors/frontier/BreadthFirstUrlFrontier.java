@@ -63,7 +63,7 @@ public class BreadthFirstUrlFrontier extends UntypedActor implements UrlFrontier
 	public void onReceive(Object message) throws Throwable {
 		if (terminalCondition() && !isEnding) {
 				context().system().scheduler().scheduleOnce(
-					Duration.create(5000, TimeUnit.MILLISECONDS), 
+					Duration.create(60, TimeUnit.SECONDS), 
 					getSelf(), "Stop", context().system().dispatcher(), null);
 				isEnding = true;
 				// job is done..

@@ -1,7 +1,12 @@
 http://www.ansa.it/
-homepage	link	//li[@id='Economia_pg']/a	economia
-economia	link	//div[@class='pp-inner']//div[@class='link']/a	newsList
-newsList	link	//li[@class='pg-next']/a	newsList
-newsList	link	//section//h3[@class='news-title']/a	article
+homepage	link	//li[@id='Cronaca_pg']/a	section
+homepage	link	//li[@id='Politica_pg']/a	section
+homepage	link	//li[@id='Economia_pg']/a	section
+homepage	link	//ul[@class='sub-menu']/li/a[text()='Hi-Tech']	newslist
+homepage	link	//li/a[text()='Ultima ora']	newslist
+homepage	link	//ul[@class='sub-menu']/li/a[text()='News']	newslist
+section	link	//div[@class='pp-inner']//div[@class='link']/a	newslist
+newslist	link	//li[@class='pg-next']/a	newslist
+newslist	link	//section//h3[@class='news-title']/a	article
 article	string	//h1[@itemprop='headline']/text()	
-article	string	//div[@itemprop='articleBody']/p/text()		
+article	string	//div[@itemprop='articleBody']/p/text()	

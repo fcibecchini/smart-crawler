@@ -6,6 +6,7 @@ import java.net.URI;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Set;
 
 import com.csvreader.CsvReader;
 
@@ -48,7 +49,7 @@ public class CrawlTarget {
 				String xpath = reader.get(2);
 				PageClass pageDest = getPageClass(pClasses, reader.get(3));
 				if (type.equals("link") && pageDest!=null) {
-					pageSrc.addLink(xpath, pageDest);
+					pageSrc.addPageClassLink(xpath, pageDest);
 				}
 				else {
 					pageSrc.addData(xpath, type);
@@ -84,20 +85,22 @@ public class CrawlTarget {
 	
 	private void setHierarchy() {
 		Queue<PageClass> classes = new LinkedList<>();
+		Set<PageClass> visited = new HashSet<>();
 		classes.add(entryClass);
 		PageClass current, next = null;
-		int depth = 0;
-		while (!classes.isEmpty()) {
-			current = classes.poll();
-			current.setDepth(depth);
+		entryClass.setDepth(0);
+		while ((current = classes.poll()) != null) {
 			if (!current.isEndPage()) {
 				for (String xpath : current.getNavigationXPaths()) {
 					next = current.getDestinationByXPath(xpath);
 					// avoid page class loops
-					if (!current.equals(next)) classes.add(next);
+					if (!visited.contains(next)) {
+						visited.add(next);
+						classes.add(next);
+						next.setDepth(current.getDepth()+1);
+					}
 				}
 			}
-			depth++;
 		}
 	}
 

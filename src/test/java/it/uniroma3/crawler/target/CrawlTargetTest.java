@@ -16,7 +16,7 @@ public class CrawlTargetTest {
 
 	@Before
 	public void setUp() throws Exception {
-		this.configFile = "scope.csv";
+		this.configFile = "target.csv";
 		this.target = new CrawlTarget(configFile);
 	}
 
@@ -89,5 +89,21 @@ public class CrawlTargetTest {
 		assertEquals(detPage.getDepth(), 2);
 		assertEquals(profPage.getDepth(), 3);
 	}
+	
+	@Test
+	public void testInitCrawlingTarget_testDepthHierarchy2() {
+		CrawlTarget target = new CrawlTarget("ansa.csv");
+		target.initCrawlingTarget();
+		PageClass entry = target.getEntryPageClass();
+		PageClass section = entry.getDestinationByXPath("//li[@id='Cronaca_pg']/a");
+		PageClass newslist = section.getDestinationByXPath("//div[@class='pp-inner']//div[@class='link']/a");
+		PageClass article = newslist.getDestinationByXPath("//section//h3[@class='news-title']/a");
+		
+		assertEquals(entry.getDepth(), 0);
+		assertEquals(section.getDepth(), 1);
+		assertEquals(newslist.getDepth(), 1);
+		assertEquals(article.getDepth(), 2);
+	}
+
 
 }

@@ -1,6 +1,7 @@
 package it.uniroma3.crawler.model;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -8,8 +9,8 @@ public class PageClass {
 	private String name;
 	private int depth;
 	private long waitTime;
-	private List<PageClassLink> links;
-	private List<DataType> dataTypes;
+	private Collection<PageClassLink> links;
+	private Collection<DataType> dataTypes;
 	
 	public PageClass(String name, long waitTime) {
 		this(name);
@@ -67,7 +68,7 @@ public class PageClass {
 		return this.dataTypes.stream().map(dt -> dt.getXPath()).collect(Collectors.toList());
 	}
 	
-	public boolean addLink(String xpath, PageClass dest) {
+	public boolean addPageClassLink(String xpath, PageClass dest) {
 		PageClassLink link = new PageClassLink(xpath, dest);
 		return this.links.add(link);
 	}
@@ -85,7 +86,7 @@ public class PageClass {
 			System.err.println("Data Type illegal access");
 			return false;
 		} catch (ClassNotFoundException e) {
-			System.err.println("Data Type not found");
+			System.err.println("Data Type not found "+type+" "+xpath);
 			return false;
 		}
 	}

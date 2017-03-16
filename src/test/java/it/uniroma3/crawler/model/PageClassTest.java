@@ -24,7 +24,7 @@ public class PageClassTest {
 	public void testAddLink_creation() {
 		PageClass dest = new PageClass("destination", 1000);
 		String xpath = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
-		assertTrue(page.addLink(xpath, dest));
+		assertTrue(page.addPageClassLink(xpath, dest));
 	}
 	
 	@Test
@@ -52,7 +52,7 @@ public class PageClassTest {
 	public void testGetDestinationByXPath_found() {
 		PageClass dest = new PageClass("destination", 1000);
 		String xpath = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
-		page.addLink(xpath, dest);
+		page.addPageClassLink(xpath, dest);
 		assertEquals(page.getDestinationByXPath(xpath), dest);
 	}
 	
@@ -61,9 +61,9 @@ public class PageClassTest {
 		PageClass dest = new PageClass("destination", 1000);
 		PageClass dest2 = new PageClass("destination2", 1000);
 		PageClass dest3 = new PageClass("destination3", 1000);
-		page.addLink("//ul", dest);
-		page.addLink("//li", dest2);
-		page.addLink("//a", dest3);
+		page.addPageClassLink("//ul", dest);
+		page.addPageClassLink("//li", dest2);
+		page.addPageClassLink("//a", dest3);
 		assertEquals(page.getDestinationByXPath("//li"), dest2);
 	}
 	
@@ -71,7 +71,7 @@ public class PageClassTest {
 	public void testGetDestinationByXPath_notFound() {
 		PageClass dest = new PageClass("destination", 1000);
 		String xpath = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
-		page.addLink(xpath, dest);
+		page.addPageClassLink(xpath, dest);
 		assertNull(page.getDestinationByXPath("//li[@class='dropdown']"));
 	}
 
@@ -112,9 +112,9 @@ public class PageClassTest {
 		xpaths.add(xpath1);
 		xpaths.add(xpath2);
 		xpaths.add(xpath3);
-		page.addLink(xpath1, dest);
-		page.addLink(xpath2, dest2);
-		page.addLink(xpath3, dest3);
+		page.addPageClassLink(xpath1, dest);
+		page.addPageClassLink(xpath2, dest2);
+		page.addPageClassLink(xpath3, dest3);
 		
 		List<String> pageXPaths = page.getNavigationXPaths();
 		for (int i=0; i<pageXPaths.size(); i++) {
