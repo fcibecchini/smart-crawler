@@ -62,7 +62,9 @@ public class CrawlFetcher extends UntypedActor {
 					getSender().tell(NEXT, getSelf());
 				}
 				else {
-					waitAndRequestNext(cUrl,TIME_TO_WAIT); // 2 hours
+					// send crawl url back to the frontier
+					getSender().tell(cUrl, getSelf());
+					waitAndRequestNext(TIME_TO_WAIT); // 2 hours
 				}
 
 			} catch (Exception e) {
@@ -73,7 +75,8 @@ public class CrawlFetcher extends UntypedActor {
 					getSelf().forward(cUrl, context());
 				}
 				else { // try later..
-					waitAndRequestNext(cUrl,TIME_TO_WAIT); // 2 hours
+					failures = 0;
+					waitAndRequestNext(TIME_TO_WAIT); // 2 hours
 				}
 			}
 		}
@@ -91,9 +94,7 @@ public class CrawlFetcher extends UntypedActor {
 				.findAny().orElse(null);
 	}
 	
-	private void waitAndRequestNext(CrawlURL curl, int time) {
-		// send crawl url back to the frontier
-		getSender().tell(curl, getSelf());
+	private void waitAndRequestNext(int time) {
 		// wait time befor requesting
 		log.warning("HTTP REQUEST: WAIT FOR "+
 				TimeUnit.MILLISECONDS.toMinutes(time)+" minutes");
