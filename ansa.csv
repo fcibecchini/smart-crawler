@@ -1,0 +1,7 @@
+http://www.ansa.it/
+homepage	link	//li[@id='Economia_pg']/a	economia
+economia	link	//div[@class='pp-inner']//div[@class='link']/a	newsList
+newsList	link	//li[@class='pg-next']/a	newsList
+newsList	link	//section//h3[@class='news-title']/a	article
+article	string	//h1[@itemprop='headline']/text()	
+article	string	//div[@itemprop='articleBody']/p/text()		

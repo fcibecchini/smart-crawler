@@ -6,7 +6,6 @@ import java.net.URI;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.Random;
 
 import com.csvreader.CsvReader;
 
@@ -18,13 +17,9 @@ public class CrawlTarget {
 	private String configFile;
 	private PageClass entryClass;
 	private HashSet<PageClass> pClasses;
-	private long pause;
-	private int roundTime;
 	
-	public CrawlTarget(String configFile, long pause, int maxRndTime) {
+	public CrawlTarget(String configFile) {
 		this.configFile = configFile;
-		this.pause = pause;
-		this.roundTime = maxRndTime;
 	}
 	
 	public URI getUrlBase() {
@@ -75,10 +70,8 @@ public class CrawlTarget {
 		HashSet<PageClass> pageClasses = new HashSet<>();
 		CsvReader reader = new CsvReader(configFile, DELIMITER);
 		reader.readRecord(); // skip url base
-		Random rnd = new Random();
 		while (reader.readRecord()) {
-			long waitTime = pause + rnd.nextInt(roundTime);
-			PageClass pClass = new PageClass(reader.get(0), waitTime);
+			PageClass pClass = new PageClass(reader.get(0));
 			if (entryClass==null) entryClass = pClass;
 			pageClasses.add(pClass);
 		}

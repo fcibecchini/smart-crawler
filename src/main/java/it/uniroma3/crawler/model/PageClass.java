@@ -12,8 +12,12 @@ public class PageClass {
 	private List<DataType> dataTypes;
 	
 	public PageClass(String name, long waitTime) {
-		this.name = name;
+		this(name);
 		this.waitTime = waitTime;
+	}
+	
+	public PageClass(String name) {
+		this.name = name;
 		this.links = new ArrayList<>();
 		this.dataTypes = new ArrayList<>();
 	}

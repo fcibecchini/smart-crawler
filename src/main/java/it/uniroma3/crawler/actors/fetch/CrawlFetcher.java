@@ -18,29 +18,30 @@ import scala.concurrent.duration.Duration;
 
 public class CrawlFetcher extends UntypedActor {
 	private final static String NEXT = "next", START = "Start";
-	private final static int MAX_FAILURES = 3;
-	private final static int TIME_TO_WAIT = 1000*3600*2;
+	private final int MAX_FAILURES, TIME_TO_WAIT;
 	private int failures;
 	private WebClient webClient;
 	private Logger log;
 	private List<ActorRef> extractors;
 	
-	  public static Props props(final List<ActorRef> extractors) {
+	  public static Props props(final List<ActorRef> extractors, final int maxFailures, final int time) {
 		    return Props.create(new Creator<CrawlFetcher>() {
 		      private static final long serialVersionUID = 1L;
 		 
 		      @Override
 		      public CrawlFetcher create() throws Exception {
-		        return new CrawlFetcher(extractors);
+		        return new CrawlFetcher(extractors, maxFailures, time);
 		      }
 		    });
 		  }
 	
-	public CrawlFetcher(List<ActorRef> extractors) {
+	public CrawlFetcher(List<ActorRef> extractors, int maxFailures, int time) {
 		this.webClient = HtmlUtils.makeWebClient();
 		this.log = Logger.getLogger(CrawlFetcher.class.getName());
 		this.extractors = extractors;
 		this.failures = 0;
+		MAX_FAILURES = maxFailures;
+		TIME_TO_WAIT = time;
 	}
 
 	@Override
@@ -64,7 +65,7 @@ public class CrawlFetcher extends UntypedActor {
 				else {
 					// send crawl url back to the frontier
 					getSender().tell(cUrl, getSelf());
-					waitAndRequestNext(TIME_TO_WAIT); // 2 hours
+					waitAndRequestNext(TIME_TO_WAIT);
 				}
 
 			} catch (Exception e) {
@@ -76,7 +77,7 @@ public class CrawlFetcher extends UntypedActor {
 				}
 				else { // try later..
 					failures = 0;
-					waitAndRequestNext(TIME_TO_WAIT); // 2 hours
+					waitAndRequestNext(TIME_TO_WAIT);
 				}
 			}
 		}
@@ -96,10 +97,9 @@ public class CrawlFetcher extends UntypedActor {
 	
 	private void waitAndRequestNext(int time) {
 		// wait time befor requesting
-		log.warning("HTTP REQUEST: WAIT FOR "+
-				TimeUnit.MILLISECONDS.toMinutes(time)+" minutes");
+		log.warning("HTTP REQUEST: WAIT FOR "+time+" minutes");
 		context().system().scheduler().scheduleOnce(Duration
-				.create(time, TimeUnit.MILLISECONDS),
+				.create(time, TimeUnit.MINUTES),
 				getSender(), NEXT, context().system().dispatcher(), getSelf());
 
 	}

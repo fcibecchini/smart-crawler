@@ -1,9 +1,10 @@
 package it.uniroma3.crawler;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -25,9 +26,8 @@ public class CrawlController {
 	private static CrawlController instance = null;
     private CrawlTarget target;
     private ActorRef frontier, scheduler;
-    private String config;
     private long waitTime;
-    private int rndTime, maxPages, numberOfFetchers;
+    private int rndTime;
 
     private CrawlController() {}
 
@@ -48,10 +48,6 @@ public class CrawlController {
     public int getRoundTime() {
     	return this.rndTime;
     }
-    
-	public void setConfig(String config) {
-		this.config = config;
-	}
 
 	public void setRoundTime(int rndTime) {
 		this.rndTime = rndTime;
@@ -59,14 +55,6 @@ public class CrawlController {
 
 	public void setWaitTime(long waitTime) {
 		this.waitTime = waitTime;
-	}
-
-	public void setMaxPages(int maxPages) {
-		this.maxPages = maxPages;
-	}
-	
-	public void setNumberOfFetchers(int n) {
-		this.numberOfFetchers = n;
 	}
     
     public ActorRef getFrontier() {
@@ -81,48 +69,43 @@ public class CrawlController {
     	return this.target.getUrlBase().toString();
     }
     
-    private void loadProperties() {
-    	Properties prop = new Properties();
-    	InputStream input = null;
-    	try {
-    		input = new FileInputStream("config.properties");
-    		prop.load(input);
-        	setConfig(prop.getProperty("config"));
-        	setNumberOfFetchers(new Integer(prop.getProperty("fetchers")));
-        	setWaitTime(new Long(prop.getProperty("wait")));
-        	setRoundTime(new Integer(prop.getProperty("randompause")));
-        	setMaxPages(new Integer(prop.getProperty("pages")));
-    	} catch (IOException ex) {
-    		ex.printStackTrace();
-    	} finally {
-    		if (input != null) {
-    			try {
-    				input.close();
-    			} catch (IOException e) {
-    				e.printStackTrace();
-    			}
-    		}
-    	}
+    private Properties getProperties(String fileName) {
+    	try (InputStream stream = Files.newInputStream(Paths.get(fileName))) {
+        	Properties config = new Properties();
+            config.load(stream);
+            return config;
+        } catch (IOException ie) {
+        	return null;
+        }
     }
     
-    private void setTarget(String config, long waitTime, int rndTime, int maxPages) {
-    	this.target = new CrawlTarget(config, waitTime, rndTime);
+    private void setTarget(String config) {
+    	this.target = new CrawlTarget(config);
     	this.target.initCrawlingTarget();
     }
     
+    
     public void startCrawling(ActorSystem system) {
-    	loadProperties();
-    	setTarget(config, waitTime, rndTime, maxPages);
-    	PageClass entry = target.getEntryPageClass();
+    	Properties prop = getProperties("config.properties");
+    	setTarget(prop.getProperty("targetfile"));
+    	this.waitTime = new Long(prop.getProperty("wait"));
+    	this.rndTime = new Integer(prop.getProperty("randompause"));
+    	
+    	PageClass entryClass = target.getEntryPageClass();
+    	entryClass.setWaitTime(waitTime);
     	URI base = target.getUrlBase();
-    	CrawlURL entryPoint = CrawlURLFactory.getCrawlUrl(base.toString(), entry);
-    	startSystem(system, entryPoint);
+    	CrawlURL entryPoint = CrawlURLFactory.getCrawlUrl(base.toString(), entryClass);
+    	startSystem(system, entryPoint, 
+    			new Integer(prop.getProperty("fetchers")), 
+    			new Integer(prop.getProperty("pages")), 
+    			new Integer(prop.getProperty("maxfailures")), 
+    			new Integer(prop.getProperty("failuretime")));
     }
     
-    private void startSystem(ActorSystem system, CrawlURL entryPoint) {
+    private void startSystem(ActorSystem system, CrawlURL entryPoint, int n, int pages, int maxFails, int time) {
     	/* Init. System Actors*/
     	
-    	frontier = system.actorOf(BreadthFirstUrlFrontier.props(maxPages), "frontier");
+    	frontier = system.actorOf(BreadthFirstUrlFrontier.props(pages), "frontier");
     	scheduler = system.actorOf(Props.create(CrawlLinkScheduler.class), "linkScheduler");
     	
     	List<ActorRef> extractors = new ArrayList<>();
@@ -131,8 +114,8 @@ public class CrawlController {
     	}
     	
     	List<ActorRef> fetchers = new ArrayList<>();
-    	for (int i=0; i<numberOfFetchers; i++) {
-    		fetchers.add(system.actorOf(CrawlFetcher.props(extractors), "fetcher"+(i+1)));
+    	for (int i=0; i<n; i++) {
+    		fetchers.add(system.actorOf(CrawlFetcher.props(extractors,maxFails,time), "fetcher"+(i+1)));
     	}
 
     	final Inbox inbox = Inbox.create(system);
