@@ -4,3 +4,4 @@ result*.csv
 .classpath
 /.settings/
 /html/
+/backup/

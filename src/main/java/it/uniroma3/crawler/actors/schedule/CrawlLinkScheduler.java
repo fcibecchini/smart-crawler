@@ -24,7 +24,7 @@ public class CrawlLinkScheduler extends UntypedActor {
 			CrawlURL oldCUrl = (CrawlURL) message;
 			List<CrawlURL> newCUrls = extractCrawlURLs(oldCUrl);
 			// dummy wait time update...
-			setWaitTime(newCUrls);
+			updateWaitTime(newCUrls);
 			// send to Frontier
 			schedule(newCUrls);
 		}
@@ -38,10 +38,12 @@ public class CrawlLinkScheduler extends UntypedActor {
 			.collect(Collectors.toList());
 	}
 	
-	private void setWaitTime(List<CrawlURL> newCUrls) {
+	private void updateWaitTime(List<CrawlURL> newCUrls) {
 		long waitTime = controller.getWaitTime();
 		int randTime = controller.getRoundTime();
-		newCUrls.stream().forEach(cUrl -> cUrl.getPageClass().setWaitTime(waitTime + random.nextInt(randTime)));
+		newCUrls.stream()
+				.map(curl -> curl.getPageClass())
+				.forEach(pclass -> pclass.setWaitTime(waitTime + random.nextInt(randTime)));
 	}
 	
 	private void schedule(List<CrawlURL> newCUrls) {
