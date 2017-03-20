@@ -55,26 +55,5 @@ public class PageClassModel {
 		
 		return modelCost+dataCost;
 	}
-	
-	public double distance(CandidatePageClass c1, CandidatePageClass c2) {
-		Set<String> union = new HashSet<>();
-		Set<String> diff1 = new HashSet<>();
-		Set<String> diff2 = new HashSet<>();
-		Set<String> unionDiff = new HashSet<>();
-
-		union.addAll(c1.getClassSchema());
-		union.addAll(c2.getClassSchema());
-		
-		diff1.addAll(c1.getClassSchema());
-		diff1.removeAll(c2.getClassSchema());
-		
-		diff2.addAll(c2.getClassSchema());
-		diff2.removeAll(c1.getClassSchema());
-		
-		unionDiff.addAll(diff1);
-		unionDiff.addAll(diff2);
-		
-		return unionDiff.size() / union.size();
-	}
 
 }

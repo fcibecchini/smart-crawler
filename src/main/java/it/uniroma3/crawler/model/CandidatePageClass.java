@@ -64,6 +64,37 @@ public class CandidatePageClass {
 				.filter(xp -> !p.getSchema().contains(xp))
 				.collect(toSet());
 	}
+	
+	public Set<String> getUrlsDiscoveredFromXPath(String xpath) {
+		Set<String> temp = new HashSet<>();
+		for (Page p : classPages) {
+			Set<String> urls = p.getUrlsByXPath(xpath);
+			if (urls!=null) temp.addAll(urls);
+		}
+		return temp;
+	}
+	
+	public double distance(CandidatePageClass other) {
+		Set<String> union = new HashSet<>();
+		Set<String> diff1 = new HashSet<>();
+		Set<String> diff2 = new HashSet<>();
+		Set<String> unionDiff = new HashSet<>();
+
+		union.addAll(this.getClassSchema());
+		union.addAll(other.getClassSchema());
+		
+		diff1.addAll(this.getClassSchema());
+		diff1.removeAll(other.getClassSchema());
+				
+		diff2.addAll(other.getClassSchema());
+		diff2.removeAll(this.getClassSchema());
+		
+		unionDiff.addAll(diff1);
+		unionDiff.addAll(diff2);
+		
+		return (double) unionDiff.size() / (double) union.size();
+
+	}
  
 	@Override
 	public int hashCode() {

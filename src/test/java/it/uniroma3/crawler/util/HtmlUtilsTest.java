@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -24,6 +25,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import it.uniroma3.crawler.util.HtmlUtils;
 import it.uniroma3.crawler.util.XPathUtils;
 import it.uniroma3.crawler.model.CandidatePageClass;
+import it.uniroma3.crawler.model.LinkCollection;
 import it.uniroma3.crawler.model.Page;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.model.PageClassModel;
@@ -83,33 +85,34 @@ public class HtmlUtilsTest {
 		int test = 0;
 		int c = 1;
 		String base = "http://www.ansa.it";
-		String url = "/sito/notizie/topnews/index.shtml";
+		String url = "/";
 		
 		int n = 5;
 		double dt = 0.2;
 		
-		Set<String> lcSeed = new HashSet<>();
-		Queue<Set<String>> queueQ = new PriorityQueue<>((lc1, lc2) -> lc2.size() - lc1.size());
+		Queue<LinkCollection> queueQ = new PriorityQueue<>(
+				(lc1, lc2) -> lc2.relativeSize() - lc1.relativeSize());
 		Set<String> visitedUrls = new HashSet<>();
 		
 		PageClassModel model = new PageClassModel();
 		
 		// Feed queue with seed
-		lcSeed.add(url);
+		Set<String> lcSet = new HashSet<>();
+		lcSet.add(url);
+		LinkCollection lcSeed = new LinkCollection(null, lcSet);
+		
 		queueQ.add(lcSeed);
 		
 		while (!queueQ.isEmpty()) {
-			Set<String> lc = queueQ.poll().stream()
-					.filter(urll -> !visitedUrls.contains(urll))
-					.collect(toSet());
+			Set<String> lc = queueQ.poll().getLinks();
 			
 			Set<HtmlPage> fetchedW = new HashSet<>();
 			int counter = 0;
 			for (String lcUrl : lc) {
 				try {
-					HtmlPage body = HtmlUtils.getPage(base+lcUrl, client);
+					String urlToFetch = (lcUrl.contains(base)) ? lcUrl : base+lcUrl;
+					HtmlPage body = HtmlUtils.getPage(urlToFetch, client);
 					fetchedW.add(body);
-					visitedUrls.add(lcUrl);
 					Thread.sleep(1000); // wait..!!
 					counter++;
 					if (counter==n) break;
@@ -144,7 +147,7 @@ public class HtmlUtilsTest {
 				for (int j = orderedCandidates.size() - 1; j > i; j--) {
 					CandidatePageClass ci = orderedCandidates.get(i);
 					CandidatePageClass cj = orderedCandidates.get(j);
-					if (model.distance(ci, cj) < dt) {
+					if (ci.distance(cj) < dt) {
 						ci.collapse(cj);
 						toRemove.add(cj);
 					}
@@ -153,9 +156,18 @@ public class HtmlUtilsTest {
 			
 			orderedCandidates.removeAll(toRemove);
 			
-			// Update Model
+			List<CandidatePageClass> finalCandidates = null;
+			if (orderedCandidates.size()>1) {
+				finalCandidates = 
+						orderedCandidates.stream()
+						.filter(cc -> cc.getClassPages().size() > 2)
+						.collect(toList());
+			}
+			else 
+				finalCandidates = orderedCandidates;
 			
-			for (CandidatePageClass candidate : orderedCandidates) {
+			// Update Model
+			for (CandidatePageClass candidate : finalCandidates) {
 				PageClassModel modelNew = new PageClassModel();
 				PageClassModel modelMerge = null;
 				modelNew.addFinalClasses(model.getModel());
@@ -190,19 +202,31 @@ public class HtmlUtilsTest {
 			}
 			
 			System.out.println(++test);
-			if (test==3) {
-				System.out.println("Break");
-				break;
-			}
+//			if (test==10) {
+//				System.out.println("Break");
+//				break;
+//			}
 			
 			// Update Queue
+			Set<LinkCollection> newLinkCollections = new HashSet<>();
 			
-			queueQ.addAll(model.getModel().stream()
-					.map(cl -> cl.getClassPages())
-					.flatMap(Set::stream)
-					.map(p -> p.getDiscoveredUrls())
-					.collect(toSet())
-					);
+			for (CandidatePageClass cl : orderedCandidates) {
+				for (Page p : cl.getClassPages()) {
+					for (String xp : p.getSchema()) {
+						Set<String> urlCollection = 
+								p.getUrlsByXPath(xp)
+								.stream().filter(urll -> !visitedUrls.contains(urll))
+								.collect(toSet());
+						if (!urlCollection.isEmpty()) {
+							visitedUrls.addAll(urlCollection);
+							LinkCollection lCollection = new LinkCollection(p, urlCollection);
+							newLinkCollections.add(lCollection); 
+						}
+					}
+				}
+			}
+			
+			queueQ.addAll(newLinkCollections);
 		}
 		
 		try {
@@ -211,11 +235,9 @@ public class HtmlUtilsTest {
 				in.write(pClass.getName()+": "+pClass.getClassPages().toString()+"\n");
 				in.write("SCHEMAS AND LINKS\n");
 				for (String xpath : pClass.getClassSchema()) {
-					for (Page cpage : pClass.getClassPages()) {
-						Set<String> urls = cpage.getUrlsByXPath(xpath);
-						in.write("\t"+xpath+": ");
-						if (urls!=null) in.write(urls.toString()+"\n");
-					}
+					Set<String> urls = pClass.getUrlsDiscoveredFromXPath(xpath);
+					in.write("\t"+xpath+"\n");
+					in.write("\t"+urls+"\n");
 				}
 			}
 			in.close();
