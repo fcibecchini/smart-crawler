@@ -3,15 +3,14 @@ import static org.junit.Assert.*;
 
 import static java.util.stream.Collectors.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -24,7 +23,10 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import it.uniroma3.crawler.util.HtmlUtils;
 import it.uniroma3.crawler.util.XPathUtils;
+import it.uniroma3.crawler.model.CandidatePageClass;
+import it.uniroma3.crawler.model.Page;
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.model.PageClassModel;
 
 public class HtmlUtilsTest {
 	private WebClient client;
@@ -38,111 +40,76 @@ public class HtmlUtilsTest {
 		return (href.contains("http") && !href.contains(base));
 	}
 	
-	private Set<String> getSchema(Map<String, Set<String>> xpath2Links) {
-		return xpath2Links.keySet().stream()
-				.sorted((x1, x2) -> xpath2Links.get(x2).size() - xpath2Links.get(x1).size())
-				.collect(toSet());
-	}
-	
-	private List<Set<String>> getLinksCollections(Map<String, Set<String>> xpath2Links) {
-		return xpath2Links.keySet().stream()
-				.map(xpath2Links::get).collect(toList());
+	public String getXPath(HtmlAnchor link) {
+		String xpath = "a";
+		DomNode current=link.getParentNode();
+		boolean stop = false;
+		while (current.getNodeName()!="#document" && !stop) {
+			String currentSection = current.getNodeName();
+			NamedNodeMap attributes = current.getAttributes();
+			if (attributes.getLength()>0 && !currentSection.equals("html")) {
+				org.w3c.dom.Node attr = attributes.item(0);
+				String attrName = attr.getNodeName();
+				if (attrName.equals("id")) 	stop = true;
+				String attrValue = attr.getNodeValue();
+				currentSection += "[@"+attrName+"='"+attrValue+"'"+"]";
+			}
+			xpath = currentSection+"/"+xpath;
+			current = current.getParentNode();
+		}
+		xpath = "//"+xpath;
+		return xpath;
 	}
 	
 	@SuppressWarnings("unchecked")
-	private Map<String, Set<String>> extractSchema(String base, Set<String> visitedUrls, HtmlPage page) {
-		Map<String,Set<String>> xpath2Links = new HashMap<>();
-
-		List<HtmlAnchor> links = (List<HtmlAnchor>) 
-				XPathUtils.getByMatchingXPath(page, "//a");
+	private Page makePage(String base, HtmlPage page) {
+		Page p = new Page(page.getUrl().toString());
+		
+		List<HtmlAnchor> links = (List<HtmlAnchor>) XPathUtils.getByMatchingXPath(page, "//a");
 		
 		for (HtmlAnchor link : links) {
-			String xpath = "a";
-			DomNode current=link.getParentNode();
-			boolean stop = false;
-			while (current.getNodeName()!="#document" && !stop) {
-				String currentSection = current.getNodeName();
-				NamedNodeMap attributes = current.getAttributes();
-				if (attributes.getLength()>0 && !currentSection.equals("html")) {
-					org.w3c.dom.Node attr = attributes.item(0);
-					String attrName = attr.getNodeName();
-					if (attrName.equals("id")) 	stop = true;
-					String attrValue = attr.getNodeValue();
-					currentSection += "[@"+attrName+"='"+attrValue+"'"+"]";
-				}
-				xpath = currentSection+"/"+xpath;
-				current = current.getParentNode();
-			}
-			xpath = "//"+xpath;
+			String xpath = getXPath(link);
 			String href = link.getHrefAttribute();
-
-			if (!href.contains("javascript") && !externalDomain(base,href) 
-					&& !visitedUrls.contains(href)) {
-				visitedUrls.add(href);
-				if (!xpath2Links.containsKey(xpath)) 
-					xpath2Links.put(xpath, new HashSet<>());
-				xpath2Links.get(xpath).add(href);
+			if (!href.contains("javascript") && !externalDomain(base,href)) {
+				p.updatePageSchema(xpath, href);
 			}
 		}
-		return xpath2Links;
+		return p;
 	}
-	
-	private double distance(String g1, String g2, 
-			Map<String, Map<String, Set<String>>> group2schema) {
 
-		Set<String> g1Schema = getSchema(group2schema.get(g1));
-		Set<String> g2Schema = getSchema(group2schema.get(g2));
-
-		Set<String> union = new HashSet<>(g1Schema);
-		union.addAll(g2Schema);
-
-		Set<String> diff1 = new HashSet<>(union);
-		Set<String> diff2 = new HashSet<>(union);
-		diff1.removeAll(g2Schema);
-		diff2.removeAll(g1Schema);
-
-		Set<String> unionDiff = new HashSet<>(diff1);
-		unionDiff.addAll(diff2);
-
-		return unionDiff.size() / union.size();
-	}
 	
 	@Test
-	public void computeModelTest() {
+	public void computerModelTest() {
 		int test = 0;
 		int c = 1;
 		String base = "http://www.ansa.it";
 		String url = "/sito/notizie/topnews/index.shtml";
 		
-		int n = 10;
+		int n = 5;
 		double dt = 0.2;
 		
 		Set<String> lcSeed = new HashSet<>();
-		Set<String> visitedUrls = new HashSet<>();
 		Queue<Set<String>> queueQ = new PriorityQueue<>((lc1, lc2) -> lc2.size() - lc1.size());
+		Set<String> visitedUrls = new HashSet<>();
 		
-		// Map<String, List<Map<String, Set<String>>>> = page classes model
-		// String = page class name
-		// List<Map<String, Set<String>>> = xpath 2 links Collection for each page added to the class...
-		// Map<String, Set<String>> = xpath 2 links Collection
-		// String = xpath
-		// Set<String> = Links Collection [url1,url2,..]
-		Map<String, Map<String, Set<String>>> model = new HashMap<>();
+		PageClassModel model = new PageClassModel();
 		
-		Map<String, Set<String>> modelClass2PageUrls = new HashMap<>();
-		
-		visitedUrls.add(url);
+		// Feed queue with seed
 		lcSeed.add(url);
 		queueQ.add(lcSeed);
 		
 		while (!queueQ.isEmpty()) {
-			Set<String> lc = queueQ.poll();
+			Set<String> lc = queueQ.poll().stream()
+					.filter(urll -> !visitedUrls.contains(urll))
+					.collect(toSet());
+			
 			Set<HtmlPage> fetchedW = new HashSet<>();
 			int counter = 0;
 			for (String lcUrl : lc) {
 				try {
 					HtmlPage body = HtmlUtils.getPage(base+lcUrl, client);
 					fetchedW.add(body);
+					visitedUrls.add(lcUrl);
 					Thread.sleep(1000); // wait..!!
 					counter++;
 					if (counter==n) break;
@@ -151,133 +118,110 @@ public class HtmlUtilsTest {
 			
 			// Candidate class selection
 			
-			Map<String, Map<String, Set<String>>> group2schema = new HashMap<>();
-			for (HtmlPage page : fetchedW) {
-				Map<String, Set<String>> xpath2Lc = extractSchema(base, visitedUrls, page);
-				Set<String> pageSchema = getSchema(xpath2Lc);
-				boolean foundMatch = false;
-				for (String group : group2schema.keySet()) {
-					Set<String> schema = getSchema(group2schema.get(group));
-					Map<String, Set<String>> oldSchema = group2schema.get(group);
-					if (pageSchema.stream().allMatch(sc -> schema.contains(sc))) {
-						
-						// add page to the current Group
-						xpath2Lc.keySet().forEach(xp -> {
-								if (!oldSchema.containsKey(xp))
-									oldSchema.put(xp, new HashSet<>());
-								oldSchema.get(xp).addAll(xpath2Lc.get(xp));
-							}
-						);
-						
-						foundMatch = true;
-						
-						if (!modelClass2PageUrls.containsKey(group)) 
-							modelClass2PageUrls.put(group, new HashSet<>());
-						modelClass2PageUrls.get(group).add(page.getUrl().toString());
-						
-						break;
-					}	
-				}
-				if (!foundMatch) { // new Group
-					String groupName = "class"+(c++);
-					group2schema.put(groupName, xpath2Lc);
-					
-					if (!modelClass2PageUrls.containsKey(groupName)) 
-						modelClass2PageUrls.put(groupName, new HashSet<>());
-					modelClass2PageUrls.get(groupName).add(page.getUrl().toString());
-
+			Set<CandidatePageClass> candidates = new HashSet<>();
+			
+			for (HtmlPage htmlPage : fetchedW) {
+				Page page = makePage(base, htmlPage);
+				CandidatePageClass group = candidates.stream()
+						.filter(cand -> cand.getClassSchema().equals(page.getSchema()))
+						.findAny().orElse(null);
+				if (group != null)
+					group.addPageToClass(page);
+				else {
+					CandidatePageClass newClass = new CandidatePageClass("class"+(c++));
+					page.getSchema().forEach(xp -> newClass.addXPathToSchema(xp));
+					newClass.addPageToClass(page);
+					candidates.add(newClass);
 				}
 			}
-			List<String> ordGroups = group2schema.keySet().stream()
-			.sorted((co1,co2) -> modelClass2PageUrls.get(co2).size() - modelClass2PageUrls.get(co1).size())
-			.collect(toList());
 			
-			/* Collapse similar groups */
+			List<CandidatePageClass> orderedCandidates = candidates.stream()
+					.sorted((cc1, cc2) -> cc2.getClassPages().size() - cc1.getClassPages().size())
+					.collect(toList());
 			
-			Map<String, Map<String, Set<String>>> class2Schema = new HashMap<>();
-			class2Schema.putAll(group2schema);
-			
-			Set<String> keysToRemove = new HashSet<>();
-			for (int i=0;i<ordGroups.size();i++) {
-				for (int j=ordGroups.size()-1; j>i; j--) {
-					String gi = ordGroups.get(i);
-					String gj = ordGroups.get(j);
-					if (distance(gi, gj, group2schema) < dt) {
-						class2Schema.get(gi).keySet()
-						.forEach(xp -> {
-							//TODO
-							class2Schema.get(gi).get(xp).addAll(class2Schema.get(gj).get(xp));
-							
-						}
-						);		
-						
-						modelClass2PageUrls.get(gi).addAll(modelClass2PageUrls.get(gj));
+			Set<CandidatePageClass> toRemove = new HashSet<>();
+			for (int i = 0; i < orderedCandidates.size(); i++) {
+				for (int j = orderedCandidates.size() - 1; j > i; j--) {
+					CandidatePageClass ci = orderedCandidates.get(i);
+					CandidatePageClass cj = orderedCandidates.get(j);
+					if (model.distance(ci, cj) < dt) {
+						ci.collapse(cj);
+						toRemove.add(cj);
 					}
 				}
 			}
 			
-			keysToRemove.stream().forEach(k -> {class2Schema.remove(k);modelClass2PageUrls.remove(k);});
+			orderedCandidates.removeAll(toRemove);
 			
-			// Model update phase 
-			//TODO
-//			for (String candidate : class2Schema.keySet()) {
-//				for (String pClass : model.keySet()) {
-//					Map<String, List<Map<String, Set<String>>>> tempModel = new HashMap<>();
-//					tempModel.putAll(model);
-//					tempModel.get(pClass).addAll(class2Schema.get(candidate));
-//					
-//				}
-//			}
+			// Update Model
 			
-			model.putAll(class2Schema);
-			
-			// Insert discovered links Collections into queue
-			queueQ.addAll(class2Schema.keySet().stream()
-			.map(key -> class2Schema.get(key))
-			.map(xpath2Links -> getLinksCollections(xpath2Links))
-			.flatMap(List::stream)
-			.distinct().collect(toSet()));
+			for (CandidatePageClass candidate : orderedCandidates) {
+				PageClassModel modelNew = new PageClassModel();
+				PageClassModel modelMerge = null;
+				modelNew.addFinalClasses(model.getModel());
+				modelNew.addFinalClass(candidate);
+				double modelNewLength = modelNew.minimumLength();
+				
+				double minLength = Double.MAX_VALUE;
+				for (CandidatePageClass cInModel : model.getModel()) {
+					CandidatePageClass tempClass = 
+							new CandidatePageClass(candidate.getName()+cInModel.getName());
+					tempClass.setClassSchema(cInModel.getClassSchema());
+					tempClass.collapse(candidate);
+					tempClass.collapse(cInModel);
+					
+					PageClassModel tempModel = new PageClassModel();
+					tempModel.addFinalClasses(model.getModel());
+					tempModel.removeClass(cInModel);
+					tempModel.addFinalClass(tempClass);
+					
+					double modelLength = tempModel.minimumLength();
+					if (minLength > modelLength) {
+						minLength = modelLength;
+						modelMerge = tempModel;
+					}
+				}
+				
+				model.reset();
+				if (minLength < modelNewLength)
+					model.addFinalClasses(modelMerge.getModel());
+				else
+					model.addFinalClasses(modelNew.getModel());
+			}
 			
 			System.out.println(++test);
-			if (test==4) {
+			if (test==3) {
 				System.out.println("Break");
 				break;
 			}
 			
-		}
-		
-		for (String pClass : model.keySet()) {
-			System.out.println(pClass+": "+modelClass2PageUrls.get(pClass));
-			System.out.println("SCHEMAS AND LINKS");
-			model.get(pClass).keySet()
-			.forEach(xpath -> {
-				System.out.println("\t"+xpath+": "); 
-				System.out.println("\t"+model.get(pClass).get(xpath));
-				});
-		}
-		
-
-	}
-	
-	//TODO
-	private double MDL(Map<String, List<Map<String, Set<String>>>> model,
-			Map<String, Set<String>> modelClass2PageUrls) {
-		
-		/* Encoding the model */
-		/* Number of the xpaths for each class */
-		long modelCost = 0;
-		for (String pClass : model.keySet()) {
-			modelCost += model.get(pClass).stream()
-					.map(mymap -> mymap.keySet())
+			// Update Queue
+			
+			queueQ.addAll(model.getModel().stream()
+					.map(cl -> cl.getClassPages())
 					.flatMap(Set::stream)
-					.distinct().count();
+					.map(p -> p.getDiscoveredUrls())
+					.collect(toSet())
+					);
 		}
 		
-		/* Encoding the data with the help of the model */
-		long dataCost = 0;
-		
-		
-		return modelCost+dataCost;
+		try {
+			FileWriter in = new FileWriter("page_class_model.txt");
+			for (CandidatePageClass pClass : model.getModel()) {
+				in.write(pClass.getName()+": "+pClass.getClassPages().toString()+"\n");
+				in.write("SCHEMAS AND LINKS\n");
+				for (String xpath : pClass.getClassSchema()) {
+					for (Page cpage : pClass.getClassPages()) {
+						Set<String> urls = cpage.getUrlsByXPath(xpath);
+						in.write("\t"+xpath+": ");
+						if (urls!=null) in.write(urls.toString()+"\n");
+					}
+				}
+			}
+			in.close();
+		} 
+		catch (FileNotFoundException e) {} 
+		catch (IOException e) {}
 	}
 
 }
