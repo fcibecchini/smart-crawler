@@ -88,10 +88,10 @@ public class HtmlUtilsTest {
 	}
 	
 	private double distance(String g1, String g2, 
-			Map<String, List<Map<String, Set<String>>>> group2schema) {
+			Map<String, Map<String, Set<String>>> group2schema) {
 
-		Set<String> g1Schema = getSchema(group2schema.get(g1).get(0));
-		Set<String> g2Schema = getSchema(group2schema.get(g2).get(0));
+		Set<String> g1Schema = getSchema(group2schema.get(g1));
+		Set<String> g2Schema = getSchema(group2schema.get(g2));
 
 		Set<String> union = new HashSet<>(g1Schema);
 		union.addAll(g2Schema);
@@ -127,7 +127,7 @@ public class HtmlUtilsTest {
 		// Map<String, Set<String>> = xpath 2 links Collection
 		// String = xpath
 		// Set<String> = Links Collection [url1,url2,..]
-		Map<String, List<Map<String, Set<String>>>> model = new HashMap<>();
+		Map<String, Map<String, Set<String>>> model = new HashMap<>();
 		
 		Map<String, Set<String>> modelClass2PageUrls = new HashMap<>();
 		
@@ -151,16 +151,24 @@ public class HtmlUtilsTest {
 			
 			// Candidate class selection
 			
-			Map<String, List<Map<String, Set<String>>>> group2schema = new HashMap<>();
+			Map<String, Map<String, Set<String>>> group2schema = new HashMap<>();
 			for (HtmlPage page : fetchedW) {
-				Map<String, Set<String>> schema2Lc = extractSchema(base, visitedUrls, page);
-				Set<String> pageSchema = getSchema(schema2Lc);
+				Map<String, Set<String>> xpath2Lc = extractSchema(base, visitedUrls, page);
+				Set<String> pageSchema = getSchema(xpath2Lc);
 				boolean foundMatch = false;
 				for (String group : group2schema.keySet()) {
-					Set<String> schema = getSchema(group2schema.get(group).get(0));
+					Set<String> schema = getSchema(group2schema.get(group));
+					Map<String, Set<String>> oldSchema = group2schema.get(group);
 					if (pageSchema.stream().allMatch(sc -> schema.contains(sc))) {
+						
 						// add page to the current Group
-						group2schema.get(group).add(schema2Lc);
+						xpath2Lc.keySet().forEach(xp -> {
+								if (!oldSchema.containsKey(xp))
+									oldSchema.put(xp, new HashSet<>());
+								oldSchema.get(xp).addAll(xpath2Lc.get(xp));
+							}
+						);
+						
 						foundMatch = true;
 						
 						if (!modelClass2PageUrls.containsKey(group)) 
@@ -172,8 +180,7 @@ public class HtmlUtilsTest {
 				}
 				if (!foundMatch) { // new Group
 					String groupName = "class"+(c++);
-					group2schema.put(groupName, new ArrayList<>());
-					group2schema.get(groupName).add(schema2Lc);
+					group2schema.put(groupName, xpath2Lc);
 					
 					if (!modelClass2PageUrls.containsKey(groupName)) 
 						modelClass2PageUrls.put(groupName, new HashSet<>());
@@ -182,12 +189,12 @@ public class HtmlUtilsTest {
 				}
 			}
 			List<String> ordGroups = group2schema.keySet().stream()
-			.sorted((co1,co2) -> group2schema.get(co2).size() - group2schema.get(co1).size())
+			.sorted((co1,co2) -> modelClass2PageUrls.get(co2).size() - modelClass2PageUrls.get(co1).size())
 			.collect(toList());
 			
 			/* Collapse similar groups */
 			
-			Map<String, List<Map<String, Set<String>>>> class2Schema = new HashMap<>();
+			Map<String, Map<String, Set<String>>> class2Schema = new HashMap<>();
 			class2Schema.putAll(group2schema);
 			
 			Set<String> keysToRemove = new HashSet<>();
@@ -196,7 +203,14 @@ public class HtmlUtilsTest {
 					String gi = ordGroups.get(i);
 					String gj = ordGroups.get(j);
 					if (distance(gi, gj, group2schema) < dt) {
-						class2Schema.get(gi).addAll(group2schema.get(gj));						
+						class2Schema.get(gi).keySet()
+						.forEach(xp -> {
+							//TODO
+							class2Schema.get(gi).get(xp).addAll(class2Schema.get(gj).get(xp));
+							
+						}
+						);		
+						
 						modelClass2PageUrls.get(gi).addAll(modelClass2PageUrls.get(gj));
 					}
 				}
@@ -220,13 +234,12 @@ public class HtmlUtilsTest {
 			// Insert discovered links Collections into queue
 			queueQ.addAll(class2Schema.keySet().stream()
 			.map(key -> class2Schema.get(key))
-			.flatMap(List::stream)
 			.map(xpath2Links -> getLinksCollections(xpath2Links))
 			.flatMap(List::stream)
-			.distinct().collect(toList()));
+			.distinct().collect(toSet()));
 			
 			System.out.println(++test);
-			if (test==20) {
+			if (test==4) {
 				System.out.println("Break");
 				break;
 			}
@@ -235,13 +248,11 @@ public class HtmlUtilsTest {
 		
 		for (String pClass : model.keySet()) {
 			System.out.println(pClass+": "+modelClass2PageUrls.get(pClass));
-			Map<String, Set<String>> mergedSchema = new HashMap<>();
-			model.get(pClass).forEach(schemaMap -> mergedSchema.putAll(schemaMap));
 			System.out.println("SCHEMAS AND LINKS");
-			mergedSchema.keySet()
-			.forEach(k -> {
-				System.out.println("\t"+k+": "); 
-				System.out.println("\t"+mergedSchema.get(k));
+			model.get(pClass).keySet()
+			.forEach(xpath -> {
+				System.out.println("\t"+xpath+": "); 
+				System.out.println("\t"+model.get(pClass).get(xpath));
 				});
 		}
 		
