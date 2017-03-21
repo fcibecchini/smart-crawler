@@ -35,6 +35,16 @@ public class PageClassModel {
 		return modelClasses;
 	}
 	
+	public CandidatePageClass getCandidateFromName(String name) {
+		return modelClasses.stream()
+				.filter(c -> c.getName().equals(name)).findAny().orElse(null);
+	}
+	
+	public CandidatePageClass getCandidateFromUrl(String url) {
+		return modelClasses.stream()
+				.filter(c -> c.containsPage(url)).findAny().orElse(null);
+	}
+	
 	public double minimumLength() {
 		int modelCost = 0;
 		for (CandidatePageClass c : modelClasses) {

@@ -4,10 +4,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class LinkCollection {
+	private PageClassModel model;
 	private Page parent;
 	private Set<String> links;
 	
-	public LinkCollection(Page parent, Set<String> links) {
+	public LinkCollection(PageClassModel model, Page parent, Set<String> links) {
+		this.model = model;
 		this.parent = parent;
 		this.links = new HashSet<>();
 		this.links.addAll(links);
@@ -22,8 +24,12 @@ public class LinkCollection {
 	}
 	
 	public int relativeSize() {
-		double prob = (double) links.size() / (double) parent.getDiscoveredUrls().size();
-		int size = (int) (prob*1000);
+		int size;
+		CandidatePageClass cluster = model.getCandidateFromUrl(parent.getUrl());
+		double prob = (double) links.size() / (double) cluster.discoveredUrlsSize();
+		size = (int) (prob*10000);
+		if (cluster.size()==1) 
+			size *= 10;
 		return size;
 	}
 	

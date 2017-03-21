@@ -103,6 +103,10 @@ public class PageClass {
 		return this.getDepth() - pc2.getDepth();
 	}
 	
+	public String toString() {
+		return name+": "+links.toString();
+	}
+	
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;

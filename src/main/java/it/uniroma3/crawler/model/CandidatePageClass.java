@@ -7,6 +7,7 @@ import static java.util.stream.Collectors.*;
 import java.util.HashSet;
 
 public class CandidatePageClass {
+	private String baseUrl;
 	private String name;
 	private Set<Page> classPages;
 	private Set<String> classSchema;
@@ -17,6 +18,15 @@ public class CandidatePageClass {
 		this.classSchema = new HashSet<>();
 	}
 	
+	public CandidatePageClass(String name, String base) {
+		this(name);
+		this.baseUrl = base;
+	}
+	
+	public String getBaseUrl() {
+		return this.baseUrl;
+	}
+	
 	public String getName() {
 		return this.name;
 	}
@@ -25,8 +35,9 @@ public class CandidatePageClass {
 		this.name = name;
 	}
 	
-	public boolean addPageToClass(Page p) {
-		return this.classPages.add(p);
+	public void addPageToClass(Page p) {
+		p.getSchema().forEach(xp -> classSchema.add(xp));
+		this.classPages.add(p);
 	}
 	
 	public boolean addXPathToSchema(String xpath) {
@@ -46,11 +57,22 @@ public class CandidatePageClass {
 	}
 	
 	public void collapse(CandidatePageClass c2) {
-		this.classPages.addAll(c2.getClassPages());
+		c2.getClassPages().forEach(p -> this.addPageToClass(p));
 	}
 	
 	public boolean containsXPath(String xpath) {
 		return this.classSchema.contains(xpath);
+	}
+	
+	public boolean containsPage(String url) {
+		return classPages.stream().anyMatch(p -> p.getUrl().equals(url));
+	}
+	
+	public long discoveredUrlsSize() {
+		return classPages.stream()
+				.map(p -> p.getDiscoveredUrls())
+				.flatMap(Set::stream)
+				.distinct().count();
 	}
 	
 	public Set<String> insersectXPaths(Page p) {
@@ -69,9 +91,18 @@ public class CandidatePageClass {
 		Set<String> temp = new HashSet<>();
 		for (Page p : classPages) {
 			Set<String> urls = p.getUrlsByXPath(xpath);
-			if (urls!=null) temp.addAll(urls);
+			if (urls!=null) {
+				for (String url : urls) {
+					String newUrl = (!url.contains("http")) ? baseUrl+url : url;
+					temp.add(newUrl);
+				}
+			}
 		}
 		return temp;
+	}
+	
+	public int size() {
+		return classPages.size();
 	}
 	
 	public double distance(CandidatePageClass other) {
@@ -94,6 +125,10 @@ public class CandidatePageClass {
 		
 		return (double) unionDiff.size() / (double) union.size();
 
+	}
+	
+	public String toString() {
+		return getName();
 	}
  
 	@Override

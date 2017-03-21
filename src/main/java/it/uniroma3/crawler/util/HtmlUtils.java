@@ -16,7 +16,7 @@ public class HtmlUtils {
 	}
 	 
 	public static HtmlPage getPage(String url, WebClient client) throws Exception {
-		final HtmlPage entry = client.getPage(url);
+		final HtmlPage entry = client.getPage(url.replaceAll("(\\&|\\=)", "\\\\$1"));
 		return entry;
 	}
 

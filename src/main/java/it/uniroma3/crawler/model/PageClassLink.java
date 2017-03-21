@@ -17,4 +17,8 @@ public class PageClassLink {
 		return destination;
 	}
 	
+	public String toString() {
+		return "["/*+xpath+*/+", "+destination.getName()+"]";
+	}
+	
 }
