@@ -115,21 +115,20 @@ public class HtmlUtilsTest {
 		String sitename = base.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.", "_");
 		String url = "/";
 		
-		final int MAX_PAGES = 100;
-		final int n = 6;
+		final int MAX_PAGES = 300;
+		final int n = 5;
 		final double dt = 0.2;
 		
 		PageClassModel model = new PageClassModel();
 		
-		Queue<LinkCollection> queueQ = new PriorityQueue<>(
-				(lc1, lc2) -> lc2.relativeSize() - lc1.relativeSize());
+		Queue<LinkCollection> queueQ = new PriorityQueue<>((lc1, lc2) -> lc2.compareTo(lc1));
 		Set<String> visitedUrls = new HashSet<>();
 		
 		
 		// Feed queue with seed
 		Set<String> lcSet = new HashSet<>();
 		lcSet.add(url);
-		LinkCollection lcSeed = new LinkCollection(model, null, lcSet);
+		LinkCollection lcSeed = new LinkCollection(lcSet);
 		
 		queueQ.add(lcSeed);
 		

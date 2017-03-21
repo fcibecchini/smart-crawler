@@ -4,15 +4,19 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class LinkCollection {
-	private PageClassModel model;
+	private CandidatePageClass cluster;
 	private Page parent;
 	private Set<String> links;
 	
-	public LinkCollection(PageClassModel model, Page parent, Set<String> links) {
-		this.model = model;
-		this.parent = parent;
+	public LinkCollection(Set<String> links) {
 		this.links = new HashSet<>();
 		this.links.addAll(links);
+	}
+	
+	public LinkCollection(PageClassModel model, Page parent, Set<String> links) {
+		this(links);
+		this.parent = parent;
+		this.cluster = model.getCandidateFromUrl(parent.getUrl());
 	}
 	
 	public Set<String> getLinks() {
@@ -23,14 +27,24 @@ public class LinkCollection {
 		return this.parent;
 	}
 	
-	public int relativeSize() {
-		int size;
-		CandidatePageClass cluster = model.getCandidateFromUrl(parent.getUrl());
-		double prob = (double) links.size() / (double) cluster.discoveredUrlsSize();
-		size = (int) (prob*10000);
-		if (cluster.size()==1) 
-			size *= 10;
-		return size;
+	public CandidatePageClass getCluster() {
+		return this.cluster;
+	}
+	
+	public int compareTo(LinkCollection other) {
+		double thisProb = (double) getLinks().size() / (double) getCluster().discoveredUrlsSize();
+		double otherProb = (double) other.getLinks().size() / (double) other.getCluster().discoveredUrlsSize();
+		
+		if (getCluster().size()==1 && other.getCluster().size()>1) return 1;
+		if (getCluster().size()>1 && other.getCluster().size()==1) return -1;
+		if (thisProb > otherProb) return 1;
+		if (thisProb < otherProb) return -1;
+		else return 0;
+	}
+	
+	public String toString() {
+		String desc = (parent!=null) ? parent.getUrl() : "entryPoint";
+		return desc+" -> "+ getLinks().toString();
 	}
 	
 	@Override
