@@ -4,7 +4,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class LinkCollection {
-	private CandidatePageClass cluster;
 	private Page parent;
 	private Set<String> links;
 	
@@ -13,10 +12,9 @@ public class LinkCollection {
 		this.links.addAll(links);
 	}
 	
-	public LinkCollection(PageClassModel model, Page parent, Set<String> links) {
+	public LinkCollection(Page parent, Set<String> links) {
 		this(links);
 		this.parent = parent;
-		this.cluster = model.getCandidateFromUrl(parent.getUrl());
 	}
 	
 	public Set<String> getLinks() {
@@ -28,15 +26,20 @@ public class LinkCollection {
 	}
 	
 	public CandidatePageClass getCluster() {
-		return this.cluster;
+		return this.parent.getCurrentCluster();
+	}
+	
+	public int size() {
+		return this.links.size();
 	}
 	
 	public int compareTo(LinkCollection other) {
+		if (getCluster().size()==1 && other.getCluster().size()>1) return 1;
+		if (getCluster().size()>1 && other.getCluster().size()==1) return -1;
+
 		double thisProb = (double) getLinks().size() / (double) getCluster().discoveredUrlsSize();
 		double otherProb = (double) other.getLinks().size() / (double) other.getCluster().discoveredUrlsSize();
 		
-		if (getCluster().size()==1 && other.getCluster().size()>1) return 1;
-		if (getCluster().size()>1 && other.getCluster().size()==1) return -1;
 		if (thisProb > otherProb) return 1;
 		if (thisProb < otherProb) return -1;
 		else return 0;

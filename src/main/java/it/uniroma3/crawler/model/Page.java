@@ -11,8 +11,10 @@ import java.util.HashMap;
 public class Page {
 	private String url;
 	private Map<String, Set<String>> xpath2Urls;
+	private PageClassModel model;
 	
-	public Page(String url) {
+	public Page(String url, PageClassModel model) {
+		this.model = model;
 		this.url = url;
 		this.xpath2Urls = new HashMap<>();
 	}
@@ -48,6 +50,10 @@ public class Page {
 		return getSchema().stream()
 				.filter(xp -> !c.getClassSchema().contains(xp))
 				.collect(toSet());
+	}
+	
+	public CandidatePageClass getCurrentCluster() {
+		return model.getCandidateFromUrl(getUrl());
 	}
 	
 	public String toString() {
