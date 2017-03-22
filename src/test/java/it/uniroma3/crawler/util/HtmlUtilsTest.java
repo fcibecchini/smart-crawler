@@ -7,6 +7,8 @@ import static java.util.stream.Collectors.*;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -82,11 +84,24 @@ public class HtmlUtilsTest {
 			String xpath = getXPath(link);
 			String href = link.getHrefAttribute();
 			if (isValid(base,href)) {
-				p.updatePageSchema(xpath, href);
+				if (!p.getUrl().equals(getAbsoluteURL(base,href)))
+					p.updatePageSchema(xpath, href);
 			}
 		}
 		return p;
 	}
+	
+	
+	public String getAbsoluteURL(String base, String relative) {
+		try {
+			URL baseUrl = new URL(base);
+			URL url = new URL(baseUrl, relative);
+			return url.toString();
+		} catch (MalformedURLException e) {
+			return "";
+		}
+	}
+	
 	
 	@Test
 	public void computerModelTest() {
@@ -123,8 +138,10 @@ public class HtmlUtilsTest {
 			System.out.println("Parent Page: "+lcc.getParent()+", "+lcc.size()+" total links");
 			for (String lcUrl : lcc.getLinks()) {
 				try {
-					String urlToFetch = (lcUrl.contains(base)) ? lcUrl : base+lcUrl;
-					if (!visitedUrls.contains(urlToFetch)) {
+					
+					//String urlToFetch = (lcUrl.contains(base)) ? lcUrl : base+lcUrl;
+					String urlToFetch = getAbsoluteURL(base, lcUrl);
+					if (!visitedUrls.contains(urlToFetch) && !urlToFetch.equals("")) {
 						visitedUrls.add(urlToFetch);
 						
 						HtmlPage body = HtmlUtils.getPage(urlToFetch, client);
