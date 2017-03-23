@@ -79,6 +79,7 @@ public class CrawlFetcher extends UntypedActor {
 					failures = 0;
 					//TODO
 					//waitAndRequestNext(TIME_TO_WAIT);
+					log.info("TRYING NEXT URL");
 					getSender().tell(NEXT, getSelf());
 				}
 			}
