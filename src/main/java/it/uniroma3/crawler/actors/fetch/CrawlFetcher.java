@@ -69,7 +69,7 @@ public class CrawlFetcher extends UntypedActor {
 				}
 
 			} catch (Exception e) {
-				log.warning("HTTP REQUEST: FAILED");
+				log.warning("HTTP REQUEST: FAILED "+url);
 				failures++;
 				if (failures <= MAX_FAILURES) {
 					log.warning("HTTP REQUEST: TRY AGAIN...");
@@ -77,7 +77,9 @@ public class CrawlFetcher extends UntypedActor {
 				}
 				else { // try later..
 					failures = 0;
-					waitAndRequestNext(TIME_TO_WAIT);
+					//TODO
+					//waitAndRequestNext(TIME_TO_WAIT);
+					getSender().tell(NEXT, getSelf());
 				}
 			}
 		}
@@ -99,7 +101,7 @@ public class CrawlFetcher extends UntypedActor {
 		// wait time befor requesting
 		log.warning("HTTP REQUEST: WAIT FOR "+time+" minutes");
 		context().system().scheduler().scheduleOnce(Duration
-				.create(time, TimeUnit.MINUTES),
+				.create(time, TimeUnit.MILLISECONDS),
 				getSender(), NEXT, context().system().dispatcher(), getSelf());
 
 	}

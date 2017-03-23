@@ -39,7 +39,7 @@ public class HtmlUtilsTest {
 	
 	@Before
 	public void setUp() {
-		this.client = HtmlUtils.makeWebClient();
+		this.client = HtmlUtils.makeWebClient(false);
 	}
 	
 	private boolean isValid(String base, String href) {
@@ -63,9 +63,12 @@ public class HtmlUtilsTest {
 			if (attributes.getLength()>0 && !currentSection.equals("html")) {
 				org.w3c.dom.Node attr = attributes.item(0);
 				String attrName = attr.getNodeName();
-				String attrValue = attr.getNodeValue();
-				currentSection += "[@"+attrName+"='"+attrValue+"'"+"]";
-				if (attrName.equals("id")) stop = true;
+				if (attrName.equals("id")) {
+					stop = true;
+					String attrValue = attr.getNodeValue();
+					currentSection += "[@"+attrName+"='"+attrValue+"'"+"]";
+				}
+				else currentSection += "[@"+attrName+"]";
 			}
 			xpath = currentSection+"/"+xpath;
 			current = current.getParentNode();
@@ -92,6 +95,13 @@ public class HtmlUtilsTest {
 	}
 	
 	
+	public void foo() throws Exception {
+		String base = "http://www.remax.co.uk";
+		String url = "/branch/homepage~bid=3,page=1";
+		String fetch = getAbsoluteURL(base,url);
+		HtmlUtils.getPage(fetch, client);
+	}
+	
 	public String getAbsoluteURL(String base, String relative) {
 		try {
 			URL baseUrl = new URL(base);
@@ -102,17 +112,16 @@ public class HtmlUtilsTest {
 		}
 	}
 	
-	
 	@Test
 	public void computerModelTest() {
 		int fetchedPgs = 0;
 		int classCounter = 1;
-		String base = "http://www.ansa.it";
-		String entry = "/";
+		String base = "http://www.pennyandsinclair.co.uk";
+		String entry = "/search?category=1&listingtype=5&statusids=1,3,4,16&obc=Price&obd=Descending";
 		String sitename = base.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.", "_");
 		
 		final int MAX_PAGES = 100;
-		final int n = 10;
+		final int n = 3;
 		final double dt = 0.2;
 		
 		PageClassModel model = new PageClassModel();
@@ -140,14 +149,15 @@ public class HtmlUtilsTest {
 				try {
 					
 					//String urlToFetch = (lcUrl.contains(base)) ? lcUrl : base+lcUrl;
-					String urlToFetch = getAbsoluteURL(base, lcUrl);
+					String urlToFetch = getAbsoluteURL(base, 
+							lcUrl.replaceAll("(\\&|\\=)", "\\\\$1"));
 					if (!visitedUrls.contains(urlToFetch) && !urlToFetch.equals("")) {
 						visitedUrls.add(urlToFetch);
 						
 						HtmlPage body = HtmlUtils.getPage(urlToFetch, client);
 						fetchedW.add(body);
 						System.out.println("Fetched: "+urlToFetch);
-						Thread.sleep(1000); // wait..!!
+						Thread.sleep(1500); // wait..!!
 						fetchedPgs++; 
 						counter++;
 						
@@ -175,6 +185,14 @@ public class HtmlUtilsTest {
 					newClass.addPageToClass(page);
 					candidates.add(newClass);
 				}
+				
+//				//DEBUG TODO
+//				if (page.getUrl().contains("officeids")) {
+//					for (String xp : page.getSchema()) {
+//						System.out.println(xp+" -> "+page.getUrlsByXPath(xp).toString());
+//					}
+//				}
+				
 			}
 			
 			List<CandidatePageClass> orderedCandidates = candidates.stream()

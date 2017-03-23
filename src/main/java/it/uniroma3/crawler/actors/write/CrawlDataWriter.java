@@ -64,7 +64,7 @@ public class CrawlDataWriter extends UntypedActor {
 	}
 	
 	private String getPageFileName(String pageClassName) {
-		return pageClassName + ++counter+".html";
+		return pageClassName+"_"+ ++counter+".html";
 	}
 	
 	@Override

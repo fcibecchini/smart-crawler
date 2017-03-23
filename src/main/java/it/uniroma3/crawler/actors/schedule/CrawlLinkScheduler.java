@@ -1,5 +1,6 @@
 package it.uniroma3.crawler.actors.schedule;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -12,8 +13,10 @@ import it.uniroma3.crawler.model.CrawlURL;
 public class CrawlLinkScheduler extends UntypedActor {
 	private Random random;
 	private CrawlController controller;
+	private HashSet<CrawlURL> fetched;
 	
 	public CrawlLinkScheduler() {
+		this.fetched = new HashSet<>();
 		this.random = new Random();
 		this.controller = CrawlController.getInstance();
 	}
@@ -47,6 +50,12 @@ public class CrawlLinkScheduler extends UntypedActor {
 	}
 	
 	private void schedule(List<CrawlURL> newCUrls) {
-		newCUrls.stream().forEach(curl -> getSender().tell(curl, getSelf()));
+		for (CrawlURL curl : newCUrls)
+		{
+			if (!fetched.contains(curl)) {
+				fetched.add(curl);
+				getSender().tell(curl, getSelf());
+			}
+		}
 	}
 }
