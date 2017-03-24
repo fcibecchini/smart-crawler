@@ -24,19 +24,23 @@ public class CrawlFetcher extends UntypedActor {
 	private Logger log;
 	private List<ActorRef> extractors;
 	
-	  public static Props props(final List<ActorRef> extractors, final int maxFailures, final int time) {
+	  public static Props props(
+			  final List<ActorRef> extractors, 
+			  final int maxFailures, 
+			  final int time,
+			  final boolean js) {
 		    return Props.create(new Creator<CrawlFetcher>() {
 		      private static final long serialVersionUID = 1L;
 		 
 		      @Override
 		      public CrawlFetcher create() throws Exception {
-		        return new CrawlFetcher(extractors, maxFailures, time);
+		        return new CrawlFetcher(extractors, maxFailures, time, js);
 		      }
 		    });
 		  }
 	
-	public CrawlFetcher(List<ActorRef> extractors, int maxFailures, int time) {
-		this.webClient = HtmlUtils.makeWebClient();
+	public CrawlFetcher(List<ActorRef> extractors, int maxFailures, int time, boolean js) {
+		this.webClient = HtmlUtils.makeWebClient(js);
 		this.log = Logger.getLogger(CrawlFetcher.class.getName());
 		this.extractors = extractors;
 		this.failures = 0;

@@ -99,10 +99,19 @@ public class CrawlController {
     			new Integer(prop.getProperty("fetchers")), 
     			new Integer(prop.getProperty("pages")), 
     			new Integer(prop.getProperty("maxfailures")), 
-    			new Integer(prop.getProperty("failuretime")));
+    			new Integer(prop.getProperty("failuretime")),
+    			new Boolean(prop.getProperty("javascript")));
     }
     
-    private void startSystem(ActorSystem system, CrawlURL entryPoint, int n, int pages, int maxFails, int time) {
+    private void startSystem(
+    		ActorSystem system, 
+    		CrawlURL entryPoint, 
+    		int n, 
+    		int pages, 
+    		int maxFails,
+    		int time,
+    		boolean useJavascript) {
+    	
     	/* Init. System Actors*/
     	
     	frontier = system.actorOf(BreadthFirstUrlFrontier.props(pages), "frontier");
@@ -115,7 +124,7 @@ public class CrawlController {
     	
     	List<ActorRef> fetchers = new ArrayList<>();
     	for (int i=0; i<n; i++) {
-    		fetchers.add(system.actorOf(CrawlFetcher.props(extractors,maxFails,time), "fetcher"+(i+1)));
+    		fetchers.add(system.actorOf(CrawlFetcher.props(extractors,maxFails,time,useJavascript), "fetcher"+(i+1)));
     	}
 
     	final Inbox inbox = Inbox.create(system);
