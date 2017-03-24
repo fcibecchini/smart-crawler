@@ -1,9 +1,7 @@
 package it.uniroma3.crawler.actors.extract;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 
@@ -20,10 +18,8 @@ import it.uniroma3.crawler.util.XPathUtils;
 public class CrawlExtractor extends UntypedActor {
 	private ActorRef crawlWriter;
 	private String urlBase;
-	private Set<String> fetchedUrls;
 	
 	public CrawlExtractor() {
-		this.fetchedUrls = new HashSet<>();
 		this.urlBase = CrawlController.getInstance().getUrlBase();
 		this.crawlWriter = getContext().actorOf(Props.create(CrawlDataWriter.class), 
 				getSelf().path().name()+"Writer");
@@ -49,8 +45,7 @@ public class CrawlExtractor extends UntypedActor {
 			List<HtmlAnchor> links = (List<HtmlAnchor>) XPathUtils.getByMatchingXPath(cUrl.getPageContent(), xPath);
 			for (HtmlAnchor anchor : links) {
 				String link = anchor.getHrefAttribute();
-				if (isValidUrl(link) && !fetchedUrls.contains(link)) {
-					fetchedUrls.add(link);
+				if (isValidUrl(link)) {
 					// TODO needs more checks...
 					if (!link.contains("http")) link = urlBase + link;
 					PageClass dest = src.getDestinationByXPath(xPath);
