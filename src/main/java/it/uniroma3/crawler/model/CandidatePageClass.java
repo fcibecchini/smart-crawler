@@ -127,6 +127,12 @@ public class CandidatePageClass {
 
 	}
 	
+	public int compareTo(CandidatePageClass other) {
+		int thisRank = new Integer(getName().replace("class", ""));
+		int otherRank = new Integer(other.getName().replace("class", ""));
+		return thisRank - otherRank;
+	}
+	
 	public String toString() {
 		return getName();
 	}

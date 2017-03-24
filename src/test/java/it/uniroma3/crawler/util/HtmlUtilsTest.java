@@ -4,18 +4,19 @@ import static org.junit.Assert.*;
 
 import static java.util.stream.Collectors.*;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -39,7 +40,7 @@ public class HtmlUtilsTest {
 	
 	@Before
 	public void setUp() {
-		this.client = HtmlUtils.makeWebClient(false);
+		this.client = HtmlUtils.makeWebClient(true);
 	}
 	
 	private boolean isValid(String base, String href) {
@@ -55,6 +56,19 @@ public class HtmlUtilsTest {
 	
 	public String getXPath(HtmlAnchor link) {
 		String xpath = "a";
+		NamedNodeMap linkAttributes = link.getAttributes();
+		if (linkAttributes.getLength()>1) {
+			for (int i=1; i<=linkAttributes.getLength()-1; i++) {
+				org.w3c.dom.Node lattr = linkAttributes.item(i);
+				String lAttrName = lattr.getNodeName();
+				if (lAttrName.equals("id")) {
+					String lattrValue = lattr.getNodeValue();
+					return "//"+xpath+"[@"+lAttrName+"='"+lattrValue+"'"+"]";
+				}
+			}
+		}
+		xpath += "[not(@id)]";
+		
 		DomNode current=link.getParentNode();
 		boolean stop = false;
 		while (current.getNodeName()!="#document" && !stop) {
@@ -77,6 +91,7 @@ public class HtmlUtilsTest {
 		return xpath;
 	}
 	
+	
 	@SuppressWarnings("unchecked")
 	private Page makePage(PageClassModel model, String base, HtmlPage page) {
 		Page p = new Page(page.getUrl().toString(), model);
@@ -85,6 +100,7 @@ public class HtmlUtilsTest {
 		
 		for (HtmlAnchor link : links) {
 			String xpath = getXPath(link);
+						
 			String href = link.getHrefAttribute();
 			if (isValid(base,href)) {
 				if (!p.getUrl().equals(getAbsoluteURL(base,href)))
@@ -92,14 +108,6 @@ public class HtmlUtilsTest {
 			}
 		}
 		return p;
-	}
-	
-	
-	public void foo() throws Exception {
-		String base = "http://www.remax.co.uk";
-		String url = "/branch/homepage~bid=3,page=1";
-		String fetch = getAbsoluteURL(base,url);
-		HtmlUtils.getPage(fetch, client);
 	}
 	
 	public String getAbsoluteURL(String base, String relative) {
@@ -112,12 +120,13 @@ public class HtmlUtilsTest {
 		}
 	}
 	
+	
 	@Test
-	public void computerModelTest() {
+	public void computeModelTest() {
 		int fetchedPgs = 0;
 		int classCounter = 1;
 		String base = "http://www.pennyandsinclair.co.uk";
-		String entry = "/search?category=1&listingtype=5&statusids=1,3,4,16&obc=Price&obd=Descending";
+		String entry = "/";
 		String sitename = base.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.", "_");
 		
 		final int MAX_PAGES = 100;
@@ -149,8 +158,7 @@ public class HtmlUtilsTest {
 				try {
 					
 					//String urlToFetch = (lcUrl.contains(base)) ? lcUrl : base+lcUrl;
-					String urlToFetch = getAbsoluteURL(base, 
-							lcUrl.replaceAll("(\\&|\\=)", "\\\\$1"));
+					String urlToFetch = getAbsoluteURL(base, lcUrl);
 					if (!visitedUrls.contains(urlToFetch) && !urlToFetch.equals("")) {
 						visitedUrls.add(urlToFetch);
 						
@@ -174,6 +182,7 @@ public class HtmlUtilsTest {
 			
 			for (HtmlPage htmlPage : fetchedW) {
 				Page page = makePage(model, base, htmlPage);
+				
 				CandidatePageClass group = candidates.stream()
 						.filter(cand -> cand.getClassSchema().equals(page.getSchema()))
 						.findAny().orElse(null);
@@ -182,16 +191,10 @@ public class HtmlUtilsTest {
 				else {
 					CandidatePageClass newClass = new CandidatePageClass("class"+(classCounter++), base);
 					page.getSchema().forEach(xp -> newClass.addXPathToSchema(xp));
+										
 					newClass.addPageToClass(page);
 					candidates.add(newClass);
 				}
-				
-//				//DEBUG TODO
-//				if (page.getUrl().contains("officeids")) {
-//					for (String xp : page.getSchema()) {
-//						System.out.println(xp+" -> "+page.getUrlsByXPath(xp).toString());
-//					}
-//				}
 				
 			}
 			
@@ -213,40 +216,18 @@ public class HtmlUtilsTest {
 			
 			orderedCandidates.removeAll(toRemove);
 
-			
 			// Update Model
 			
 			for (CandidatePageClass candidate : orderedCandidates) {
-				PageClassModel modelNew = new PageClassModel();
-				PageClassModel modelMerge = null;
-				modelNew.addFinalClasses(model.getModel());
-				modelNew.addFinalClass(candidate);
-				double modelNewLength = modelNew.minimumLength();
-				
-				double mergeLength = Double.MAX_VALUE;
-				for (CandidatePageClass cInModel : model.getModel()) {
-					CandidatePageClass tempClass = 
-							new CandidatePageClass(cInModel.getName(), base);
-					tempClass.collapse(candidate);
-					tempClass.collapse(cInModel);
-					
-					PageClassModel tempModel = new PageClassModel();
-					tempModel.addFinalClasses(model.getModel());
-					tempModel.removeClass(cInModel);
-					tempModel.addFinalClass(tempClass);
-					
-					double modelLength = tempModel.minimumLength();
-					if (mergeLength > modelLength) {
-						mergeLength = modelLength;
-						modelMerge = tempModel;
+				boolean collapsed = false;
+				for (CandidatePageClass cModel : model.getModel()) {
+					if (cModel.distance(candidate) < dt) {
+						cModel.collapse(candidate);
+						collapsed = true;
+						break;
 					}
 				}
-				
-				model.reset();
-				if (mergeLength < modelNewLength)
-					model.addFinalClasses(modelMerge.getModel());
-				else
-					model.addFinalClasses(modelNew.getModel());
+				if (!collapsed) model.addFinalClass(candidate);
 			}
 			
 			System.out.println(fetchedPgs);
@@ -288,7 +269,7 @@ public class HtmlUtilsTest {
 		
 		// Save Page Classes and Class Links
 		
-		Map<CandidatePageClass, PageClass> cand2Pclass = new HashMap<>();
+		Map<CandidatePageClass, PageClass> cand2Pclass = new TreeMap<>((c1,c2) -> c1.compareTo(c2));
 		model.getModel().forEach(cand -> cand2Pclass.put(cand, new PageClass(cand.getName())));
 		
 		//PageClass home = cand2Pclass.get(model.getCandidateFromUrl(entryPoint));
@@ -317,6 +298,7 @@ public class HtmlUtilsTest {
 		}
 		try {
 			FileWriter in = new FileWriter(sitename+"_target.csv");
+			in.write(base+"\n");
 			cand2Pclass.keySet().stream()
 			.map(k -> cand2Pclass.get(k))
 			.forEach(pc -> {
@@ -331,3 +313,60 @@ public class HtmlUtilsTest {
 	}
 
 }
+
+//public void test() throws Exception {
+//String base = "http://www.pennyandsinclair.co.uk";
+//String entry = "/property/residential/for-rent/central-north-oxford/southmoor-road/101073006967";
+//
+//String urlToFetch = getAbsoluteURL(base, entry);
+//HtmlPage body = HtmlUtils.getPage(urlToFetch, client);
+//
+//Page p = makePage(new PageClassModel(), base, body);
+//
+//}
+
+
+//for (CandidatePageClass candidate : orderedCandidates) {
+//PageClassModel modelNew = new PageClassModel();
+//PageClassModel modelMerge = null;
+//modelNew.addFinalClasses(model.getModel());
+//modelNew.addFinalClass(candidate);
+//double modelNewLength = modelNew.minimumLength();
+//
+//double mergeLength = Double.MAX_VALUE;
+//for (CandidatePageClass cInModel : model.getModel()) {
+//	CandidatePageClass tempClass = 
+//			new CandidatePageClass(cInModel.getName(), base);
+//	tempClass.collapse(candidate);
+//	tempClass.collapse(cInModel);
+//	
+//	PageClassModel tempModel = new PageClassModel();
+//	tempModel.addFinalClasses(model.getModel());
+//	tempModel.removeClass(cInModel);
+//	tempModel.addFinalClass(tempClass);
+//	
+//	double modelLength = tempModel.minimumLength();
+//	if (mergeLength > modelLength) {
+//		mergeLength = modelLength;
+//		modelMerge = tempModel;
+//	}
+//}
+//
+//model.reset();
+//if (mergeLength < modelNewLength)
+//	model.addFinalClasses(modelMerge.getModel());
+//else
+//	model.addFinalClasses(modelNew.getModel());
+//}
+
+
+
+
+//Set<String> prova = page.getUrlsByXPath("//div[@id='fullDetailsHeader']/div[@class]/a");
+//if (prova!=null) {
+//	System.err.println(page.getUrl());
+//	page.getSchema().forEach(xp -> System.err.println(xp+" -> "+page.getUrlsByXPath(xp)));
+//	System.err.println(XPathUtils.getByMatchingXPath(htmlPage, "//a"));
+//}
+
+
