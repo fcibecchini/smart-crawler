@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
-public class CrawlURL {
+public class CrawlURL implements Comparable<CrawlURL> {
 	private URI url;
 	private HtmlPage pageContent;
 	private PageClass pageClass;

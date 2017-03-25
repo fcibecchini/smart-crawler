@@ -32,8 +32,7 @@ public class BreadthFirstUrlFrontier extends UntypedActor implements UrlFrontier
 	}
 
 	public BreadthFirstUrlFrontier(int maxPages) {
-		this.urlsQueue = new PriorityQueue<>(
-				(CrawlURL c1, CrawlURL c2) -> c1.compareTo(c2));
+		this.urlsQueue = new PriorityQueue<>();
 		this.requesters = new LinkedList<>();
 		this.maxPages = maxPages;
 		this.pageCount = 0;
