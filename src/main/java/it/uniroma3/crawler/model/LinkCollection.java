@@ -3,7 +3,7 @@ package it.uniroma3.crawler.model;
 import java.util.Set;
 import java.util.TreeSet;
 
-public class LinkCollection {
+public class LinkCollection implements Comparable<LinkCollection> {
 	private Page parent;
 	private Set<String> links;
 	

@@ -1,7 +1,7 @@
 package it.uniroma3.crawler.model;
 
-import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class PageClassModel {
 	private static final double C_U = 1;
@@ -12,7 +12,7 @@ public class PageClassModel {
 	Set<CandidatePageClass> modelClasses;
 	
 	public PageClassModel() {
-		this.modelClasses = new HashSet<>();
+		this.modelClasses = new TreeSet<>();
 	}
 	
 	public boolean addFinalClass(CandidatePageClass c) {

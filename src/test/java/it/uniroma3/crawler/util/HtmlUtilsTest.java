@@ -57,35 +57,42 @@ public class HtmlUtilsTest {
 	
 	public String getXPath(HtmlAnchor link) {
 		String xpath = "a";
+		String anchorQuery = "";
 		NamedNodeMap linkAttributes = link.getAttributes();
-		if (linkAttributes.getLength()>1) {
-			for (int i=1; i<=linkAttributes.getLength()-1; i++) {
+		if (linkAttributes.getLength()>1) { // escape anchors with href only
+			for (int i=0; i<=linkAttributes.getLength()-1; i++) {
 				org.w3c.dom.Node lattr = linkAttributes.item(i);
 				String lAttrName = lattr.getNodeName();
-				if (lAttrName.equals("id")) {
-					String lattrValue = lattr.getNodeValue();
-					return "//"+xpath+"[@"+lAttrName+"='"+lattrValue+"'"+"]";
+				if (!lAttrName.equals("href")) {
+					if (lAttrName.equals("id")) {
+						String lattrValue = lattr.getNodeValue();
+						return "//"+xpath+"[@"+lAttrName+"='"+lattrValue+"'"+"]";
+					}
+					else if (lAttrName.equals("class")) {
+						String lattrValue = lattr.getNodeValue();
+						anchorQuery = "@"+lAttrName+"='"+lattrValue+"'"+" and ";
+					}
 				}
 			}
 		}
-		xpath += "[not(@id)]";
+		xpath += "["+anchorQuery+"not(@id)]";
 		
 		DomNode current=link.getParentNode();
 		boolean stop = false;
 		while (current.getNodeName()!="#document" && !stop) {
-			String currentSection = current.getNodeName();
+			String currentQuery = current.getNodeName();
 			NamedNodeMap attributes = current.getAttributes();
-			if (attributes.getLength()>0 && !currentSection.equals("html")) {
+			if (attributes.getLength()>0 && !currentQuery.equals("html")) {
 				org.w3c.dom.Node attr = attributes.item(0);
 				String attrName = attr.getNodeName();
 				if (attrName.equals("id")) {
 					stop = true;
 					String attrValue = attr.getNodeValue();
-					currentSection += "[@"+attrName+"='"+attrValue+"'"+"]";
+					currentQuery += "[@"+attrName+"='"+attrValue+"'"+"]";
 				}
-				else currentSection += "[@"+attrName+"]";
+				else currentQuery += "[@"+attrName+"]";
 			}
-			xpath = currentSection+"/"+xpath;
+			xpath = currentQuery+"/"+xpath;
 			current = current.getParentNode();
 		}
 		xpath = (stop) ? "//"+xpath : "/"+xpath;
@@ -124,18 +131,18 @@ public class HtmlUtilsTest {
 	
 	@Test
 	public void computeModelTest() {
-		String base = "http://www.ansa.it";
+		String base = "http://www.reaestates.co.uk";
 		String entry = "/";
 		String sitename = base.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.", "_");
 		
 		int fetchedPgs = 0, classCounter = 1;
 		
-		final int MAX_PAGES = 300, n = 3;
+		final int MAX_PAGES = 100, n = 3;
 		final double dt = 0.2;
 		
 		PageClassModel model = new PageClassModel();
 		
-		Queue<LinkCollection> queueQ = new PriorityQueue<>((lc1, lc2) -> lc2.compareTo(lc1));
+		Queue<LinkCollection> queueQ = new PriorityQueue<>();
 		// make sure we don't visit the same collection more than one time
 		Set<LinkCollection> insertedCollections = new HashSet<>(); 
 		
@@ -249,8 +256,11 @@ public class HtmlUtilsTest {
 		
 		// Save Model
 		
+		File directory = new File("sites_navigation");
+		directory.mkdir();
+		
 		try {
-			FileWriter in = new FileWriter(sitename+"_model.txt");
+			FileWriter in = new FileWriter(directory.toString()+"/"+sitename+"_model.txt");
 			model.getModel().forEach(pc -> {
 				try {in.write(pc.getName()+": "+pc.getClassPages().toString()+"\n");} 
 				catch (IOException e) {}});
@@ -261,7 +271,7 @@ public class HtmlUtilsTest {
 		
 		// Save Page Classes and Class Links
 		
-		Map<CandidatePageClass, PageClass> cand2Pclass = new TreeMap<>((c1,c2) -> c1.compareTo(c2));
+		Map<CandidatePageClass, PageClass> cand2Pclass = new TreeMap<>();
 		model.getModel().forEach(cand -> cand2Pclass.put(cand, new PageClass(cand.getName())));
 		
 		//PageClass home = cand2Pclass.get(model.getCandidateFromUrl(entryPoint));
@@ -289,7 +299,7 @@ public class HtmlUtilsTest {
 			}
 		}
 		try {
-			FileWriter in = new FileWriter(sitename+"_target.csv");
+			FileWriter in = new FileWriter(directory.toString()+"/"+sitename+"_target.csv");
 			in.write(base+"\n");
 			cand2Pclass.keySet().stream()
 			.map(k -> cand2Pclass.get(k))

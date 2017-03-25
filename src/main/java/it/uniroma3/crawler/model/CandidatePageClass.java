@@ -6,7 +6,7 @@ import static java.util.stream.Collectors.*;
 
 import java.util.HashSet;
 
-public class CandidatePageClass {
+public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	private String baseUrl;
 	private String name;
 	private Set<Page> classPages;
