@@ -1,8 +1,13 @@
 package it.uniroma3.crawler.actors.write;
 
+import java.nio.file.Files;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.file.StandardCopyOption;
+
+import org.apache.commons.io.IOUtils;
 
 import com.csvreader.CsvWriter;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
@@ -16,17 +21,16 @@ import it.uniroma3.crawler.model.CrawlURL;
 public class CrawlDataWriter extends UntypedActor {
 	LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 	private CsvWriter csvWriter;
-	private File directory;
-	private int counter;
 	private CrawlController controller;
+	private File baseDirectory;
+	private int counter;
 	
 	public CrawlDataWriter() {
 		String fileName = "./result"+getSelf().path().name()+".csv";
 		this.csvWriter = new CsvWriter(fileName, '\t', Charset.forName("UTF-8"));
-		this.counter = 0;
-		this.directory = new File("html/");
-		directory.mkdir();
 		this.controller = CrawlController.getInstance();
+		this.baseDirectory = new File(controller.getBaseDirectory());
+		this.counter = 0;
 	}
 
 	@Override
@@ -47,7 +51,18 @@ public class CrawlDataWriter extends UntypedActor {
 	
 	private void savePage(HtmlPage page, String pageClassName) {
 		try {
-			page.save(new File(directory.toString() + "/"+ getPageFileName(pageClassName)));
+			File directory = new File("html/" +baseDirectory+"/"+ pageClassName);
+			if (!directory.exists()) directory.mkdirs();
+			InputStream response = page.getWebResponse().getContentAsStream();
+
+			File responseFile = 
+					new File(directory.toString() + "/" + getPageFileName(pageClassName));
+
+			Files.copy(response, 
+					responseFile.toPath(), 
+					StandardCopyOption.REPLACE_EXISTING);
+
+			IOUtils.closeQuietly(response);
 		} catch (IOException e) {
 			log.error("Can't save Html page");
 		}
@@ -64,7 +79,7 @@ public class CrawlDataWriter extends UntypedActor {
 	}
 	
 	private String getPageFileName(String pageClassName) {
-		return pageClassName+"_"+ ++counter+".html";
+		return pageClassName+"_"+ (++counter) +".html";
 	}
 	
 	@Override

@@ -48,8 +48,11 @@ public class CrawlTarget {
 				String type = reader.get(1);
 				String xpath = reader.get(2);
 				PageClass pageDest = getPageClass(pClasses, reader.get(3));
-				if (type.equals("link") && pageDest!=null) {
-					pageSrc.addPageClassLink(xpath, pageDest);
+				if (type.equals("link")) {
+					if (pageDest!=null)
+						pageSrc.addPageClassLink(xpath, pageDest);
+					else
+						System.err.println("Could not find "+reader.get(3));
 				}
 				else {
 					pageSrc.addData(xpath, type);
@@ -72,9 +75,11 @@ public class CrawlTarget {
 		CsvReader reader = new CsvReader(configFile, DELIMITER);
 		reader.readRecord(); // skip url base
 		while (reader.readRecord()) {
-			PageClass pClass = new PageClass(reader.get(0));
-			if (entryClass==null) entryClass = pClass;
-			pageClasses.add(pClass);
+			PageClass pClass1 = new PageClass(reader.get(0));
+			PageClass pClass2 = new PageClass(reader.get(3));
+			if (entryClass==null) entryClass = pClass1;
+			pageClasses.add(pClass1);
+			pageClasses.add(pClass2);
 		}
 		return pageClasses;
 	}

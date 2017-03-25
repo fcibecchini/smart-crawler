@@ -69,6 +69,11 @@ public class CrawlController {
     	return this.target.getUrlBase().toString();
     }
     
+    public String getBaseDirectory() {
+    	String baseUrlString = this.target.getUrlBase().toString();
+		return baseUrlString.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.", "_");
+    }
+    
     private Properties getProperties(String fileName) {
     	try (InputStream stream = Files.newInputStream(Paths.get(fileName))) {
         	Properties config = new Properties();

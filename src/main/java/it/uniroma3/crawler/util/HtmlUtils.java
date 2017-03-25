@@ -17,6 +17,7 @@ public class HtmlUtils {
 	
 	public static WebClient makeWebClient(boolean javascript) {
 		final WebClient webClient = new WebClient();
+		webClient.getOptions().setJavaScriptEnabled(javascript);
 		if (javascript) {
 			//webClient.waitForBackgroundJavaScript(10000);
 			webClient.getOptions().setThrowExceptionOnScriptError(false);
