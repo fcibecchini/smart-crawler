@@ -1,14 +1,14 @@
 package it.uniroma3.crawler.model;
 
-import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class LinkCollection {
 	private Page parent;
 	private Set<String> links;
 	
 	public LinkCollection(Set<String> links) {
-		this.links = new HashSet<>();
+		this.links = new TreeSet<>();
 		this.links.addAll(links);
 	}
 	

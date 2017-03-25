@@ -17,6 +17,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -40,7 +41,7 @@ public class HtmlUtilsTest {
 	
 	@Before
 	public void setUp() {
-		this.client = HtmlUtils.makeWebClient(true);
+		this.client = HtmlUtils.makeWebClient(false);
 	}
 	
 	private boolean isValid(String base, String href) {
@@ -123,20 +124,20 @@ public class HtmlUtilsTest {
 	
 	@Test
 	public void computeModelTest() {
-		int fetchedPgs = 0;
-		int classCounter = 1;
-		String base = "http://www.pennyandsinclair.co.uk";
+		String base = "http://www.ansa.it";
 		String entry = "/";
 		String sitename = base.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.", "_");
 		
-		final int MAX_PAGES = 100;
-		final int n = 3;
+		int fetchedPgs = 0, classCounter = 1;
+		
+		final int MAX_PAGES = 300, n = 3;
 		final double dt = 0.2;
 		
 		PageClassModel model = new PageClassModel();
 		
 		Queue<LinkCollection> queueQ = new PriorityQueue<>((lc1, lc2) -> lc2.compareTo(lc1));
-		Set<LinkCollection> insertedCollections = new HashSet<>();
+		// make sure we don't visit the same collection more than one time
+		Set<LinkCollection> insertedCollections = new HashSet<>(); 
 		
 		// Feed queue with seed
 		Set<String> lcSet = new HashSet<>();
@@ -146,31 +147,28 @@ public class HtmlUtilsTest {
 		
 		queueQ.add(lcSeed);
 		
-		while (!queueQ.isEmpty()) {
+		while (!queueQ.isEmpty() && fetchedPgs<MAX_PAGES) {
 			LinkCollection lcc = queueQ.poll();
 			
 			// Fetch n pages from lcc 
 			
 			Set<HtmlPage> fetchedW = new HashSet<>();
-			int counter = 0;
 			System.out.println("Parent Page: "+lcc.getParent()+", "+lcc.size()+" total links");
-			for (String lcUrl : lcc.getLinks()) {
+			TreeSet<String> links = (TreeSet<String>) lcc.getLinks();
+			int counter = 0;
+			while (!links.isEmpty() && counter<n) {
+				String lcUrl = links.pollFirst();
 				try {
-					
-					//String urlToFetch = (lcUrl.contains(base)) ? lcUrl : base+lcUrl;
 					String urlToFetch = getAbsoluteURL(base, lcUrl);
 					if (!visitedUrls.contains(urlToFetch) && !urlToFetch.equals("")) {
 						visitedUrls.add(urlToFetch);
-						
 						HtmlPage body = HtmlUtils.getPage(urlToFetch, client);
 						fetchedW.add(body);
 						System.out.println("Fetched: "+urlToFetch);
 						Thread.sleep(1500); // wait..!!
 						fetchedPgs++; 
 						counter++;
-						
 					}
-					if (counter==n) break;
 				} catch (Exception e) {
 					System.err.println("failed fetching: "+lcUrl);
 				}
@@ -228,12 +226,6 @@ public class HtmlUtilsTest {
 					}
 				}
 				if (!collapsed) model.addFinalClass(candidate);
-			}
-			
-			System.out.println(fetchedPgs);
-			if (fetchedPgs>=MAX_PAGES) {
-				System.out.println("END: Pages fetched: "+fetchedPgs+", still "+queueQ.size()+" link collections...");
-				break;
 			}
 			
 			// Update Queue
