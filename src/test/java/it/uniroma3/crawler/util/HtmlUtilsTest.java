@@ -41,7 +41,7 @@ public class HtmlUtilsTest {
 	
 	@Before
 	public void setUp() {
-		this.client = HtmlUtils.makeWebClient(false);
+		this.client = HtmlUtils.makeWebClient(true);
 	}
 	
 	private boolean isValid(String base, String href) {
@@ -109,7 +109,7 @@ public class HtmlUtilsTest {
 		for (HtmlAnchor link : links) {
 			String xpath = getXPath(link);
 						
-			String href = link.getHrefAttribute();
+			String href = link.getHrefAttribute().toLowerCase();
 			if (isValid(base,href)) {
 				if (!p.getUrl().equals(getAbsoluteURL(base,href)))
 					p.updatePageSchema(xpath, href);
@@ -131,7 +131,7 @@ public class HtmlUtilsTest {
 	
 	@Test
 	public void computeModelTest() {
-		String base = "http://www.reaestates.co.uk";
+		String base = "http://www.pennyandsinclair.co.uk";
 		String entry = "/";
 		String sitename = base.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.", "_");
 		
@@ -145,12 +145,13 @@ public class HtmlUtilsTest {
 		Queue<LinkCollection> queueQ = new PriorityQueue<>();
 		// make sure we don't visit the same collection more than one time
 		Set<LinkCollection> insertedCollections = new HashSet<>(); 
-		
+		// nor the same url
+		Set<String> visitedUrls = new HashSet<>();
+
 		// Feed queue with seed
 		Set<String> lcSet = new HashSet<>();
 		lcSet.add(entry);
 		LinkCollection lcSeed = new LinkCollection(lcSet);
-		Set<String> visitedUrls = new HashSet<>();
 		
 		queueQ.add(lcSeed);
 		
@@ -184,9 +185,11 @@ public class HtmlUtilsTest {
 			// Candidate class selection
 			
 			Set<CandidatePageClass> candidates = new HashSet<>();
+			Set<Page> newPages = new HashSet<>();
 			
 			for (HtmlPage htmlPage : fetchedW) {
 				Page page = makePage(model, base, htmlPage);
+				newPages.add(page);
 				
 				CandidatePageClass group = candidates.stream()
 						.filter(cand -> cand.getClassSchema().equals(page.getSchema()))
@@ -238,15 +241,13 @@ public class HtmlUtilsTest {
 			// Update Queue
 			
 			Set<LinkCollection> newLinks = new HashSet<>();
-			
-			for (CandidatePageClass cl : orderedCandidates) {
-				for (Page p : cl.getClassPages()) {
-					for (String xp : p.getSchema()) {
-						LinkCollection lCollection = new LinkCollection(p, p.getUrlsByXPath(xp));
-						if (!insertedCollections.contains(lCollection)) {
-							insertedCollections.add(lCollection);
-							newLinks.add(lCollection); 
-						}
+						
+			for (Page p : newPages) {	
+				for (String xp : p.getSchema()) {
+					LinkCollection lCollection = new LinkCollection(p, p.getUrlsByXPath(xp));
+					if (!insertedCollections.contains(lCollection)) {
+						insertedCollections.add(lCollection);
+						newLinks.add(lCollection);
 					}
 				}
 			}
@@ -278,26 +279,40 @@ public class HtmlUtilsTest {
 		
 		for (CandidatePageClass candidate : model.getModel()) {
 			PageClass src = cand2Pclass.get(candidate);
+						
 			for (String xpath : candidate.getClassSchema()) {
 				Set<String> urls = candidate.getUrlsDiscoveredFromXPath(xpath);
-				Map<CandidatePageClass, Long> dests = 
-						urls.stream()
-						.map(urll -> model.getCandidateFromUrl(urll))
-						.filter(cc -> cc!=null)
-						.collect(groupingBy(cc -> cc, counting()));
+//				Map<CandidatePageClass, Long> dests = 
+//						urls.stream()
+//						.map(urll -> model.getCandidateFromUrl(urll))
+//						.filter(cc -> cc!=null)
+//						.collect(groupingBy(cc -> cc, counting()));
+//				
+//				if (!dests.isEmpty()) {
+//					CandidatePageClass dest1 = null;
+//					int max = 0;
+//					for (CandidatePageClass cpc : dests.keySet()) {
+//						long current = dests.get(cpc);
+//						if (current > max) dest1 = cpc;
+//					}
+//					PageClass dest = cand2Pclass.get(dest1);
+//					src.addPageClassLink(xpath, dest);
+//				}
 				
-				if (!dests.isEmpty()) {
-					CandidatePageClass dest1 = null;
-					int max = 0;
-					for (CandidatePageClass cpc : dests.keySet()) {
-						long current = dests.get(cpc);
-						if (current > max) dest1 = cpc;
-					}
-					PageClass dest = cand2Pclass.get(dest1);
+				Set<CandidatePageClass> destClasses = urls.stream()
+						.map(u -> model.getCandidateFromUrl(u))
+						.filter(cc -> cc!=null)
+						.collect(toSet());
+				if (!destClasses.isEmpty()) {
+					CandidatePageClass destClass = destClasses.stream()
+					.max((c1,c2) -> (int)c1.discoveredUrlsSize()-(int)c2.discoveredUrlsSize())
+					.get();
+					PageClass dest = cand2Pclass.get(destClass);
 					src.addPageClassLink(xpath, dest);
-				}
+				}				
 			}
 		}
+
 		try {
 			FileWriter in = new FileWriter(directory.toString()+"/"+sitename+"_target.csv");
 			in.write(base+"\n");
