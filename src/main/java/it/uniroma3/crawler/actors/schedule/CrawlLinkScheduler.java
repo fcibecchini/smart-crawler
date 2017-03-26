@@ -37,6 +37,7 @@ public class CrawlLinkScheduler extends UntypedActor {
 	
 	private List<CrawlURL> extractCrawlURLs(CrawlURL cUrl) {
 		return cUrl.getOutLinks().stream()
+			.filter(url -> !fetchedUrls.contains(url))
 			.map(url -> 
 				CrawlURLFactory.getCrawlUrl(url, cUrl.getOutLinkPageClass(url)))
 			.collect(Collectors.toList());
@@ -52,7 +53,6 @@ public class CrawlLinkScheduler extends UntypedActor {
 	
 	private void schedule(List<CrawlURL> newCUrls) {
 		newCUrls.stream()
-			.filter(curl -> !fetchedUrls.contains(curl.getUrl().toString()))
 			.forEach(curl -> { 
 					getSender().tell(curl, getSelf());
 					fetchedUrls.add(curl.getUrl().toString());
