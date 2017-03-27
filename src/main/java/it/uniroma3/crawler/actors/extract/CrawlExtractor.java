@@ -49,7 +49,7 @@ public class CrawlExtractor extends UntypedActor {
 					// TODO needs more checks...
 					if (!link.contains("http")) link = urlBase + link;
 					PageClass dest = src.getDestinationByXPath(xPath);
-					cUrl.addOutLink(link.toLowerCase(), dest);
+					cUrl.addOutLink(link, dest);
 				}
 			}
 		}

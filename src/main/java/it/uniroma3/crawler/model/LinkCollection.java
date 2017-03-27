@@ -34,14 +34,14 @@ public class LinkCollection implements Comparable<LinkCollection> {
 	}
 	
 	public int compareTo(LinkCollection other) {
-		if (getCluster().size()==1 && other.getCluster().size()>1) return 1;
-		if (getCluster().size()>1 && other.getCluster().size()==1) return -1;
+		if (getCluster().size()==1 && other.getCluster().size()>1) return -1;
+		if (getCluster().size()>1 && other.getCluster().size()==1) return 1;
 
 		double thisProb = (double) getLinks().size() / (double) getCluster().discoveredUrlsSize();
 		double otherProb = (double) other.getLinks().size() / (double) other.getCluster().discoveredUrlsSize();
 		
-		if (thisProb > otherProb) return 1;
-		if (thisProb < otherProb) return -1;
+		if (thisProb > otherProb) return -1;
+		if (thisProb < otherProb) return 1;
 		else return 0;
 	}
 	

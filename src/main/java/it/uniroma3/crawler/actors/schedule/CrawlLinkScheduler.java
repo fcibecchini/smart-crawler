@@ -20,6 +20,8 @@ public class CrawlLinkScheduler extends UntypedActor {
 		this.random = new Random();
 		this.controller = CrawlController.getInstance();
 		this.fetchedUrls = new HashSet<>();
+		this.fetchedUrls.add(controller.getUrlBase());
+		this.fetchedUrls.add(controller.getUrlBase()+"/");
 	}
 
 	@Override
@@ -37,7 +39,7 @@ public class CrawlLinkScheduler extends UntypedActor {
 	
 	private List<CrawlURL> extractCrawlURLs(CrawlURL cUrl) {
 		return cUrl.getOutLinks().stream()
-			.filter(url -> !fetchedUrls.contains(url))
+			.filter(url -> !fetchedUrls.contains(url.toLowerCase()))
 			.map(url -> 
 				CrawlURLFactory.getCrawlUrl(url, cUrl.getOutLinkPageClass(url)))
 			.collect(Collectors.toList());
@@ -55,7 +57,7 @@ public class CrawlLinkScheduler extends UntypedActor {
 		newCUrls.stream()
 			.forEach(curl -> { 
 					getSender().tell(curl, getSelf());
-					fetchedUrls.add(curl.getUrl().toString());
+					fetchedUrls.add(curl.getUrl().toString().toLowerCase());
 				});
 	}
 }
