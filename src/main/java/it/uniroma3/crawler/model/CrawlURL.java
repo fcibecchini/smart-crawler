@@ -1,5 +1,9 @@
 package it.uniroma3.crawler.model;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -9,11 +13,18 @@ import java.util.stream.Collectors;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
-public class CrawlURL implements Comparable<CrawlURL> {
-	private URI url;
-	private HtmlPage pageContent;
+public class CrawlURL implements Comparable<CrawlURL>, Serializable {
+	
+	private static final long serialVersionUID = 5388473492348802891L;
+		
+	private transient URI url;
+	
 	private PageClass pageClass;
-	private Map<String,PageClass> outLinks;
+	
+	private HtmlPage pageContent;
+	
+	private transient Map<String,PageClass> outLinks;
+	
 	private String[] record;
 	
 	public CrawlURL(String url, PageClass pageClass) throws URISyntaxException {
@@ -68,6 +79,25 @@ public class CrawlURL implements Comparable<CrawlURL> {
 	
 	public int compareTo(CrawlURL c2) {
 		return this.getPageClass().compareTo(c2.getPageClass());
+	}
+	
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		out.defaultWriteObject();
+		out.writeUTF(url.toString());
+		out.writeObject((outLinks.isEmpty()) ? null : outLinks);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream in) 
+			throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+		url = URI.create(in.readUTF());
+		Map<String, PageClass> outs = (Map<String, PageClass>) in.readObject();
+		outLinks = (outs != null) ? outs : new HashMap<>();
+	}
+	
+	public String toString() {
+		return "[URL: "+url.toString()+", CLASS: "+pageClass.getName()+"]";
 	}
 	
 	public int hashCode() {

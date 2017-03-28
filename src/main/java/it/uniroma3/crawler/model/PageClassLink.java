@@ -1,6 +1,11 @@
 package it.uniroma3.crawler.model;
 
-public class PageClassLink {
+import java.io.Serializable;
+
+public class PageClassLink implements Serializable {
+	
+	private static final long serialVersionUID = -8151270465503302385L;
+	
 	private String xpath;
 	private PageClass destination;
 
@@ -18,7 +23,7 @@ public class PageClassLink {
 	}
 	
 	public String toString() {
-		return "["/*+xpath+*/+", "+destination.getName()+"]";
+		return "["+xpath+", "+destination.getName()+"]";
 	}
 	
 }

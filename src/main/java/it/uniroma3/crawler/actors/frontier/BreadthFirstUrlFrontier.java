@@ -12,7 +12,7 @@ import akka.japi.Creator;
 import it.uniroma3.crawler.model.CrawlURL;
 import scala.concurrent.duration.Duration;
 
-public class BreadthFirstUrlFrontier extends UntypedActor implements UrlFrontier  {
+public class BreadthFirstUrlFrontier extends UntypedActor  {
 	private final static String NEXT = "next";
 	private Queue<CrawlURL> urlsQueue;
 	private Queue<ActorRef> requesters;
@@ -39,17 +39,14 @@ public class BreadthFirstUrlFrontier extends UntypedActor implements UrlFrontier
 		this.isEnding = false;
 	}
 
-	@Override
 	public CrawlURL next() {
 		return urlsQueue.poll();
 	}
 
-	@Override
 	public void scheduleUrl(CrawlURL crawUrl) {
 		urlsQueue.add(crawUrl);
 	}
 
-	@Override
 	public boolean isEmpty() {
 		return urlsQueue.isEmpty();
 	}

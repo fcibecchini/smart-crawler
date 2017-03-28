@@ -1,6 +1,11 @@
 package it.uniroma3.crawler.model;
 
-public abstract class DataType {
+import java.io.Serializable;
+
+public abstract class DataType implements Serializable {
+	
+	private static final long serialVersionUID = -1685843286195454597L;
+	
 	private String xpath;
 	
 	public String getXPath() {

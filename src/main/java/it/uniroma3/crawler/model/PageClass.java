@@ -1,16 +1,23 @@
 package it.uniroma3.crawler.model;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class PageClass {
+public class PageClass implements Serializable {
+	private static final long serialVersionUID = 20919679521227239L;
+	
 	private String name;
 	private int depth;
 	private long waitTime;
-	private Collection<PageClassLink> links;
-	private Collection<DataType> dataTypes;
+	
+	private transient Collection<PageClassLink> links;
+	private transient Collection<DataType> dataTypes;
 	
 	public PageClass(String name, long waitTime) {
 		this(name);
@@ -105,6 +112,24 @@ public class PageClass {
 	
 	public String toString() {
 		return name+": "+links.toString();
+	}
+	
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		out.defaultWriteObject();
+		out.writeObject((links.isEmpty()) ? null : links);
+		out.writeObject((dataTypes.isEmpty()) ? null : dataTypes);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream in) 
+			throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+		Collection<PageClassLink> classLinks = 
+				(Collection<PageClassLink>) in.readObject();
+		links = (classLinks != null) ? classLinks : new ArrayList<>();
+		Collection<DataType> dTypes = 
+				(Collection<DataType>) in.readObject();
+		dataTypes = (dTypes != null) ? dTypes : new ArrayList<>();
 	}
 	
 	public int hashCode() {
