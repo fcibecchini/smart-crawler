@@ -109,7 +109,7 @@ public class HtmlUtilsTest {
 		for (HtmlAnchor link : links) {
 			String xpath = getXPath(link);
 						
-			String href = link.getHrefAttribute().toLowerCase();
+			String href = link.getHrefAttribute();
 			if (isValid(base,href)) {
 				if (!p.getUrl().equals(getAbsoluteURL(base,href)))
 					p.updatePageSchema(xpath, href);
@@ -168,8 +168,8 @@ public class HtmlUtilsTest {
 				String lcUrl = links.pollFirst();
 				try {
 					String urlToFetch = getAbsoluteURL(base, lcUrl);
-					if (!visitedUrls.contains(urlToFetch) && !urlToFetch.equals("")) {
-						visitedUrls.add(urlToFetch);
+					if (!visitedUrls.contains(urlToFetch.toLowerCase()) && !urlToFetch.equals("")) {
+						visitedUrls.add(urlToFetch.toLowerCase());
 						HtmlPage body = HtmlUtils.getPage(urlToFetch, client);
 						fetchedW.add(body);
 						System.out.println("Fetched: "+urlToFetch);
@@ -177,6 +177,8 @@ public class HtmlUtilsTest {
 						fetchedPgs++; 
 						counter++;
 					}
+					else
+						System.out.println("ALREADY FETCHED: "+urlToFetch);
 				} catch (Exception e) {
 					System.err.println("failed fetching: "+lcUrl);
 				}
