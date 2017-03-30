@@ -5,6 +5,7 @@ import java.util.TreeSet;
 
 public class LinkCollection implements Comparable<LinkCollection> {
 	private Page parent;
+	private String xpath;
 	private Set<String> links;
 	
 	public LinkCollection(Set<String> links) {
@@ -12,8 +13,9 @@ public class LinkCollection implements Comparable<LinkCollection> {
 		this.links.addAll(links);
 	}
 	
-	public LinkCollection(Page parent, Set<String> links) {
+	public LinkCollection(Page parent, String xpath, Set<String> links) {
 		this(links);
+		this.xpath = xpath;
 		this.parent = parent;
 	}
 	
@@ -27,6 +29,10 @@ public class LinkCollection implements Comparable<LinkCollection> {
 	
 	public CandidatePageClass getCluster() {
 		return this.parent.getCurrentCluster();
+	}
+	
+	public String getXPath() {
+		return this.xpath;
 	}
 	
 	public int size() {

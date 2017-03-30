@@ -10,6 +10,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,7 @@ public class HtmlUtilsTest {
 	
 	@Before
 	public void setUp() {
-		this.client = HtmlUtils.makeWebClient(true);
+		this.client = HtmlUtils.makeWebClient(false);
 	}
 	
 	private boolean isValid(String base, String href) {
@@ -68,10 +69,7 @@ public class HtmlUtilsTest {
 						String lattrValue = lattr.getNodeValue();
 						return "//"+xpath+"[@"+lAttrName+"='"+lattrValue+"'"+"]";
 					}
-					else if (lAttrName.equals("class")) {
-						String lattrValue = lattr.getNodeValue();
-						anchorQuery = "@"+lAttrName+"='"+lattrValue+"'"+" and ";
-					}
+					else anchorQuery = "@"+lAttrName+" and ";
 				}
 			}
 		}
@@ -101,19 +99,13 @@ public class HtmlUtilsTest {
 	
 	
 	@SuppressWarnings("unchecked")
-	private Page makePage(PageClassModel model, String base, HtmlPage page) {
-		Page p = new Page(page.getUrl().toString(), model);
-		
+	private Page makePage(PageClassModel model, String base, HtmlPage page, String pageUrl) {
+		Page p = new Page(pageUrl, model);
 		List<HtmlAnchor> links = (List<HtmlAnchor>) XPathUtils.getByMatchingXPath(page, "//a");
-		
 		for (HtmlAnchor link : links) {
-			String xpath = getXPath(link);
-						
 			String href = link.getHrefAttribute();
-			if (isValid(base,href)) {
-				if (!p.getUrl().equals(getAbsoluteURL(base,href)))
-					p.updatePageSchema(xpath, href);
-			}
+			String url = getAbsoluteURL(pageUrl, href);
+			p.updatePageSchema(getXPath(link), url);
 		}
 		return p;
 	}
@@ -128,71 +120,91 @@ public class HtmlUtilsTest {
 		}
 	}
 	
+	private String transformURL(String url) {
+		String newUrl = url.toLowerCase();
+		if (newUrl.endsWith("/")) 
+			newUrl = newUrl.substring(0, newUrl.length()-1);
+		return newUrl;
+	}
 	
 	@Test
 	public void computeModelTest() {
-		String base = "http://www.pennyandsinclair.co.uk";
+		String base = "http://localhost:8081";
 		String entry = "/";
-		String sitename = base.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.", "_");
+		String sitename = base.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.|:", "_");
 		
 		int fetchedPgs = 0, classCounter = 1;
 		
-		final int MAX_PAGES = 100, n = 3;
+		final int MAX_PAGES = 200;
 		final double dt = 0.2;
+		int n = 3;
 		
+		// Final model of discovered clusters
 		PageClassModel model = new PageClassModel();
 		
+		// Current queue of link collections to expand
 		Queue<LinkCollection> queueQ = new PriorityQueue<>();
-		// make sure we don't visit the same collection more than one time
+		
+		// A set of already visited link collections
 		Set<LinkCollection> insertedCollections = new HashSet<>(); 
-		// nor the same url
+		
+		// A set of already visited urls
 		Set<String> visitedUrls = new HashSet<>();
+		
+		// A set of Pages with some edited xpath: to be used at the end to edit their cluster schema
+		Set<Page> editedPages = new HashSet<>();
 
 		// Feed queue with seed
 		Set<String> lcSet = new HashSet<>();
-		lcSet.add(entry);
+		lcSet.add(base+entry);
 		LinkCollection lcSeed = new LinkCollection(lcSet);
-		
 		queueQ.add(lcSeed);
 		
+		
+		// Main while, fetch n links from next link collection
 		while (!queueQ.isEmpty() && fetchedPgs<MAX_PAGES) {
-			LinkCollection lcc = queueQ.poll();
+			LinkCollection currentCollection = queueQ.poll();
+
+			Map<String, HtmlPage> url2HtmlPage = new HashMap<>();
 			
-			// Fetch n pages from lcc 
+			System.out.println("Parent Page: "+currentCollection.getParent()+", "+currentCollection.size()+" total links");
 			
-			Set<HtmlPage> fetchedW = new HashSet<>();
-			System.out.println("Parent Page: "+lcc.getParent()+", "+lcc.size()+" total links");
-			TreeSet<String> links = (TreeSet<String>) lcc.getLinks();
+			TreeSet<String> links = (TreeSet<String>) currentCollection.getLinks();
 			int counter = 0;
 			while (!links.isEmpty() && counter<n) {
 				String lcUrl = links.pollFirst();
+				
 				try {
-					String urlToFetch = getAbsoluteURL(base, lcUrl);
-					if (!visitedUrls.contains(urlToFetch.toLowerCase()) && !urlToFetch.equals("")) {
-						visitedUrls.add(urlToFetch.toLowerCase());
-						HtmlPage body = HtmlUtils.getPage(urlToFetch, client);
-						fetchedW.add(body);
-						System.out.println("Fetched: "+urlToFetch);
-						Thread.sleep(1500); // wait..!!
+					// normalize url for validity checks
+					String transformedUrl = transformURL(lcUrl);
+					if (!visitedUrls.contains(transformedUrl) 
+							&& !transformedUrl.equals("") 
+							&& isValid(base,transformedUrl)) {
+						visitedUrls.add(transformedUrl);
+						HtmlPage body = HtmlUtils.getPage(lcUrl, client);
+						url2HtmlPage.put(lcUrl, body);
+						System.out.println("Fetched: "+lcUrl);
+						//Thread.sleep(1500); // wait..!!
 						fetchedPgs++; 
 						counter++;
 					}
-					else
-						System.out.println("ALREADY FETCHED: "+urlToFetch);
 				} catch (Exception e) {
 					System.err.println("failed fetching: "+lcUrl);
 				}
 			}
+			n = 3; // restore default n
+			
 			
 			// Candidate class selection
 			
 			Set<CandidatePageClass> candidates = new HashSet<>();
 			Set<Page> newPages = new HashSet<>();
 			
-			for (HtmlPage htmlPage : fetchedW) {
-				Page page = makePage(model, base, htmlPage);
+			for (String pageUrl : url2HtmlPage.keySet()) {
+				HtmlPage htmlPage = url2HtmlPage.get(pageUrl);
+				Page page = makePage(model, base, htmlPage, pageUrl);
 				newPages.add(page);
-				
+
 				CandidatePageClass group = candidates.stream()
 						.filter(cand -> cand.getClassSchema().equals(page.getSchema()))
 						.findAny().orElse(null);
@@ -207,6 +219,8 @@ public class HtmlUtilsTest {
 				}
 				
 			}
+			
+			// Collapse classes with similar structure
 			
 			List<CandidatePageClass> orderedCandidates = candidates.stream()
 					.sorted((cc1, cc2) -> cc2.getClassPages().size() - cc1.getClassPages().size())
@@ -223,8 +237,34 @@ public class HtmlUtilsTest {
 					}
 				}
 			}
-			
 			orderedCandidates.removeAll(toRemove);
+			
+			// Edit parent page xpath if links are from different classes (i.e. list of links is a menu)
+			if (orderedCandidates.size() > 1) {
+				System.out.println("MENU DETECTED...");
+				if (links.isEmpty()) {
+					Page parent = currentCollection.getParent();
+					String parentXPath = currentCollection.getXPath();
+					System.out.println("EDITING XPATHS TO MATCH "+newPages);
+					for (Page child : newPages) {
+						int index = parent.getUrlIndex(parentXPath, child.getUrl());
+						String newXPath = "(" + parentXPath + ")[" + (index+1) + "]";
+						parent.updatePageSchema(newXPath, child.getUrl());
+					}
+					parent.removeXPathFromSchema(parentXPath); // remove old xpath
+					editedPages.add(parent); // save page with new xpaths for later schema edit
+				}
+				else {
+					links.addAll(url2HtmlPage.keySet());
+					for (String visitedUrl : url2HtmlPage.keySet()) {
+						visitedUrls.remove(transformURL(visitedUrl));
+					}					
+					n = links.size();
+					queueQ.add(currentCollection);
+					System.out.println("FETCHING ALL URLS IN LIST");
+					continue; // fetch all the collection to expand the menu
+				}
+			}
 
 			// Update Model
 			
@@ -246,7 +286,7 @@ public class HtmlUtilsTest {
 						
 			for (Page p : newPages) {	
 				for (String xp : p.getSchema()) {
-					LinkCollection lCollection = new LinkCollection(p, p.getUrlsByXPath(xp));
+					LinkCollection lCollection = new LinkCollection(p, xp, p.getUrlsByXPath(xp));
 					if (!insertedCollections.contains(lCollection)) {
 						insertedCollections.add(lCollection);
 						newLinks.add(lCollection);
@@ -255,6 +295,11 @@ public class HtmlUtilsTest {
 			}
 			
 			queueQ.addAll(newLinks);
+		}
+		
+		// Model has been completed, we must update the cluster schema with the previously edited pages
+		for (Page edited : editedPages) {
+			edited.getCurrentCluster().addPageToClass(edited); // save new xpaths to Cluster schema
 		}
 		
 		// Save Model
@@ -284,22 +329,6 @@ public class HtmlUtilsTest {
 						
 			for (String xpath : candidate.getClassSchema()) {
 				Set<String> urls = candidate.getUrlsDiscoveredFromXPath(xpath);
-//				Map<CandidatePageClass, Long> dests = 
-//						urls.stream()
-//						.map(urll -> model.getCandidateFromUrl(urll))
-//						.filter(cc -> cc!=null)
-//						.collect(groupingBy(cc -> cc, counting()));
-//				
-//				if (!dests.isEmpty()) {
-//					CandidatePageClass dest1 = null;
-//					int max = 0;
-//					for (CandidatePageClass cpc : dests.keySet()) {
-//						long current = dests.get(cpc);
-//						if (current > max) dest1 = cpc;
-//					}
-//					PageClass dest = cand2Pclass.get(dest1);
-//					src.addPageClassLink(xpath, dest);
-//				}
 				
 				Set<CandidatePageClass> destClasses = urls.stream()
 						.map(u -> model.getCandidateFromUrl(u))
@@ -328,21 +357,29 @@ public class HtmlUtilsTest {
 		} 
 		catch (FileNotFoundException e) {} 
 		catch (IOException e) {}
+		
+		
+		try {
+			FileWriter in = new FileWriter(directory.toString()+"/"+sitename+"_class_schema.csv");
+			in.write(base+"\n");
+			model.getModel().forEach(cl -> {
+					try {
+						in.write(cl.getName()+"\n");
+						for (String xp : cl.getClassSchema()) {
+							in.write(xp+"\n");
+						}
+						in.write("\n");
+					} 
+					catch (IOException e) {}});
+			in.close();
+		} 
+		catch (FileNotFoundException e) {} 
+		catch (IOException e) {}
+
 
 	}
 
 }
-
-//public void test() throws Exception {
-//String base = "http://www.pennyandsinclair.co.uk";
-//String entry = "/property/residential/for-rent/central-north-oxford/southmoor-road/101073006967";
-//
-//String urlToFetch = getAbsoluteURL(base, entry);
-//HtmlPage body = HtmlUtils.getPage(urlToFetch, client);
-//
-//Page p = makePage(new PageClassModel(), base, body);
-//
-//}
 
 
 //for (CandidatePageClass candidate : orderedCandidates) {
@@ -377,15 +414,3 @@ public class HtmlUtilsTest {
 //else
 //	model.addFinalClasses(modelNew.getModel());
 //}
-
-
-
-
-//Set<String> prova = page.getUrlsByXPath("//div[@id='fullDetailsHeader']/div[@class]/a");
-//if (prova!=null) {
-//	System.err.println(page.getUrl());
-//	page.getSchema().forEach(xp -> System.err.println(xp+" -> "+page.getUrlsByXPath(xp)));
-//	System.err.println(XPathUtils.getByMatchingXPath(htmlPage, "//a"));
-//}
-
-

@@ -1,16 +1,17 @@
 package it.uniroma3.crawler.model;
 
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static java.util.stream.Collectors.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Page {
 	private String url;
-	private Map<String, Set<String>> xpath2Urls;
+	private Map<String, List<String>> xpath2Urls;
 	private PageClassModel model;
 	
 	public Page(String url, PageClassModel model) {
@@ -24,7 +25,7 @@ public class Page {
 	}
 	
 	public void updatePageSchema(String xpath, String url) {
-		this.xpath2Urls.putIfAbsent(xpath, new HashSet<>());
+		this.xpath2Urls.putIfAbsent(xpath, new ArrayList<>());
 		this.xpath2Urls.get(xpath).add(url);
 	}
 	
@@ -36,13 +37,28 @@ public class Page {
 	}
 	
 	public Set<String> getUrlsByXPath(String xpath) {
+		List<String> urls = this.xpath2Urls.get(xpath);
+		if (urls != null)
+			return urls.stream().collect(toSet());
+		return null;
+	}
+	
+	public List<String> getUrlsListByXPath(String xpath) {
 		return this.xpath2Urls.get(xpath);
+	}
+	
+	public void removeXPathFromSchema(String xpath) {
+		this.xpath2Urls.remove(xpath);
+	}
+	
+	public int getUrlIndex(String xpath, String url) {
+		return this.xpath2Urls.get(xpath).indexOf(url);
 	}
 	
 	public Set<String> getDiscoveredUrls() {
 		return this.xpath2Urls.keySet().stream()
 				.map(k -> xpath2Urls.get(k))
-				.flatMap(Set::stream)
+				.flatMap(List::stream)
 				.distinct().collect(toSet());
 	}
 	
