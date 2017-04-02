@@ -14,7 +14,7 @@ public class WebsiteModel {
 	private static final double C_I = 0.8;
 	private static final double C_MISS = 1;
 
-	Set<CandidatePageClass> modelClasses;
+	private Set<CandidatePageClass> modelClasses;
 	
 	public WebsiteModel() {
 		this.modelClasses = new TreeSet<>();
