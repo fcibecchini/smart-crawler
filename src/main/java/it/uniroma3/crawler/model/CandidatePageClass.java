@@ -4,7 +4,10 @@ import java.util.Set;
 
 import static java.util.stream.Collectors.*;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	private String baseUrl;
@@ -91,14 +94,23 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 		Set<String> temp = new HashSet<>();
 		for (Page p : classPages) {
 			Set<String> urls = p.getUrlsByXPath(xpath);
-			if (urls!=null) {
-				for (String url : urls) {
-					String newUrl = (!url.contains("http")) ? baseUrl+url : url;
-					temp.add(newUrl);
-				}
-			}
+			if (urls!=null) 
+				temp.addAll(urls);
+			
 		}
 		return temp;
+	}
+	
+	public List<String> getOrderedUrlsFromXPath(String xpath) {
+		try {
+			return classPages.stream()
+					.map(p -> p.getUrlsListByXPath(xpath))
+					.filter(l -> l!=null)
+					.max((l1,l2) -> l1.size() - l2.size())
+					.get();
+		} catch (NoSuchElementException e) {
+			return new ArrayList<>();
+		}
 	}
 	
 	public int size() {

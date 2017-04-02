@@ -1,12 +1,12 @@
 package it.uniroma3.crawler.model;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 public class WebsiteModel {
 	private static final double C_U = 1;
@@ -62,19 +62,32 @@ public class WebsiteModel {
 			pClasses.add(src);
 						
 			for (String xpath : candidate.getClassSchema()) {
-				Set<String> urls = candidate.getUrlsDiscoveredFromXPath(xpath);
+				List<String> urls = candidate.getOrderedUrlsFromXPath(xpath);
+				Map<String, CandidatePageClass> url2class = new HashMap<>();
+				urls.forEach(u -> url2class.put(u, getCandidateFromUrl(u)));
 				
-				Set<CandidatePageClass> destClasses = urls.stream()
-						.map(u -> getCandidateFromUrl(u))
-						.filter(cc -> cc!=null)
-						.collect(Collectors.toSet());
-				if (!destClasses.isEmpty()) {
-					CandidatePageClass destClass = destClasses.stream()
-					.max((c1,c2) -> (int)c1.discoveredUrlsSize()-(int)c2.discoveredUrlsSize())
-					.get();
-					PageClass dest = cand2Pclass.get(destClass);
-					src.addPageClassLink(xpath, dest);
-				}				
+				// menu..?
+				long size = url2class.values().stream().distinct().count();
+				if (size>1) {
+					for (String url : url2class.keySet()) {
+						CandidatePageClass cpcDest = url2class.get(url);
+						if (cpcDest != null) {
+							PageClass dest = cand2Pclass.get(cpcDest);
+							for (int index : indexesOf(urls, url)) {
+								String newXPath = "(" + xpath + ")[" + (index+1) + "]";
+								src.addPageClassLink(newXPath, dest);
+							}
+						}
+					}
+				}
+				else if (size==1) {
+					CandidatePageClass cpcDest = url2class.values().stream()
+							.filter(v -> v!=null).findAny().orElse(null);
+					if (cpcDest != null) {
+						PageClass dest = cand2Pclass.get(cpcDest);
+						src.addPageClassLink(xpath, dest);
+					}
+				}			
 			}
 		}
 		
@@ -100,6 +113,16 @@ public class WebsiteModel {
 		}
 		
 		return modelCost+dataCost;
+	}
+	
+	private List<Integer> indexesOf(List<String> urls, String url) {
+		List<Integer> indexes = new ArrayList<>();
+		int i = 0;
+		for (String u : urls) {
+			if (u.equals(url)) indexes.add(i);
+			i++;
+		}
+		return indexes;
 	}
 
 }

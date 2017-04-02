@@ -75,6 +75,7 @@ public class CrawlTarget {
 	
 	public PageClass computeModel(int maxPages, int n, double dt, long waitTime) {
 		String base = urlBase.toString();
+		String normalizedBase = transformURL(base);
 		
 		int fetchedPgs = 0;
 		int classCounter = 1;
@@ -92,10 +93,6 @@ public class CrawlTarget {
 		// A set of already visited urls
 		Set<String> visitedUrls = new HashSet<>();
 		
-		// A set of Pages with some edited xpath: 
-		// to be used at the end to edit their cluster schema
-		Set<Page> editedPages = new HashSet<>();
-
 		// Feed queue with seed
 		Set<String> lcSet = new HashSet<>();
 		lcSet.add(base);
@@ -117,11 +114,11 @@ public class CrawlTarget {
 				
 				try {
 					// normalize url for validity checks
-					String transformedUrl = transformURL(lcUrl);
-					if (!visitedUrls.contains(transformedUrl) 
-							&& !transformedUrl.equals("") 
-							&& isValidURL(base,transformedUrl)) {
-						visitedUrls.add(transformedUrl);
+					String normalizedUrl = transformURL(lcUrl);
+					if (!visitedUrls.contains(normalizedUrl) 
+							&& !normalizedUrl.equals("") 
+							&& isValidURL(normalizedBase,normalizedUrl)) {
+						visitedUrls.add(normalizedUrl);
 						HtmlPage body = getPage(lcUrl, client);
 						url2HtmlPage.put(lcUrl, body);
 						fetchedPgs++; 
@@ -181,33 +178,16 @@ public class CrawlTarget {
 			}
 			orderedCandidates.removeAll(toRemove);
 			
-			// Edit parent page xpath if links are from different classes 
-			// (i.e. list of links is a menu)
-			
-			if (orderedCandidates.size() > 1) {
-				log.info("MENU DETECTED...");
-				if (links.isEmpty()) {
-					Page parent = currentCollection.getParent();
-					String parentXPath = currentCollection.getXPath();
-					log.info("EDITING XPATHS TO MATCH "+newPages);
-					for (Page child : newPages) {
-						int index = parent.getUrlIndex(parentXPath, child.getUrl());
-						String newXPath = "(" + parentXPath + ")[" + (index+1) + "]";
-						parent.updatePageSchema(newXPath, child.getUrl());
-					}
-					parent.removeXPathFromSchema(parentXPath); // remove old xpath
-					editedPages.add(parent); // save page with new xpaths for later schema edit
+			// fetch all links if they are from different classes
+			if (orderedCandidates.size() > 1 && !links.isEmpty()) {
+				log.info("MENU DETECTED: FETCHING ALL URLS IN LINK COLLECTION...");
+				links.addAll(url2HtmlPage.keySet());
+				for (String visitedUrl : url2HtmlPage.keySet()) {
+					visitedUrls.remove(transformURL(visitedUrl));
 				}
-				else {
-					links.addAll(url2HtmlPage.keySet());
-					for (String visitedUrl : url2HtmlPage.keySet()) {
-						visitedUrls.remove(transformURL(visitedUrl));
-					}					
-					maxIterationPages = links.size();
-					queueQ.add(currentCollection);
-					log.info("FETCHING ALL URLS IN LIST");
-					continue; // fetch all the collection to expand the menu
-				}
+				maxIterationPages = links.size();
+				queueQ.add(currentCollection);
+				continue;
 			}
 
 			// Update Model
@@ -260,11 +240,7 @@ public class CrawlTarget {
 			
 			queueQ.addAll(newLinks);
 		}
-		
-		// Model completed, we must update the cluster schema 
-		// with the previously edited pages
-		editedPages.forEach(p -> p.getCurrentCluster().addPageToClass(p));
-		
+				
 		// Transform candidates into Page Classes and Class Links
 		List<PageClass> pClasses = model.makePageClasses();
 		entryClass = pClasses.get(0);
@@ -280,37 +256,44 @@ public class CrawlTarget {
 	
 	private void logModel(WebsiteModel model, List<PageClass> pClasses, String dir) {
 		String base = urlBase.toString();
-		String sitename = base.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.|:", "_");
+		String normalBase = transformURL(base);
+		String sitename = base.replaceAll("http[s]?://(www.)?|/", "").replaceAll("\\.|:", "_");
+		String schema = dir+"/"+sitename+"_class_schema.txt";
+		String target = dir+"/"+sitename+"_target.csv";
 		
 		new File(dir).mkdir();
 		
 		try {
-			FileWriter modelFile = new FileWriter(dir+"/"+sitename+"_model.txt");
-			FileWriter schemaFile = new FileWriter(dir+"/"+sitename+"_class_schema.csv");
-			FileWriter targetFile = new FileWriter(dir+"/"+sitename+"_target.csv");
+			
+			FileWriter schemaFile = new FileWriter(schema);
+			FileWriter targetFile = new FileWriter(target);
 
 			for (CandidatePageClass cpc : model.getModel()) {
-				modelFile.write(cpc.getName()+": "+cpc.getClassPages().toString()+"\n");
-				
-				schemaFile.write(cpc.getName()+"\n");
+				schemaFile.write(cpc.getName()+": "+
+						cpc.getClassPages().toString().replace(normalBase, "")+"\n");
 				for (String xp : cpc.getClassSchema()) {
-					schemaFile.write(xp+"\n");
+					schemaFile.write(xp+" -> "+cpc.getUrlsDiscoveredFromXPath(xp)+"\n");
 				}
 				schemaFile.write("\n");
 			}
-			modelFile.close();
 			schemaFile.close();
 
 			targetFile.write(base+"\n");
 			for (PageClass pc : pClasses) {
 				for (String xp : pc.getNavigationXPaths()) {
-					targetFile.write(pc.getName()+"\t"+"link"+"\t"+xp+"\t"+pc.getDestinationByXPath(xp).getName()+"\n");
+					targetFile.write(
+							pc.getName()+"\t"+"link"+"\t"+xp+"\t"+
+							pc.getDestinationByXPath(xp).getName()+"\n");
 				}
 			}
 			targetFile.close();
 		} 
-		catch (FileNotFoundException e) {} 
-		catch (IOException e) {}
+		catch (FileNotFoundException e) {
+			log.severe("File not found while logging model");
+		} 
+		catch (IOException e) {
+			log.severe("IOException while logging model");
+		}
 		
 	}
 	
@@ -370,6 +353,7 @@ public class CrawlTarget {
 	private void setHierarchy() {
 		Queue<PageClass> classes = new LinkedList<>();
 		Set<PageClass> visited = new HashSet<>();
+		visited.add(entryClass);
 		classes.add(entryClass);
 		PageClass current, next = null;
 		entryClass.setDepth(0);
