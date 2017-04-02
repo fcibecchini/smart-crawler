@@ -56,30 +56,27 @@ public class LinkCollection implements Comparable<LinkCollection> {
 		return desc+" -> "+ getLinks().toString();
 	}
 	
-	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((links == null) ? 0 : links.hashCode());
-		return result;
+		return links.hashCode()
+				+ ((parent == null) ? 0 : parent.hashCode())
+				+ ((xpath == null) ? 0 : xpath.hashCode());
 	}
 
-	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
 		LinkCollection other = (LinkCollection) obj;
-		if (links == null) {
-			if (other.links != null)
+		if (parent == null) {
+			if (other.getParent() != null)
 				return false;
-		} else if (!links.equals(other.links))
+		} 
+		else if (!parent.equals(other.getParent()))
 			return false;
-		return true;
+		if (xpath == null) {
+			if (other.getXPath() != null)
+				return false;
+		} 
+		else if (!xpath.equals(other.xpath))
+			return false;
+		return links.equals(other.getLinks());
 	}
-
 
 }

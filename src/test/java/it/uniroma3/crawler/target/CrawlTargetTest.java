@@ -7,38 +7,41 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.target.CrawlTarget;
 
 public class CrawlTargetTest {
-	private String configFile;
-	private CrawlTarget target;
+	private final static String TEST_SITE = "http://localhost:8081";
+	private CrawlTarget targetFromFile;
 
 	@Before
 	public void setUp() throws Exception {
-		this.configFile = "target.csv";
-		this.target = new CrawlTarget(configFile);
+		String file = CrawlTargetTest.class.getResource("/targets/target_test.csv").getPath();
+		this.targetFromFile = new CrawlTarget(file);
 	}
 
 	@Test
 	public void testInitCrawlingTarget_entryPointClass_name() {
-		target.initCrawlingTarget();
-		PageClass entry = target.getEntryPageClass();
+		targetFromFile.initCrawlingTarget();
+		PageClass entry = targetFromFile.getEntryPageClass();
 		assertEquals(entry.getName(), "homepage");
 	}
 	
 	@Test
 	public void testInitCrawlingTarget_entryPointClass_destination() {
-		target.initCrawlingTarget();
-		PageClass entry = target.getEntryPageClass();
+		targetFromFile.initCrawlingTarget();
+		PageClass entry = targetFromFile.getEntryPageClass();
 		String xpath = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
 		assertEquals(entry.getDestinationByXPath(xpath).getName(), "companies");
 	}
 	
 	@Test
 	public void testInitCrawlingTarget_testChain() {
-		target.initCrawlingTarget();
-		PageClass entry = target.getEntryPageClass();
+		targetFromFile.initCrawlingTarget();
+		PageClass entry = targetFromFile.getEntryPageClass();
 		String xpath1 = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
 		String xpath2 = "//tr/td[@colspan='2']//h2/a";
 		PageClass detailsPageClass = entry.getDestinationByXPath(xpath1).getDestinationByXPath(xpath2);
@@ -48,8 +51,8 @@ public class CrawlTargetTest {
 	
 	@Test
 	public void testInitCrawlingTarget_testEndPage() {
-		target.initCrawlingTarget();
-		PageClass entry = target.getEntryPageClass();
+		targetFromFile.initCrawlingTarget();
+		PageClass entry = targetFromFile.getEntryPageClass();
 		String xpath1 = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
 		String xpath2 = "//tr/td[@colspan='2']//h2/a";
 		String xpath3 = "//tr/td[@align='right']/a";
@@ -63,8 +66,8 @@ public class CrawlTargetTest {
 	
 	@Test
 	public void testInitCrawlingTarget_testFindPageClass() {
-		target.initCrawlingTarget();
-		PageClass entry = target.getEntryPageClass();
+		targetFromFile.initCrawlingTarget();
+		PageClass entry = targetFromFile.getEntryPageClass();
 		List<String> entryXPaths = entry.getNavigationXPaths();
 		PageClass companies = entry.getDestinationByXPath(entryXPaths.get(0));
 		List<String> companiesXPaths = companies.getNavigationXPaths();
@@ -78,8 +81,8 @@ public class CrawlTargetTest {
 	
 	@Test
 	public void testInitCrawlingTarget_testDepthHierarchy() {
-		target.initCrawlingTarget();
-		PageClass entry = target.getEntryPageClass();
+		targetFromFile.initCrawlingTarget();
+		PageClass entry = targetFromFile.getEntryPageClass();
 		PageClass companies = entry.getDestinationByXPath("//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']");
 		PageClass detPage = companies.getDestinationByXPath("//tr/td[@colspan='2']//h2/a");
 		PageClass profPage = detPage.getDestinationByXPath("//tr/td[@align='right']/a");
@@ -91,19 +94,25 @@ public class CrawlTargetTest {
 	}
 	
 	@Test
-	public void testInitCrawlingTarget_testDepthHierarchy2() {
-		CrawlTarget target = new CrawlTarget("ansa.csv");
-		target.initCrawlingTarget();
-		PageClass entry = target.getEntryPageClass();
-		PageClass section = entry.getDestinationByXPath("//li[@id='Cronaca_pg']/a");
-		PageClass newslist = section.getDestinationByXPath("//div[@class='pp-inner']//div[@class='link']/a");
-		PageClass article = newslist.getDestinationByXPath("//section//h3[@class='news-title']/a");
-		
-		assertEquals(entry.getDepth(), 0);
-		assertEquals(section.getDepth(), 1);
-		assertEquals(newslist.getDepth(), 1);
-		assertEquals(article.getDepth(), 2);
-	}
+	public void testComputeWebsiteTarget() {
+		try {
+			URI entry = new URI(TEST_SITE);
+			String toDirectory = "(//ul[@id='menu']/li/a[not(@id)])[1]";
+			String toNext = "//a[@id='page']";
+			CrawlTarget targetFromWebsite = new CrawlTarget(entry, false);
+			
+			PageClass home = targetFromWebsite.computeModel(200, 3, 0.2, 0);
+			PageClass directory1 = home.getDestinationByXPath(toDirectory);
+			
+			assertEquals(home.getName(), "class1");
+			assertEquals(home.getDepth(), 0);
+			
+			assertEquals(directory1.getDepth(), 1);
+			assertEquals(directory1.getDestinationByXPath(toNext), directory1);
 
+		}
+		catch (URISyntaxException e) {}
+	}
+	
 
 }

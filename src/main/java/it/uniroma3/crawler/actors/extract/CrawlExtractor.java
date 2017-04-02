@@ -13,6 +13,7 @@ import it.uniroma3.crawler.actors.write.CrawlDataWriter;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.DataType;
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.util.HtmlUtils;
 import it.uniroma3.crawler.util.XPathUtils;
 
 public class CrawlExtractor extends UntypedActor {
@@ -45,7 +46,7 @@ public class CrawlExtractor extends UntypedActor {
 			List<HtmlAnchor> links = (List<HtmlAnchor>) XPathUtils.getByMatchingXPath(cUrl.getPageContent(), xPath);
 			for (HtmlAnchor anchor : links) {
 				String link = anchor.getHrefAttribute();
-				if (isValidUrl(link)) {
+				if (HtmlUtils.isValidURL(urlBase, link)) {
 					// TODO needs more checks...
 					if (!link.contains("http")) link = urlBase + link;
 					PageClass dest = src.getDestinationByXPath(xPath);
@@ -70,16 +71,5 @@ public class CrawlExtractor extends UntypedActor {
 			
 			cUrl.setRecord(record);
 		}
-	}
-	
-	private boolean isValidUrl(String href) {
-		if (href.startsWith("http") && !href.startsWith(urlBase))
-			return false;
-		if (href.contains("javascript") 
-				|| href.contains("crawler") 
-				|| href.contains("@") 
-				|| href.contains("#"))
-			return false;
-		return true;
 	}
 } 
