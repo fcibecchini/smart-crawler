@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class PageClass implements Serializable {
@@ -16,7 +17,7 @@ public class PageClass implements Serializable {
 	private int depth;
 	private long waitTime;
 	
-	private transient Collection<PageClassLink> links;
+	private transient Collection<ClassLink> links;
 	private transient Collection<DataType> dataTypes;
 	
 	public PageClass(String name, long waitTime) {
@@ -76,7 +77,7 @@ public class PageClass implements Serializable {
 	}
 	
 	public boolean addPageClassLink(String xpath, PageClass dest) {
-		PageClassLink link = new PageClassLink(xpath, dest);
+		ClassLink link = new ClassLink(xpath, dest);
 		return this.links.add(link);
 	}
 	
@@ -124,8 +125,8 @@ public class PageClass implements Serializable {
 	private void readObject(ObjectInputStream in) 
 			throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
-		Collection<PageClassLink> classLinks = 
-				(Collection<PageClassLink>) in.readObject();
+		Collection<ClassLink> classLinks = 
+				(Collection<ClassLink>) in.readObject();
 		links = (classLinks != null) ? classLinks : new ArrayList<>();
 		Collection<DataType> dTypes = 
 				(Collection<DataType>) in.readObject();
@@ -139,7 +140,7 @@ public class PageClass implements Serializable {
 
 	public boolean equals(Object obj) {
 		PageClass other = (PageClass) obj;
-		return name.equals(other.getName());
+		return Objects.equals(name, other.getName());
 	}
 
 }

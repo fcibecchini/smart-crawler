@@ -1,4 +1,4 @@
-package it.uniroma3.crawler.target;
+package it.uniroma3.crawler.modeler;
 
 import static org.junit.Assert.*;
 
@@ -11,16 +11,16 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.target.CrawlTarget;
+import it.uniroma3.crawler.modeler.WebSiteModeler;
 
-public class CrawlTargetTest {
+public class WebsiteModelerTest {
 	private final static String TEST_SITE = "http://localhost:8081";
-	private CrawlTarget targetFromFile;
+	private WebSiteModeler targetFromFile;
 
 	@Before
 	public void setUp() throws Exception {
-		String file = CrawlTargetTest.class.getResource("/targets/target_test.csv").getPath();
-		this.targetFromFile = new CrawlTarget(file);
+		String file = WebsiteModelerTest.class.getResource("/targets/target_test.csv").getPath();
+		this.targetFromFile = new WebSiteModeler(file);
 	}
 
 	@Test
@@ -99,7 +99,7 @@ public class CrawlTargetTest {
 			URI entry = new URI(TEST_SITE);
 			String toDirectory = "(//ul[@id='menu']/li/a[not(@id)])[1]";
 			String toNext = "//a[@id='page']";
-			CrawlTarget targetFromWebsite = new CrawlTarget(entry, false);
+			WebSiteModeler targetFromWebsite = new WebSiteModeler(entry, false);
 			
 			PageClass home = targetFromWebsite.computeModel(200, 3, 0.2, 0);
 			PageClass directory1 = home.getDestinationByXPath(toDirectory);

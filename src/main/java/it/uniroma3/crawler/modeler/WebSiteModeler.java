@@ -1,4 +1,4 @@
-package it.uniroma3.crawler.target;
+package it.uniroma3.crawler.modeler;
 
 import static java.util.stream.Collectors.toList;
 
@@ -35,7 +35,7 @@ import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.model.WebsiteModel;
 import it.uniroma3.crawler.util.XPathUtils;
 
-public class CrawlTarget {
+public class WebSiteModeler {
 	private static final char DELIMITER = '\t';
 	private URI urlBase;
 	private String configFile;
@@ -46,17 +46,17 @@ public class CrawlTarget {
 	
 	private Logger log;
 	
-	public CrawlTarget() {
-		this.log = Logger.getLogger(CrawlTarget.class.getName());
+	public WebSiteModeler() {
+		this.log = Logger.getLogger(WebSiteModeler.class.getName());
 	}
 	
-	public CrawlTarget(URI urlBase, boolean useJavaScript) {
+	public WebSiteModeler(URI urlBase, boolean useJavaScript) {
 		this();
 		this.urlBase = urlBase;
 		this.client = makeWebClient(useJavaScript);
 	}
 	
-	public CrawlTarget(String configFile) {
+	public WebSiteModeler(String configFile) {
 		this();
 		this.configFile = configFile;
 	}

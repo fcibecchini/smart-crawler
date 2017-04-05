@@ -2,6 +2,7 @@ package it.uniroma3.crawler.model;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import static java.util.stream.Collectors.*;
@@ -83,7 +84,7 @@ public class Page {
 
 	public boolean equals(Object obj) {
 		Page other = (Page) obj;
-		return url.equals(other.getUrl());
+		return Objects.equals(url, other.getUrl());
 	}
 	
 }

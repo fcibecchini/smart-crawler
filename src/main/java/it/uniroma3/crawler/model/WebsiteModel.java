@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 public class WebsiteModel {
@@ -50,16 +49,17 @@ public class WebsiteModel {
 				.filter(c -> c.containsPage(url)).findAny().orElse(null);
 	}
 	
+	private PageClass getPageClass(List<PageClass> list, String name) {
+		return list.stream().filter(item -> item.getName().equals(name)).findAny().orElse(null);
+	}
+	
 	public List<PageClass> makePageClasses() {
 		List<PageClass> pClasses = new ArrayList<>();
-		
-		Map<CandidatePageClass, PageClass> cand2Pclass = new TreeMap<>();
-		getModel().forEach(cand -> 
-			cand2Pclass.put(cand, new PageClass(cand.getName())));
+
+		getModel().forEach(cand -> pClasses.add(new PageClass(cand.getName())));
 				
 		for (CandidatePageClass candidate : getModel()) {
-			PageClass src = cand2Pclass.get(candidate);
-			pClasses.add(src);
+			PageClass src = getPageClass(pClasses, candidate.getName());
 						
 			for (String xpath : candidate.getClassSchema()) {
 				List<String> urls = candidate.getOrderedUrlsFromXPath(xpath);
@@ -67,31 +67,40 @@ public class WebsiteModel {
 				urls.forEach(u -> url2class.put(u, getCandidateFromUrl(u)));
 				
 				// menu..?
-				long size = url2class.values().stream().distinct().count();
-				if (size>1) {
-					for (String url : url2class.keySet()) {
-						CandidatePageClass cpcDest = url2class.get(url);
-						if (cpcDest != null) {
-							PageClass dest = cand2Pclass.get(cpcDest);
-							for (int index : indexesOf(urls, url)) {
-								String newXPath = "(" + xpath + ")[" + (index+1) + "]";
-								src.addPageClassLink(newXPath, dest);
-							}
-						}
-					}
-				}
-				else if (size==1) {
-					CandidatePageClass cpcDest = url2class.values().stream()
-							.filter(v -> v!=null).findAny().orElse(null);
-					if (cpcDest != null) {
-						PageClass dest = cand2Pclass.get(cpcDest);
-						src.addPageClassLink(xpath, dest);
-					}
-				}			
+				inferClassLink(pClasses, src, xpath, urls, url2class);			
 			}
 		}
 		
 		return pClasses;
+	}
+
+	private void inferClassLink(
+			List<PageClass> pClasses, 
+			PageClass src, 
+			String xpath,
+			List<String> urls, 
+			Map<String, CandidatePageClass> url2class) {
+		long size = url2class.values().stream().filter(cc->cc!=null).distinct().count();
+		if (size>1) {
+			for (String url : url2class.keySet()) {
+				CandidatePageClass cpcDest = url2class.get(url);
+				if (cpcDest != null) {
+					PageClass dest = getPageClass(pClasses, cpcDest.getName());
+					for (int index : indexesOf(urls, url)) {
+						String newXPath = "(" + xpath + ")[" + (index+1) + "]";
+						src.addPageClassLink(newXPath, dest);
+					}
+				}
+			}
+		}
+		else if (size==1) {
+			CandidatePageClass cpcDest = url2class.values().stream()
+					.filter(v -> v!=null).findAny().orElse(null);
+			if (cpcDest != null) {
+				PageClass dest = getPageClass(pClasses, cpcDest.getName());
+				src.addPageClassLink(xpath, dest);
+			}
+		}
 	}
 	
 	public double minimumLength() {

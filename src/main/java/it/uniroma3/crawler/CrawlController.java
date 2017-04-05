@@ -13,7 +13,6 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Inbox;
 import akka.actor.Props;
-import it.uniroma3.crawler.target.CrawlTarget;
 import it.uniroma3.crawler.actors.extract.CrawlExtractor;
 import it.uniroma3.crawler.actors.fetch.CrawlFetcher;
 import it.uniroma3.crawler.actors.frontier.*;
@@ -21,10 +20,11 @@ import it.uniroma3.crawler.actors.schedule.CrawlLinkScheduler;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.modeler.WebSiteModeler;
 
 public class CrawlController {
 	private static CrawlController instance = null;
-    private CrawlTarget target;
+    private WebSiteModeler target;
     private ActorRef frontier, scheduler;
     private long waitTime;
     private int rndTime;
@@ -85,7 +85,7 @@ public class CrawlController {
     }
     
     private void setTarget(String config) {
-    	this.target = new CrawlTarget(config);
+    	this.target = new WebSiteModeler(config);
     	this.target.initCrawlingTarget();
     }
     

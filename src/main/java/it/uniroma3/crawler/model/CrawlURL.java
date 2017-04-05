@@ -9,6 +9,7 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
@@ -106,7 +107,7 @@ public class CrawlURL implements Comparable<CrawlURL>, Serializable {
 
 	public boolean equals(Object obj) {
 		CrawlURL other = (CrawlURL) obj;
-		return url.equals(other.getUrl());
+		return Objects.equals(url, other.getUrl());
 	}
 	
 }

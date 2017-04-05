@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	private String baseUrl;
@@ -156,7 +157,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 
 	public boolean equals(Object obj) {
 		CandidatePageClass other = (CandidatePageClass) obj;
-		return name.equals(other.getName());
+		return Objects.equals(name, other.getName());
 	}
 	
 }

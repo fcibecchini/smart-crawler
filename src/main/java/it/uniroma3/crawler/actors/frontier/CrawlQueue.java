@@ -2,10 +2,7 @@ package it.uniroma3.crawler.actors.frontier;
 
 import it.uniroma3.crawler.model.CrawlURL;
 
-import org.mapdb.DB;
-
 public class CrawlQueue implements UrlFrontier {
-	private DB db;
 
 	@Override
 	public CrawlURL next() {
