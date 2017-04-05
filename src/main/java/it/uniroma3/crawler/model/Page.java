@@ -70,7 +70,7 @@ public class Page {
 	}
 	
 	public CandidatePageClass getCurrentCluster() {
-		return model.getCandidateFromUrl(getUrl());
+		return model.getClassOfURL(getUrl());
 	}
 	
 	public String toString() {

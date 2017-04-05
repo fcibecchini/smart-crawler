@@ -44,13 +44,9 @@ public class WebsiteModel {
 				.filter(c -> c.getName().equals(name)).findAny().orElse(null);
 	}
 	
-	public CandidatePageClass getCandidateFromUrl(String url) {
+	public CandidatePageClass getClassOfURL(String url) {
 		return modelClasses.stream()
 				.filter(c -> c.containsPage(url)).findAny().orElse(null);
-	}
-	
-	private PageClass getPageClass(List<PageClass> list, String name) {
-		return list.stream().filter(item -> item.getName().equals(name)).findAny().orElse(null);
 	}
 	
 	public List<PageClass> makePageClasses() {
@@ -58,29 +54,22 @@ public class WebsiteModel {
 
 		getModel().forEach(cand -> pClasses.add(new PageClass(cand.getName())));
 				
-		for (CandidatePageClass candidate : getModel()) {
-			PageClass src = getPageClass(pClasses, candidate.getName());
-						
-			for (String xpath : candidate.getClassSchema()) {
-				List<String> urls = candidate.getOrderedUrlsFromXPath(xpath);
-				Map<String, CandidatePageClass> url2class = new HashMap<>();
-				urls.forEach(u -> url2class.put(u, getCandidateFromUrl(u)));
-				
-				// menu..?
-				inferClassLink(pClasses, src, xpath, urls, url2class);			
-			}
-		}
-		
+		for (CandidatePageClass candidate : getModel())					
+			for (String xpath : candidate.getClassSchema()) 
+				inferClassLinks(pClasses, candidate, xpath);			
+
 		return pClasses;
 	}
 
-	private void inferClassLink(
-			List<PageClass> pClasses, 
-			PageClass src, 
-			String xpath,
-			List<String> urls, 
-			Map<String, CandidatePageClass> url2class) {
+	private void inferClassLinks(List<PageClass> pClasses, CandidatePageClass cand, String xpath) {
+		PageClass src = getPageClass(pClasses, cand.getName());
+		List<String> urls = cand.getOrderedUrlsFromXPath(xpath);
+		
+		Map<String, CandidatePageClass> url2class = new HashMap<>();
+		urls.forEach(u -> url2class.put(u, getClassOfURL(u)));
+		
 		long size = url2class.values().stream().filter(cc->cc!=null).distinct().count();
+		
 		if (size>1) {
 			for (String url : url2class.keySet()) {
 				CandidatePageClass cpcDest = url2class.get(url);
@@ -101,7 +90,7 @@ public class WebsiteModel {
 				src.addPageClassLink(xpath, dest);
 			}
 		}
-	}
+	}	
 	
 	public double minimumLength() {
 		int modelCost = 0;
@@ -122,6 +111,10 @@ public class WebsiteModel {
 		}
 		
 		return modelCost+dataCost;
+	}
+	
+	private PageClass getPageClass(List<PageClass> list, String name) {
+		return list.stream().filter(item -> item.getName().equals(name)).findAny().orElse(null);
 	}
 	
 	private List<Integer> indexesOf(List<String> urls, String url) {
