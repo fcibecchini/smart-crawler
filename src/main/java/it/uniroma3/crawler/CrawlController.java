@@ -119,7 +119,7 @@ public class CrawlController {
     	
     	/* Init. System Actors*/
     	
-    	frontier = system.actorOf(BreadthFirstUrlFrontier.props(pages), "frontier");
+    	frontier = system.actorOf(BFSFrontier.props(pages), "frontier");
     	scheduler = system.actorOf(Props.create(CrawlLinkScheduler.class), "linkScheduler");
     	
     	List<ActorRef> extractors = new ArrayList<>();

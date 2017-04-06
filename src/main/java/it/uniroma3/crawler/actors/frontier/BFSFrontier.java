@@ -12,7 +12,7 @@ import akka.japi.Creator;
 import it.uniroma3.crawler.model.CrawlURL;
 import scala.concurrent.duration.Duration;
 
-public class BreadthFirstUrlFrontier extends UntypedActor  {
+public class BFSFrontier extends UntypedActor  {
 	private final static String NEXT = "next";
 	private Queue<CrawlURL> urlsQueue;
 	private Queue<ActorRef> requesters;
@@ -21,17 +21,17 @@ public class BreadthFirstUrlFrontier extends UntypedActor  {
 	private boolean isEnding;
 	
 	public static Props props(final int maxPages) {
-		return Props.create(new Creator<BreadthFirstUrlFrontier>() {
+		return Props.create(new Creator<BFSFrontier>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public BreadthFirstUrlFrontier create() throws Exception {
-				return new BreadthFirstUrlFrontier(maxPages);
+			public BFSFrontier create() throws Exception {
+				return new BFSFrontier(maxPages);
 			}
 		});
 	}
 
-	public BreadthFirstUrlFrontier(int maxPages) {
+	public BFSFrontier(int maxPages) {
 		this.urlsQueue = new PriorityQueue<>();
 		this.requesters = new LinkedList<>();
 		this.maxPages = maxPages;
@@ -49,6 +49,10 @@ public class BreadthFirstUrlFrontier extends UntypedActor  {
 
 	public boolean isEmpty() {
 		return urlsQueue.isEmpty();
+	}
+	
+	public boolean isEnding() {
+		return isEnding;
 	}
 	
 	public boolean terminalCondition() {

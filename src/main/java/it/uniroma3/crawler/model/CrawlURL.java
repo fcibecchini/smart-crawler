@@ -106,6 +106,8 @@ public class CrawlURL implements Comparable<CrawlURL>, Serializable {
 	}
 
 	public boolean equals(Object obj) {
+		if (!getClass().equals(obj.getClass())) 
+			return false;
 		CrawlURL other = (CrawlURL) obj;
 		return Objects.equals(url, other.getUrl());
 	}

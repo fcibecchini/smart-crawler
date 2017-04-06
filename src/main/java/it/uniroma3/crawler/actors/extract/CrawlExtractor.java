@@ -8,6 +8,7 @@ import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
+import akka.japi.Creator;
 import it.uniroma3.crawler.CrawlController;
 import it.uniroma3.crawler.actors.write.CrawlDataWriter;
 import it.uniroma3.crawler.model.CrawlURL;
@@ -20,10 +21,25 @@ public class CrawlExtractor extends UntypedActor {
 	private ActorRef crawlWriter;
 	private String urlBase;
 	
+	public static Props props(final String urlBase) {
+		return Props.create(new Creator<CrawlExtractor>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public CrawlExtractor create() throws Exception {
+				return new CrawlExtractor(urlBase);
+			}
+		});
+	}
+	
 	public CrawlExtractor() {
 		this.urlBase = CrawlController.getInstance().getUrlBase();
 		this.crawlWriter = getContext().actorOf(Props.create(CrawlDataWriter.class), 
 				getSelf().path().name()+"Writer");
+	}
+	
+	public CrawlExtractor(String urlBase) {
+		this.urlBase = urlBase;
 	}
 	
 	@Override
@@ -33,7 +49,7 @@ public class CrawlExtractor extends UntypedActor {
 			setOutLinks(cUrl);
 			setDataRecord(cUrl);
 			// send cUrl with inserted data to writer
-			crawlWriter.forward(cUrl, getContext());
+			if (crawlWriter != null) crawlWriter.forward(cUrl, getContext());
 		}
 		else unhandled(message);
 	}

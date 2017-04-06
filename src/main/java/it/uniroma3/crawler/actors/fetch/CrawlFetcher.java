@@ -24,20 +24,20 @@ public class CrawlFetcher extends UntypedActor {
 	private Logger log;
 	private List<ActorRef> extractors;
 	
-	  public static Props props(
-			  final List<ActorRef> extractors, 
-			  final int maxFailures, 
-			  final int time,
-			  final boolean js) {
-		    return Props.create(new Creator<CrawlFetcher>() {
-		      private static final long serialVersionUID = 1L;
-		 
-		      @Override
-		      public CrawlFetcher create() throws Exception {
-		        return new CrawlFetcher(extractors, maxFailures, time, js);
-		      }
-		    });
-		  }
+	public static Props props(
+			final List<ActorRef> extractors, 
+			final int maxFailures, 
+			final int time,
+			final boolean js) {
+		return Props.create(new Creator<CrawlFetcher>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public CrawlFetcher create() throws Exception {
+				return new CrawlFetcher(extractors, maxFailures, time, js);
+			}
+		});
+	}
 	
 	public CrawlFetcher(List<ActorRef> extractors, int maxFailures, int time, boolean js) {
 		this.webClient = HtmlUtils.makeWebClient(js);
@@ -61,7 +61,7 @@ public class CrawlFetcher extends UntypedActor {
 					failures = 0; // everything went ok
 					ActorRef extractor = getExtractorRef(cUrl.getPageClass().getName());
 					// send cUrl to extractor for further processing
-					extractor.forward(cUrl, getContext());
+					if (extractor!=null) extractor.forward(cUrl, getContext());
 					
 					// request next cUrl to Frontier
 					getSender().tell(NEXT, getSelf());

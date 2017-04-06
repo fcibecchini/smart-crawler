@@ -12,9 +12,11 @@ import org.apache.commons.io.IOUtils;
 import com.csvreader.CsvWriter;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
+import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import akka.japi.Creator;
 import it.uniroma3.crawler.CrawlController;
 import it.uniroma3.crawler.model.CrawlURL;
 
@@ -25,11 +27,28 @@ public class CrawlDataWriter extends UntypedActor {
 	private File baseDirectory;
 	private int counter;
 	
+	public static Props props(final String csvName, final String baseDir) {
+		return Props.create(new Creator<CrawlDataWriter>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public CrawlDataWriter create() throws Exception {
+				return new CrawlDataWriter(csvName, baseDir);
+			}
+		});
+	}
+	
 	public CrawlDataWriter() {
-		String fileName = "./result"+getSelf().path().name()+".csv";
-		this.csvWriter = new CsvWriter(fileName, '\t', Charset.forName("UTF-8"));
+		String csvFileName = "./result"+getSelf().path().name()+".csv";
+		this.csvWriter = new CsvWriter(csvFileName, '\t', Charset.forName("UTF-8"));
 		this.controller = CrawlController.getInstance();
 		this.baseDirectory = new File(controller.getBaseDirectory());
+		this.counter = 0;
+	}
+	
+	public CrawlDataWriter(String csvName, String baseDir) {
+		this.csvWriter = new CsvWriter("./"+csvName+".csv", '\t', Charset.forName("UTF-8"));
+		this.baseDirectory = new File(baseDir);
 		this.counter = 0;
 	}
 
@@ -41,7 +60,7 @@ public class CrawlDataWriter extends UntypedActor {
 			String pageClassName = cUrl.getPageClass().getName();
 			String[] record = cUrl.getRecord();
 			// send cUrl to scheduler
-			controller.getScheduler().forward(cUrl, getContext());
+			if (controller!=null) controller.getScheduler().forward(cUrl, getContext());
 			// save data of interest
 			savePage(page, pageClassName);
 			saveRecord(record);

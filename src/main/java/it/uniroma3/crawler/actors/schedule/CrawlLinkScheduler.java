@@ -6,7 +6,9 @@ import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import akka.actor.Props;
 import akka.actor.UntypedActor;
+import akka.japi.Creator;
 import it.uniroma3.crawler.CrawlController;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
@@ -16,12 +18,33 @@ public class CrawlLinkScheduler extends UntypedActor {
 	private CrawlController controller;
 	private Set<String> fetchedUrls;
 	
+	public static Props props(final String urlBase) {
+		return Props.create(new Creator<CrawlLinkScheduler>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public CrawlLinkScheduler create() throws Exception {
+				return new CrawlLinkScheduler(urlBase);
+			}
+		});
+	}
+	
 	public CrawlLinkScheduler() {
 		this.random = new Random();
 		this.controller = CrawlController.getInstance();
 		this.fetchedUrls = new HashSet<>();
-		this.fetchedUrls.add(controller.getUrlBase());
-		this.fetchedUrls.add(controller.getUrlBase()+"/");
+		addHomeToFetchedUrls(controller.getUrlBase());
+	}
+	
+	public CrawlLinkScheduler(String urlBase) {
+		this.random = new Random();
+		this.controller = CrawlController.getInstance();
+		this.fetchedUrls = new HashSet<>();
+		addHomeToFetchedUrls(urlBase);
+	}
+	
+	public Set<String> getFetchedUrls() {
+		return this.fetchedUrls;
 	}
 
 	@Override
@@ -59,5 +82,10 @@ public class CrawlLinkScheduler extends UntypedActor {
 					getSender().tell(curl, getSelf());
 					fetchedUrls.add(curl.getUrl().toString().toLowerCase());
 				});
+	}
+	
+	private void addHomeToFetchedUrls(String url) {
+		this.fetchedUrls.add(url);
+		this.fetchedUrls.add(url+"/");
 	}
 }
