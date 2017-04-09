@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.w3c.dom.NamedNodeMap;
 
 import com.gargoylesoftware.htmlunit.html.*;
 
@@ -114,6 +115,47 @@ public class XPathUtils {
 		if (value.isEmpty()) return defaultValue;
 		return StringEscapeUtils.escapeCsv(value.replaceAll("(\\s)+", " ")).trim();
 	}
+	
+	public static String getXPathTo(HtmlAnchor link) {
+		String xpath = "a";
+		String anchorQuery = "";
+		NamedNodeMap linkAttributes = link.getAttributes();
+		if (linkAttributes.getLength()>1) { // escape anchors with href only
+			for (int i=0; i<=linkAttributes.getLength()-1; i++) {
+				org.w3c.dom.Node lattr = linkAttributes.item(i);
+				String lAttrName = lattr.getNodeName();
+				if (!lAttrName.equals("href")) {
+					if (lAttrName.equals("id")) {
+						String lattrValue = lattr.getNodeValue();
+						return "//"+xpath+"[@"+lAttrName+"='"+lattrValue+"'"+"]";
+					}
+					else anchorQuery += "@"+lAttrName+" and ";
+				}
+			}
+		}
+		if (!anchorQuery.isEmpty())
+			xpath += "["+anchorQuery.substring(0, anchorQuery.length()-4)+"]";
 		
+		DomNode current=link.getParentNode();
+		boolean stop = false;
+		while (current.getNodeName()!="#document" && !stop) {
+			String currentQuery = current.getNodeName();
+			NamedNodeMap attributes = current.getAttributes();
+			if (attributes.getLength()>0 && !currentQuery.equals("html")) {
+				org.w3c.dom.Node attr = attributes.item(0);
+				String attrName = attr.getNodeName();
+				if (attrName.equals("id")) {
+					stop = true;
+					String attrValue = attr.getNodeValue();
+					currentQuery += "[@"+attrName+"='"+attrValue+"'"+"]";
+				}
+				else currentQuery += "[@"+attrName+"]";
+			}
+			xpath = currentQuery+"/"+xpath;
+			current = current.getParentNode();
+		}
+		xpath = (stop) ? "//"+xpath : "/"+xpath;
+		return xpath;
+	}	
 	
 }

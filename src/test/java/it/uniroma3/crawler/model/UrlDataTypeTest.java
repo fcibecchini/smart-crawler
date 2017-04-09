@@ -27,7 +27,7 @@ public class UrlDataTypeTest {
 		DataType urlType = new UrlDataType(); 
 		urlType.setXPath("//div[@class='rdbx']/div[@class='contact_column']/a[@target]");
 		String website = urlType.extract(page);
-		assertEquals(website, "http://www.polilingua.com");
+		assertEquals("http://www.polilingua.com", website);
 	}
 
 }

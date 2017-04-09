@@ -27,7 +27,7 @@ public class ImgDataTypeTest {
 		DataType imgType = new ImgDataType(); 
 		imgType.setXPath("//img[@alt='logo']");
 		String logo = imgType.extract(page);
-		assertEquals(logo, "1483207_r55bf38586a5d1.jpg");
+		assertEquals("1483207_r55bf38586a5d1.jpg", logo);
 	}
 
 }

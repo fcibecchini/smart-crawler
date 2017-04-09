@@ -20,11 +20,13 @@ import it.uniroma3.crawler.actors.schedule.CrawlLinkScheduler;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.modeler.WebSiteModeler;
+import it.uniroma3.crawler.modeler.DynamicModeler;
+import it.uniroma3.crawler.modeler.StaticModeler;
+import it.uniroma3.crawler.modeler.WebsiteModeler;
 
 public class CrawlController {
 	private static CrawlController instance = null;
-    private WebSiteModeler target;
+    private WebsiteModeler modeler;
     private ActorRef frontier, scheduler;
     private long waitTime;
     private int rndTime;
@@ -66,11 +68,11 @@ public class CrawlController {
     }
     
     public String getUrlBase() {
-    	return this.target.getUrlBase().toString();
+    	return this.modeler.getUrlBase().toString();
     }
     
     public String getBaseDirectory() {
-    	String baseUrlString = this.target.getUrlBase().toString();
+    	String baseUrlString = this.modeler.getUrlBase().toString();
 		return baseUrlString.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.", "_");
     }
     
@@ -84,28 +86,50 @@ public class CrawlController {
         }
     }
     
-    private void setTarget(String config) {
-    	this.target = new WebSiteModeler(config);
-    	this.target.initCrawlingTarget();
+    private void setModeler(WebsiteModeler modeler) {
+    	this.modeler = modeler;
     }
     
+    private WebsiteModeler chooseModeler(Properties prop) {
+    	String config = prop.getProperty("modelfile");
+    	WebsiteModeler modeler = null;
+    	
+    	if (!config.equals("null")) {
+    		modeler = new StaticModeler(config);
+    	} 
+    	else {
+    		String seed = prop.getProperty("modelseed");
+    		int maxPages = new Integer(prop.getProperty("modelpages"));
+    		boolean js = new Boolean(prop.getProperty("javascript"));
+    		try {
+    			modeler = new DynamicModeler(URI.create(seed), maxPages, waitTime, js);
+    		} catch (Exception e) {
+    			System.err.println("modelseed is not a valid URI");
+    		}
+    	}
+    	return modeler;
+    }
     
     public void startCrawling(ActorSystem system) {
     	Properties prop = getProperties("config.properties");
-    	setTarget(prop.getProperty("targetfile"));
     	this.waitTime = new Long(prop.getProperty("wait"));
     	this.rndTime = new Integer(prop.getProperty("randompause"));
     	
-    	PageClass entryClass = target.getEntryPageClass();
-    	entryClass.setWaitTime(waitTime);
-    	URI base = target.getUrlBase();
-    	CrawlURL entryPoint = CrawlURLFactory.getCrawlUrl(base.toString(), entryClass);
-    	startSystem(system, entryPoint, 
-    			new Integer(prop.getProperty("fetchers")), 
-    			new Integer(prop.getProperty("pages")), 
-    			new Integer(prop.getProperty("maxfailures")), 
-    			new Integer(prop.getProperty("failuretime")),
-    			new Boolean(prop.getProperty("javascript")));
+    	WebsiteModeler modeler = chooseModeler(prop);
+    	if (modeler==null) system.terminate();
+    	else {
+	    	setModeler(modeler);
+	    	PageClass entryClass = modeler.computeModel();
+	    	entryClass.setWaitTime(waitTime);
+	    	URI base = modeler.getUrlBase();
+	    	CrawlURL entryPoint = CrawlURLFactory.getCrawlUrl(base.toString(), entryClass);
+	    	startSystem(system, entryPoint, 
+	    			new Integer(prop.getProperty("fetchers")), 
+	    			new Integer(prop.getProperty("pages")), 
+	    			new Integer(prop.getProperty("maxfailures")), 
+	    			new Integer(prop.getProperty("failuretime")),
+	    			new Boolean(prop.getProperty("javascript")));
+    	}
     }
     
     private void startSystem(
@@ -123,7 +147,7 @@ public class CrawlController {
     	scheduler = system.actorOf(Props.create(CrawlLinkScheduler.class), "linkScheduler");
     	
     	List<ActorRef> extractors = new ArrayList<>();
-    	for (PageClass pClass : target.getClasses()) {
+    	for (PageClass pClass : modeler.getClasses()) {
     		extractors.add(system.actorOf(Props.create(CrawlExtractor.class), pClass.getName()));
     	}
     	

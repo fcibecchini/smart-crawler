@@ -27,7 +27,7 @@ public class StringDataTypeTest {
 		DataType stringType = new StringDataType(); 
 		stringType.setXPath("//h1/text()");
 		String string = stringType.extract(page);
-		assertEquals(string, "ViewGlobally");
+		assertEquals("ViewGlobally", string);
 	}
 	
 	@Test
@@ -35,7 +35,7 @@ public class StringDataTypeTest {
 		DataType stringType = new StringDataType(); 
 		stringType.setXPath("//h1/a");
 		String string = stringType.extract(page);
-		assertEquals(string, "");
+		assertEquals("", string);
 	}
 
 }

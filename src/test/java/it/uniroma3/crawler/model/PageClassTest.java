@@ -53,7 +53,7 @@ public class PageClassTest {
 		PageClass dest = new PageClass("destination", 1000);
 		String xpath = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
 		page.addPageClassLink(xpath, dest);
-		assertEquals(page.getDestinationByXPath(xpath), dest);
+		assertEquals(dest, page.getDestinationByXPath(xpath));
 	}
 	
 	@Test
@@ -64,7 +64,7 @@ public class PageClassTest {
 		page.addPageClassLink("//ul", dest);
 		page.addPageClassLink("//li", dest2);
 		page.addPageClassLink("//a", dest3);
-		assertEquals(page.getDestinationByXPath("//li"), dest2);
+		assertEquals(dest2, page.getDestinationByXPath("//li"));
 	}
 	
 	@Test
@@ -97,7 +97,7 @@ public class PageClassTest {
 		page.addData("//li", "string");
 		page.addData("//ul", "img");
 		page.addData("//a", "url");
-		assertEquals(page.getDataTypeByXPath("//tr"), null);
+		assertEquals(null, page.getDataTypeByXPath("//tr"));
 	}
 	
 	@Test
@@ -118,7 +118,7 @@ public class PageClassTest {
 		
 		List<String> pageXPaths = page.getNavigationXPaths();
 		for (int i=0; i<pageXPaths.size(); i++) {
-			assertEquals(pageXPaths.get(i), xpaths.get(i));
+			assertEquals(xpaths.get(i), pageXPaths.get(i));
 		}
 	}
 

@@ -72,12 +72,48 @@ public class PageClass implements Serializable {
 		return this.links.stream().map(l -> l.getXPath()).collect(Collectors.toList());
 	}
 	
+	public List<String> getMenuXPaths() {
+		return this.links.stream()
+				.filter(l -> l.getType()==ClassLink.MENU)
+				.map(l -> l.getXPath())
+				.collect(Collectors.toList());
+	}
+	
+	public List<String> getListXPaths() {
+		return this.links.stream()
+				.filter(l -> l.getType()==ClassLink.LIST)
+				.map(l -> l.getXPath())
+				.collect(Collectors.toList());
+	}
+	
+	public List<String> getSingletonXPaths() {
+		return this.links.stream()
+				.filter(l -> l.getType()==ClassLink.SINGLETON)
+				.map(l -> l.getXPath())
+				.collect(Collectors.toList());
+	}
+	
 	public List<String> getDataXPaths() {
 		return this.dataTypes.stream().map(dt -> dt.getXPath()).collect(Collectors.toList());
 	}
 	
 	public boolean addPageClassLink(String xpath, PageClass dest) {
 		ClassLink link = new ClassLink(xpath, dest);
+		return this.links.add(link);
+	}
+	
+	public boolean addMenuLink(String xpath, PageClass dest) {
+		ClassLink link = new ClassLink(xpath, ClassLink.MENU, dest);
+		return this.links.add(link);
+	}
+	
+	public boolean addListLink(String xpath, PageClass dest) {
+		ClassLink link = new ClassLink(xpath, ClassLink.LIST, dest);
+		return this.links.add(link);
+	}
+	
+	public boolean addSingletonLink(String xpath, PageClass dest) {
+		ClassLink link = new ClassLink(xpath, ClassLink.SINGLETON, dest);
 		return this.links.add(link);
 	}
 	

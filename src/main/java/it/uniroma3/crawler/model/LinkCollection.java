@@ -1,5 +1,6 @@
 package it.uniroma3.crawler.model;
 
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -7,6 +8,11 @@ public class LinkCollection implements Comparable<LinkCollection> {
 	private Page parent;
 	private String xpath;
 	private Set<String> links;
+	
+	public LinkCollection(String seed) {
+		this.links = new TreeSet<>();
+		this.links.add(seed);
+	}
 	
 	public LinkCollection(Set<String> links) {
 		this.links = new TreeSet<>();
@@ -35,6 +41,10 @@ public class LinkCollection implements Comparable<LinkCollection> {
 		return this.xpath;
 	}
 	
+	public boolean isEmpty() {
+		return this.links.isEmpty();
+	}
+	
 	public int size() {
 		return this.links.size();
 	}
@@ -48,7 +58,7 @@ public class LinkCollection implements Comparable<LinkCollection> {
 		
 		if (thisProb > otherProb) return -1;
 		if (thisProb < otherProb) return 1;
-		else return 0;
+		return 0;
 	}
 	
 	public String toString() {
@@ -57,26 +67,14 @@ public class LinkCollection implements Comparable<LinkCollection> {
 	}
 	
 	public int hashCode() {
-		return links.hashCode()
-				+ ((parent == null) ? 0 : parent.hashCode())
-				+ ((xpath == null) ? 0 : xpath.hashCode());
+		return links.hashCode() + ((xpath == null) ? 0 : xpath.hashCode());
 	}
 
 	public boolean equals(Object obj) {
 		LinkCollection other = (LinkCollection) obj;
-		if (parent == null) {
-			if (other.getParent() != null)
-				return false;
-		} 
-		else if (!parent.equals(other.getParent()))
+		if (!Objects.equals(getXPath(), other.getXPath()))
 			return false;
-		if (xpath == null) {
-			if (other.getXPath() != null)
-				return false;
-		} 
-		else if (!xpath.equals(other.xpath))
-			return false;
-		return links.equals(other.getLinks());
+		return Objects.equals(getLinks(), other.getLinks());
 	}
 
 }

@@ -46,8 +46,8 @@ public class CrawlFetcherTest {
 
 		HtmlPage response = curl.getPageContent();
 		assertNotNull(response);
-		assertEquals(response.getUrl(), curl.getUrl().toURL());
-		assertEquals(response.getTitleText(), "Homepage");
+		assertEquals(curl.getUrl().toURL(), response.getUrl());
+		assertEquals("Homepage", response.getTitleText());
 	}
 	
 	@Test

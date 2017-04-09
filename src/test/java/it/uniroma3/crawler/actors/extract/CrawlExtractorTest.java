@@ -55,9 +55,9 @@ public class CrawlExtractorTest {
 				
 		for (String link : outLinks) {
 			assertTrue(link.contains("http://localhost:8081/detail"));
-			assertEquals(curl.getOutLinkPageClass(link), detail);
+			assertEquals(detail, curl.getOutLinkPageClass(link));
 		}
-		assertEquals(outLinks.size(), 3);
+		assertEquals(3, outLinks.size());
 	}
 	
 	@Test
@@ -75,7 +75,7 @@ public class CrawlExtractorTest {
 		
 		List<String> outLinks = curl.getOutLinks();
 		
-		assertEquals(outLinks.size(), 0);
+		assertEquals(0, outLinks.size());
 	}
 	
 	@Test
@@ -94,7 +94,7 @@ public class CrawlExtractorTest {
 		String[] record = curl.getRecord();
 		
 		assertNotNull(record);
-		assertEquals(record.length, 1);
+		assertEquals(1, record.length);
 		assertTrue(record[0].contains("Item 1"));
 	}
 
