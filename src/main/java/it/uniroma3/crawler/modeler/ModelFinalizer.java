@@ -12,10 +12,12 @@ import it.uniroma3.crawler.model.WebsiteModel;
 
 public class ModelFinalizer {
 	private WebsiteModel model;
+	private String website;
 	private TreeSet<PageClass> pClasses;
 	
-	public ModelFinalizer(WebsiteModel model) {
+	public ModelFinalizer(WebsiteModel model, String website) {
 		this.model = model;
+		this.website = website;
 	}
 	
 	public TreeSet<PageClass> makePageClasses() {
@@ -89,7 +91,10 @@ public class ModelFinalizer {
 					int r2 = new Integer(p2.getName().replace("class", ""));
 					return r1-r2;
 				});
-		model.getModel().forEach(cand -> pClasses.add(new PageClass(cand.getName())));
+		model.getModel().forEach(cand -> {
+			PageClass pc = new PageClass(cand.getName());
+			pc.setWebsite(website);
+			pClasses.add(pc);});
 		return pClasses;
 	}
 

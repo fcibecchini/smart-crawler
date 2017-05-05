@@ -38,6 +38,7 @@ public class DynamicModeler extends WebsiteModeler {
 	private Set<String> visitedURLs;
 	private int fetched;
 	private int classCounter;
+	private boolean allLinksFetched;
 	
 	public DynamicModeler(URI urlBase, int maxPages, long wait, boolean useJs) {
 		super(urlBase);
@@ -51,6 +52,7 @@ public class DynamicModeler extends WebsiteModeler {
 		this.visitedURLs = new HashSet<>();
 		this.classCounter = 1;
 		this.fetched = 0;
+		this.allLinksFetched = false;
 	}
 
 	@Override
@@ -75,7 +77,7 @@ public class DynamicModeler extends WebsiteModeler {
 			List<CandidatePageClass> candidates = clusterPages(newPages);
 			
 			// fetch all links if they are from different classes
-			if (candidates.size() > 1 && newPages.size()<coll.size()) {
+			if (candidates.size() > 1 && !allLinksFetched) {
 				getLogger().info("MENU DETECTED: FETCHING ALL URLS IN LINK COLLECTION...");
 				queue.add(coll);
 				max = coll.size();
@@ -88,14 +90,14 @@ public class DynamicModeler extends WebsiteModeler {
 		}
 				
 		// Transform candidates into Page Classes and Class Links
-		ModelFinalizer finalizer = new ModelFinalizer(model);
+		ModelFinalizer finalizer = new ModelFinalizer(model, base);
 		TreeSet<PageClass> pClasses = finalizer.makePageClasses();
 		setClasses(pClasses);
 		setEntryPageClass(pClasses.first());
 		setHierarchy();
 		
 		// Log and save model to filesystem
-		logModel(pClasses, "sites_navigation");
+		logModel(pClasses, "src/main/resources/targets");
 		
 		return getEntryPageClass();
 	}
@@ -130,6 +132,8 @@ public class DynamicModeler extends WebsiteModeler {
 				getLogger().warning("failed fetching: "+lcUrl);
 			}
 		}
+		allLinksFetched = (links.isEmpty()) ? true : false;
+		
 		return url2HtmlPage;
 	}
 	
@@ -212,33 +216,42 @@ public class DynamicModeler extends WebsiteModeler {
 	}
 	
 	private void logModel(Set<PageClass> pClasses, String dir) {
-		String normalBase = transformURL(base);
+//		String normalBase = transformURL(base);
 		String sitename = base.replaceAll("http[s]?://(www.)?|/", "").replaceAll("\\.|:", "_");
-		String schema = dir+"/"+sitename+"_class_schema.txt";
+//		String schema = dir+"/"+sitename+"_class_schema.txt";
 		String target = dir+"/"+sitename+"_target.csv";
 		
 		new File(dir).mkdir();
 		
 		try {
-			FileWriter schemaFile = new FileWriter(schema);
+//			FileWriter schemaFile = new FileWriter(schema);
+//			for (CandidatePageClass cpc : model.getModel()) {
+//				schemaFile.write(cpc.getName()+": "+
+//						cpc.getClassPages().toString().replace(normalBase, "")+"\n");
+//				for (String xp : cpc.getClassSchema()) {
+//					schemaFile.write(xp+" -> "+cpc.getUrlsDiscoveredFromXPath(xp)+"\n");
+//				}
+//				schemaFile.write("\n");
+//			}
+//			schemaFile.close();
+
 			FileWriter targetFile = new FileWriter(target);
-
-			for (CandidatePageClass cpc : model.getModel()) {
-				schemaFile.write(cpc.getName()+": "+
-						cpc.getClassPages().toString().replace(normalBase, "")+"\n");
-				for (String xp : cpc.getClassSchema()) {
-					schemaFile.write(xp+" -> "+cpc.getUrlsDiscoveredFromXPath(xp)+"\n");
-				}
-				schemaFile.write("\n");
-			}
-			schemaFile.close();
-
 			targetFile.write(base+"\n");
 			for (PageClass pc : pClasses) {
-				for (String xp : pc.getNavigationXPaths()) {
+				for (String xp : pc.getMenuXPaths()) {
 					targetFile.write(
 							pc.getName()+"\t"+"link"+"\t"+xp+"\t"+
-							pc.getDestinationByXPath(xp).getName()+"\n");
+							pc.getDestinationByXPath(xp).getName()+"\t"+"menu"+"\n");
+				}
+				for (String xp : pc.getListXPaths()) {
+					targetFile.write(
+							pc.getName()+"\t"+"link"+"\t"+xp+"\t"+
+							pc.getDestinationByXPath(xp).getName()+"\t"+"list"+"\n");
+				}				
+				for (String xp : pc.getSingletonXPaths()) {
+					targetFile.write(
+							pc.getName()+"\t"+"link"+"\t"+xp+"\t"+
+							pc.getDestinationByXPath(xp).getName()+"\t"+"singleton"+"\n");
 				}
 			}
 			targetFile.close();

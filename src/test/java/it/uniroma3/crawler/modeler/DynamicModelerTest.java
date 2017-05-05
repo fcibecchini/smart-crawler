@@ -2,8 +2,10 @@ package it.uniroma3.crawler.modeler;
 
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.net.URI;
 
+import org.junit.After;
 import org.junit.Test;
 
 import it.uniroma3.crawler.model.PageClass;
@@ -28,6 +30,11 @@ public class DynamicModelerTest {
 		assertEquals(1, directory1.getDepth());
 		assertEquals(directory1, directory1.getDestinationByXPath(toNext));
 		assertTrue(directory1.getListXPaths().size() > 0);		
+	}
+	
+	@After
+	public void tearDown() {
+		assertTrue(new File("src/main/resources/targets/localhost_8081_target.csv").delete());
 	}
 
 }

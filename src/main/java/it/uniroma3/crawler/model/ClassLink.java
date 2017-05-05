@@ -1,11 +1,7 @@
 package it.uniroma3.crawler.model;
 
-import java.io.Serializable;
-
-public class ClassLink implements Serializable {
-	
-	private static final long serialVersionUID = -8151270465503302385L;
-	
+public class ClassLink {
+		
 	public final static int SINGLETON = 1;
 	public final static int LIST = 2;
 	public final static int MENU = 3;

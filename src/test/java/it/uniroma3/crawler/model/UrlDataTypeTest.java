@@ -2,7 +2,7 @@ package it.uniroma3.crawler.model;
 
 import static org.junit.Assert.*;
 
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.gargoylesoftware.htmlunit.WebClient;
@@ -13,21 +13,22 @@ import it.uniroma3.crawler.model.UrlDataType;
 import it.uniroma3.crawler.util.HtmlUtils;
 
 public class UrlDataTypeTest {
-	private WebClient client;
-	private HtmlPage page;
+	private static WebClient client;
+	private static HtmlPage page;
 	
-	@Before
-	public void setUp() throws Exception {
-		this.client = HtmlUtils.makeWebClient();
-		this.page = client.getPage("http://www.proz.com/profile/41164?sp_mode=corp_profile&summary=y");
+	@BeforeClass
+	public static void setUp() throws Exception {
+		client = HtmlUtils.makeWebClient(false);
+		page = HtmlUtils.getPage("http://localhost:8081",client);
+		client.close();
 	}
 
 	@Test
 	public void testExtract() {
 		DataType urlType = new UrlDataType(); 
-		urlType.setXPath("//div[@class='rdbx']/div[@class='contact_column']/a[@target]");
+		urlType.setXPath("//div[@id='link']/a");
 		String website = urlType.extract(page);
-		assertEquals("http://www.polilingua.com", website);
+		assertEquals("http://www.external-link.test", website);
 	}
 
 }

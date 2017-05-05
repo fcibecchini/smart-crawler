@@ -63,6 +63,11 @@ public class XPathUtils {
 		return nodes;
 	}
 	
+	public static List<HtmlAnchor> getAnchors(HtmlPage page, String xpath) {
+		final List<HtmlAnchor> anchors = page.getByXPath(xpath);
+		return anchors;
+	}
+	
 	/*
 	public static HtmlPage setInputValue(HtmlPage page, String xpath, String value) {
 		HtmlInput input = (HtmlInput) getUniqueByXPath(page,xpath);
@@ -124,7 +129,7 @@ public class XPathUtils {
 			for (int i=0; i<=linkAttributes.getLength()-1; i++) {
 				org.w3c.dom.Node lattr = linkAttributes.item(i);
 				String lAttrName = lattr.getNodeName();
-				if (!lAttrName.equals("href")) {
+				if (!lAttrName.equals("href") && !lAttrName.contains(":")) {
 					if (lAttrName.equals("id")) {
 						String lattrValue = lattr.getNodeValue();
 						return "//"+xpath+"[@"+lAttrName+"='"+lattrValue+"'"+"]";
@@ -134,7 +139,7 @@ public class XPathUtils {
 			}
 		}
 		if (!anchorQuery.isEmpty())
-			xpath += "["+anchorQuery.substring(0, anchorQuery.length()-4)+"]";
+			xpath += "["+anchorQuery.substring(0, anchorQuery.length()-5)+"]";
 		
 		DomNode current=link.getParentNode();
 		boolean stop = false;

@@ -14,20 +14,19 @@ public class StaticModelerTest {
 
 	@Before
 	public void setUp() throws Exception {
-		String file = StaticModelerTest.class.getResource("/targets/target_test.csv").getPath();
-		this.modeler = new StaticModeler(file);
+		String file = System.class.getResource("/targets/target_test.csv").getPath();
+		modeler = new StaticModeler(file);
+		modeler.computeModel();
 	}
 
 	@Test
 	public void testComputeModel_entryPointClass_name() {
-		modeler.computeModel();
 		PageClass entry = modeler.getEntryPageClass();
 		assertEquals("homepage", entry.getName());
 	}
 	
 	@Test
 	public void testComputeModel_entryPointClass_destination() {
-		modeler.computeModel();
 		PageClass entry = modeler.getEntryPageClass();
 		String xpath = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
 		assertEquals("companies", entry.getDestinationByXPath(xpath).getName());
@@ -35,7 +34,6 @@ public class StaticModelerTest {
 	
 	@Test
 	public void testComputeModel_testChain() {
-		modeler.computeModel();
 		PageClass entry = modeler.getEntryPageClass();
 		String xpath1 = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
 		String xpath2 = "//tr/td[@colspan='2']//h2/a";
@@ -46,7 +44,6 @@ public class StaticModelerTest {
 	
 	@Test
 	public void testComputeModel_testEndPage() {
-		modeler.computeModel();
 		PageClass entry = modeler.getEntryPageClass();
 		String xpath1 = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
 		String xpath2 = "//tr/td[@colspan='2']//h2/a";
@@ -61,7 +58,6 @@ public class StaticModelerTest {
 	
 	@Test
 	public void testComputeModel_testFindPageClass() {
-		modeler.computeModel();
 		PageClass entry = modeler.getEntryPageClass();
 		List<String> entryXPaths = entry.getNavigationXPaths();
 		PageClass companies = entry.getDestinationByXPath(entryXPaths.get(0));
@@ -76,7 +72,6 @@ public class StaticModelerTest {
 	
 	@Test
 	public void testComputeModel_testDepthHierarchy() {
-		modeler.computeModel();
 		PageClass entry = modeler.getEntryPageClass();
 		PageClass companies = entry.getDestinationByXPath("//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']");
 		PageClass detPage = companies.getDestinationByXPath("//tr/td[@colspan='2']//h2/a");

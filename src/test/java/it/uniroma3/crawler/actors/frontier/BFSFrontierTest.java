@@ -7,8 +7,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import akka.actor.ActorSystem;
+import akka.testkit.javadsl.TestKit;
 import akka.actor.Props;
-import akka.testkit.JavaTestKit;
 import akka.testkit.TestActorRef;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
@@ -17,11 +17,19 @@ import it.uniroma3.crawler.model.PageClass;
 public class BFSFrontierTest {
 	private static ActorSystem system;
 
+	/*
 	@BeforeClass
 	public static void setUp() throws Exception {
 		system = ActorSystem.create("testSystem");
 	}
+	
+	@AfterClass
+	public static void cleanUp() throws Exception {
+	    TestKit.shutdownActorSystem(system);
+	    system = null;
+	}
 
+	
 	@Test
 	public void testScheduleUrl() throws Exception {
 		final Props props = BFSFrontier.props(1);
@@ -69,11 +77,7 @@ public class BFSFrontierTest {
 		
 		assertTrue(frontier.isEmpty());
 	}
-	
-	@AfterClass
-	public static void cleanUp() throws Exception {
-	    JavaTestKit.shutdownActorSystem(system);
-	    system = null;
-	}
 
+
+	*/
 }

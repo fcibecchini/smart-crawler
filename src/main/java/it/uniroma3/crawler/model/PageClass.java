@@ -1,24 +1,20 @@
 package it.uniroma3.crawler.model;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class PageClass implements Serializable {
-	private static final long serialVersionUID = 20919679521227239L;
+public class PageClass {
 	
 	private String name;
+	private String website;
 	private int depth;
 	private long waitTime;
 	
-	private transient Collection<ClassLink> links;
-	private transient Collection<DataType> dataTypes;
+	private Collection<ClassLink> links;
+	private Collection<DataType> dataTypes;
 	
 	public PageClass(String name, long waitTime) {
 		this(name);
@@ -31,10 +27,22 @@ public class PageClass implements Serializable {
 		this.dataTypes = new ArrayList<>();
 	}
 	
+	public Collection<DataType> getDataTypes() {
+		return dataTypes;
+	}
+
 	public String getName() {
 		return this.name;
 	}
 	
+	public String getWebsite() {
+		return website;
+	}
+
+	public void setWebsite(String website) {
+		this.website = website;
+	}
+
 	public long getWaitTime() {
 		return this.waitTime;
 	}
@@ -144,39 +152,25 @@ public class PageClass implements Serializable {
 	}
 	
 	public int compareTo(PageClass pc2) {
-		return this.getDepth() - pc2.getDepth();
+		int cmpdepth = this.getDepth() - pc2.getDepth();
+		if (cmpdepth!=0) return cmpdepth;
+		int cmpws = this.getWebsite().compareTo(pc2.getWebsite());
+		if (cmpws!=0) return cmpws;
+		return this.getName().compareTo(pc2.getName());
 	}
 	
 	public String toString() {
-		return name+": "+links.toString();
-	}
-	
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		out.defaultWriteObject();
-		out.writeObject((links.isEmpty()) ? null : links);
-		out.writeObject((dataTypes.isEmpty()) ? null : dataTypes);
-	}
-	
-	@SuppressWarnings("unchecked")
-	private void readObject(ObjectInputStream in) 
-			throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		Collection<ClassLink> classLinks = 
-				(Collection<ClassLink>) in.readObject();
-		links = (classLinks != null) ? classLinks : new ArrayList<>();
-		Collection<DataType> dTypes = 
-				(Collection<DataType>) in.readObject();
-		dataTypes = (dTypes != null) ? dTypes : new ArrayList<>();
+		return name+", "+website;
 	}
 	
 	public int hashCode() {
-		final int prime = 31;
-		return prime + name.hashCode();
+		return name.hashCode() + website.hashCode();
 	}
 
 	public boolean equals(Object obj) {
 		PageClass other = (PageClass) obj;
-		return Objects.equals(name, other.getName());
+		return Objects.equals(name, other.getName())
+			&& Objects.equals(website, other.getWebsite());
 	}
 
 }

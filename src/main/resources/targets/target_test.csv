@@ -1,8 +1,8 @@
 http://www.proz.com
-homepage	link	//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']	companies
-companies	link	//div[@style='background-color:#E2E1C5;']//div[@id='pager_string']/font//a[contains(., ' Next ')]	companies
-companies	link	//tr/td[@colspan='2']//h2/a	detailsPage
-detailsPage	link	//tr/td[@align='right']/a	profilePage
+homepage	link	//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']	companies	singleton
+companies	link	//div[@style='background-color:#E2E1C5;']//div[@id='pager_string']/font//a[contains(., ' Next ')]	companies	singleton
+companies	link	//tr/td[@colspan='2']//h2/a	detailsPage	list
+detailsPage	link	//tr/td[@align='right']/a	profilePage	singleton
 detailsPage	string	//h1/text()	
 detailsPage	string	//div[@class='rdbx']/div[@class='contact_column']/div[@style='padding-left:5px;']/text()	
 detailsPage	string	//div[@class='rdbx']//div[@style='padding-left:10px;']/text()	

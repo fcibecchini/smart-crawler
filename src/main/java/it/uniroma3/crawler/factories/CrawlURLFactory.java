@@ -1,10 +1,12 @@
 package it.uniroma3.crawler.factories;
 
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import it.uniroma3.crawler.model.CrawlURL;
+import it.uniroma3.crawler.model.OutgoingLink;
 import it.uniroma3.crawler.model.PageClass;
 
 public class CrawlURLFactory {
@@ -15,7 +17,25 @@ public class CrawlURLFactory {
 	private CrawlURLFactory() {}
 	
 	public static CrawlURL getCrawlUrl(String url, PageClass pClass) {
-		return CrawlURLFactory.factory.create(url, pClass);
+		return factory.create(url, pClass);
+	}
+	
+	public static CrawlURL getCrawlUrl(URI url, PageClass pClass) {
+		return factory.create(url, pClass);
+	}
+	
+	public static CrawlURL getCrawlUrl(OutgoingLink link, PageClass pClass) {
+		CrawlURL curl = factory.create(link.getUrl(), pClass);
+		String cachedLink = link.getCachedFile();
+		if (cachedLink!=null) {
+			curl.setFilePath(cachedLink);
+			curl.setCached(true);
+		}
+		return curl;
+	}
+	
+	public static CrawlURL copy(CrawlURL curl) {
+		return factory.create(curl.getUrl(), curl.getPageClass());
 	}
 	
 	private CrawlURL create(String url, PageClass pClass) {
@@ -25,14 +45,19 @@ public class CrawlURLFactory {
 	            logger.fine("URL "+url+" INITIALIZED");
 	        }
 			return crawlUrl;
-		} catch (URISyntaxException e) {
+		} catch (URISyntaxException | IllegalArgumentException e) {
 	        if (logger.isLoggable(Level.WARNING)) {
-	            logger.fine("URL "+url+" COULD NOT BE INITIALIZED");
+	            logger.warning("URL "+url+" COULD NOT BE INITIALIZED");
 	        }
 			return null;
 		}
-		
-		
 	}
-
+	
+	private CrawlURL create(URI url, PageClass pClass) {
+		CrawlURL crawlUrl = new CrawlURL(url, pClass);
+		if (logger.isLoggable(Level.FINE)) {
+			logger.fine("URL " + url + " INITIALIZED");
+		}
+		return crawlUrl;
+	}
 }

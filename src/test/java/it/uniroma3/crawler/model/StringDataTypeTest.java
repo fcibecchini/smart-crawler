@@ -2,7 +2,7 @@ package it.uniroma3.crawler.model;
 
 import static org.junit.Assert.*;
 
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.gargoylesoftware.htmlunit.WebClient;
@@ -13,13 +13,14 @@ import it.uniroma3.crawler.model.StringDataType;
 import it.uniroma3.crawler.util.HtmlUtils;
 
 public class StringDataTypeTest {
-	private WebClient client;
-	private HtmlPage page;
+	private static WebClient client;
+	private static HtmlPage page;
 	
-	@Before
-	public void setUp() throws Exception {
-		this.client = HtmlUtils.makeWebClient();
-		this.page = client.getPage("http://www.proz.com/profile/1483207?sp_mode=corp_profile&summary=y");
+	@BeforeClass
+	public static void setUpBeforeClass() throws Exception {
+		client = HtmlUtils.makeWebClient(false);
+		page = HtmlUtils.getPage("http://localhost:8081/detail1.html",client);
+		client.close();
 	}
 
 	@Test
@@ -27,7 +28,7 @@ public class StringDataTypeTest {
 		DataType stringType = new StringDataType(); 
 		stringType.setXPath("//h1/text()");
 		String string = stringType.extract(page);
-		assertEquals("ViewGlobally", string);
+		assertEquals("Detail page 1", string);
 	}
 	
 	@Test

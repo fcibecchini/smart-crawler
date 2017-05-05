@@ -1,0 +1,13 @@
+http://localhost:8081
+home	link	(//ul[@id='menu']/li/a)[1]	dir1	menu
+home	link	(//ul[@id='menu']/li/a)[2]	dir2	menu
+home	link	(//ul[@id='menu']/li/a)[3]	table	menu
+home	link	(//ul[@id='menu']/li/a)[4]	about	menu
+dir2	link	//div[@id='content']/ul/li/a	detail	list
+dir1	link	//a[@id='page']	dir1	singleton
+dir1	link	//div[@id='content']/ul/li/a	detail	list
+detail	link	(//div[@id='content']/div[@class]/ul/li/a)[1]	dir1	menu
+detail	link	(//div[@id='content']/div[@class]/ul/li/a)[2]	dir2	menu
+detail	string	//h1/text()
+table	string	//h1/text()
+about	string	//p/text()

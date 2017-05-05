@@ -1,36 +1,28 @@
 package it.uniroma3.crawler;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.File;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Inbox;
-import akka.actor.Props;
-import it.uniroma3.crawler.actors.extract.CrawlExtractor;
-import it.uniroma3.crawler.actors.fetch.CrawlFetcher;
+import it.uniroma3.crawler.actors.CrawlRepository;
 import it.uniroma3.crawler.actors.frontier.*;
-import it.uniroma3.crawler.actors.schedule.CrawlLinkScheduler;
-import it.uniroma3.crawler.factories.CrawlURLFactory;
+import static it.uniroma3.crawler.factories.CrawlURLFactory.getCrawlUrl;
 import it.uniroma3.crawler.model.CrawlURL;
+import it.uniroma3.crawler.model.OutgoingLink;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.modeler.DynamicModeler;
 import it.uniroma3.crawler.modeler.StaticModeler;
 import it.uniroma3.crawler.modeler.WebsiteModeler;
+import it.uniroma3.crawler.settings.CrawlerSettings;
+import it.uniroma3.crawler.util.FileUtils;
 
 public class CrawlController {
+	private static final String ROOT_HTML_DIRECTORY = "html";
 	private static CrawlController instance = null;
     private WebsiteModeler modeler;
-    private ActorRef frontier, scheduler;
-    private long waitTime;
-    private int rndTime;
-
+    
     private CrawlController() {}
 
     public static CrawlController getInstance() {
@@ -43,64 +35,35 @@ public class CrawlController {
         return instance;
     }
     
-    public long getWaitTime() {
-    	return this.waitTime;
+    public WebsiteModeler getModeler() {
+    	return this.modeler;
     }
     
-    public int getRoundTime() {
-    	return this.rndTime;
-    }
-
-	public void setRoundTime(int rndTime) {
-		this.rndTime = rndTime;
-	}
-
-	public void setWaitTime(long waitTime) {
-		this.waitTime = waitTime;
-	}
-    
-    public ActorRef getFrontier() {
-    	return this.frontier;
-    }
-    
-    public ActorRef getScheduler() {
-    	return this.scheduler;
-    }
-    
-    public String getUrlBase() {
-    	return this.modeler.getUrlBase().toString();
-    }
-    
-    public String getBaseDirectory() {
-    	String baseUrlString = this.modeler.getUrlBase().toString();
-		return baseUrlString.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.", "_");
-    }
-    
-    private Properties getProperties(String fileName) {
-    	try (InputStream stream = Files.newInputStream(Paths.get(fileName))) {
-        	Properties config = new Properties();
-            config.load(stream);
-            return config;
-        } catch (IOException ie) {
-        	return null;
-        }
-    }
-    
-    private void setModeler(WebsiteModeler modeler) {
+    public void setModeler(WebsiteModeler modeler) {
     	this.modeler = modeler;
     }
     
-    private WebsiteModeler chooseModeler(Properties prop) {
-    	String config = prop.getProperty("modelfile");
+    public void setPageClassesWaitTime(long wait) {
+    	modeler.getClasses().forEach(pc -> pc.setWaitTime(wait));
+    }
+    
+    public boolean makeDirectories(WebsiteModeler mod) {
+    	String website = mod.getUrlBase().toString();
+    	String writeDir = FileUtils.getWriteDir(ROOT_HTML_DIRECTORY, website);
+    	return new File(writeDir).mkdirs() && new File(writeDir+"_mirror").mkdir();
+    }
+    
+    private WebsiteModeler chooseModeler(CrawlerSettings settings, long waitTime) {
+    	String config = settings.modelfile;
     	WebsiteModeler modeler = null;
     	
     	if (!config.equals("null")) {
     		modeler = new StaticModeler(config);
     	} 
     	else {
-    		String seed = prop.getProperty("modelseed");
-    		int maxPages = new Integer(prop.getProperty("modelpages"));
-    		boolean js = new Boolean(prop.getProperty("javascript"));
+    		String seed = settings.modelseed;
+    		int maxPages = new Integer(settings.modelpages);
+    		boolean js = new Boolean(settings.javascript);
     		try {
     			modeler = new DynamicModeler(URI.create(seed), maxPages, waitTime, js);
     		} catch (Exception e) {
@@ -110,57 +73,44 @@ public class CrawlController {
     	return modeler;
     }
     
-    public void startCrawling(ActorSystem system) {
-    	Properties prop = getProperties("config.properties");
-    	this.waitTime = new Long(prop.getProperty("wait"));
-    	this.rndTime = new Integer(prop.getProperty("randompause"));
+    public OutgoingLink seed(WebsiteModeler modeler) {
+    	String website = modeler.getUrlBase().toString();
+    	OutgoingLink entry = new OutgoingLink(website);
+    	String file = FileUtils.getMirror(ROOT_HTML_DIRECTORY, website)+"/index.html";
+    	if (new File(file).exists()) entry.setCachedFile(file);
+    	return entry;
+    }
+    
+    private CrawlURL makeEntryPoint(long waitTime) {
+    	PageClass entryClass = modeler.computeModel();
+    	setPageClassesWaitTime(waitTime);
+    	return getCrawlUrl(seed(modeler), entryClass);
+    }
+    
+    public void startCrawling(ActorSystem system, CrawlerSettings settings) {
+    	long defaultWaitTime = new Long(settings.wait);
     	
-    	WebsiteModeler modeler = chooseModeler(prop);
+    	WebsiteModeler modeler = chooseModeler(settings, defaultWaitTime);
     	if (modeler==null) system.terminate();
     	else {
 	    	setModeler(modeler);
-	    	PageClass entryClass = modeler.computeModel();
-	    	entryClass.setWaitTime(waitTime);
-	    	URI base = modeler.getUrlBase();
-	    	CrawlURL entryPoint = CrawlURLFactory.getCrawlUrl(base.toString(), entryClass);
-	    	startSystem(system, entryPoint, 
-	    			new Integer(prop.getProperty("fetchers")), 
-	    			new Integer(prop.getProperty("pages")), 
-	    			new Integer(prop.getProperty("maxfailures")), 
-	    			new Integer(prop.getProperty("failuretime")),
-	    			new Boolean(prop.getProperty("javascript")));
+	    	CrawlURL entryPoint = makeEntryPoint(defaultWaitTime);
+	    	makeDirectories(modeler);
+	    	startSystem(system, entryPoint, settings);
     	}
     }
     
-    private void startSystem(
-    		ActorSystem system, 
-    		CrawlURL entryPoint, 
-    		int n, 
-    		int pages, 
-    		int maxFails,
-    		int time,
-    		boolean useJavascript) {
+    private void startSystem(ActorSystem system, CrawlURL entryPoint, CrawlerSettings s) {
     	
     	/* Init. System Actors*/
+    	boolean js = new Boolean(s.javascript);
+    	system.actorOf(CrawlRepository.props("repository.csv", js), "repository");
     	
-    	frontier = system.actorOf(BFSFrontier.props(pages), "frontier");
-    	scheduler = system.actorOf(Props.create(CrawlLinkScheduler.class), "linkScheduler");
-    	
-    	List<ActorRef> extractors = new ArrayList<>();
-    	for (PageClass pClass : modeler.getClasses()) {
-    		extractors.add(system.actorOf(Props.create(CrawlExtractor.class), pClass.getName()));
-    	}
-    	
-    	List<ActorRef> fetchers = new ArrayList<>();
-    	for (int i=0; i<n; i++) {
-    		fetchers.add(system.actorOf(CrawlFetcher.props(extractors,maxFails,time,useJavascript), "fetcher"+(i+1)));
-    	}
+    	ActorRef frontier = system.actorOf(BFSFrontier.props(s), "frontier");
 
     	final Inbox inbox = Inbox.create(system);
     	inbox.send(frontier, entryPoint);
-    	for (ActorRef fetcher : fetchers) {
-    		inbox.send(fetcher, "Start");
-    	}
+    	inbox.send(frontier, "start");
     }
     
 }
