@@ -16,6 +16,7 @@ import com.csvreader.CsvWriter;
 
 import akka.actor.AbstractLoggingActor;
 import akka.actor.Props;
+import akka.japi.Creator;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.OutgoingLink;
 
@@ -23,8 +24,22 @@ public class CrawlUrlClass extends AbstractLoggingActor {
 	private String csv; // <URL, PageClass, Local URI>
 	private CsvWriter csvWriter;
 	
+	static class InnerProps implements Creator<CrawlUrlClass> {
+		private String csv;
+		
+		public InnerProps(String csv) {
+			this.csv = csv;
+		}
+
+		@Override
+		public CrawlUrlClass create() throws Exception {
+			return new CrawlUrlClass(csv);
+		}
+		
+	}
+	
 	public static Props props(String csv) {
-		return Props.create(CrawlUrlClass.class, () -> new CrawlUrlClass(csv));
+		return Props.create(CrawlUrlClass.class, new InnerProps(csv));
 	}
 
 	public CrawlUrlClass(String csv) {

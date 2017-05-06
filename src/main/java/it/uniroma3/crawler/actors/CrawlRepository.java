@@ -14,8 +14,24 @@ public class CrawlRepository extends AbstractActor {
 	private boolean useJs;
 	private final ActorRef csvCache;
 	
+	static class InnerProps implements Creator<CrawlRepository> {
+		private String csv;
+		private boolean js;
+		
+		public InnerProps(String csv, boolean js) {
+			this.csv = csv;
+			this.js = js;
+		}
+
+		@Override
+		public CrawlRepository create() throws Exception {
+			return new CrawlRepository(csv, js);
+		}
+		
+	}
+	
 	public static Props props(String csv, boolean js) {
-		return Props.create(CrawlRepository.class, () -> new CrawlRepository(csv, js));
+		return Props.create(CrawlRepository.class, new InnerProps(csv, js));
 	}
 	
 	public CrawlRepository(String csvFile, boolean useJs) {

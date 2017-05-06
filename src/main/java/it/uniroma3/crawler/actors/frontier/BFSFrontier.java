@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
+import akka.japi.Creator;
 import it.uniroma3.crawler.actors.CrawlFetcher;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.settings.CrawlerSettings;
@@ -28,9 +29,22 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	private int maxPages;
 	private int pageCount;
 	private boolean isEnding;
+	
+	static class InnerProps implements Creator<BFSFrontier> {
+		private CrawlerSettings settings;
+		
+		public InnerProps(CrawlerSettings settings) {
+			this.settings = settings;
+		}
+
+		@Override
+		public BFSFrontier create() throws Exception {
+			return new BFSFrontier(settings);
+		}	
+	}
 		
 	public static Props props(CrawlerSettings s) {
-		return Props.create(BFSFrontier.class, () -> new BFSFrontier(s));
+		return Props.create(BFSFrontier.class, new InnerProps(s));
 	}
 	
 	private BFSFrontier() {

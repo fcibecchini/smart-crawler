@@ -10,6 +10,7 @@ import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.Props;
+import akka.japi.Creator;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.CrawlURL;
 import scala.concurrent.duration.Duration;
@@ -19,6 +20,23 @@ public class CrawlFetcher extends AbstractLoggingActor {
 	private final int id, MAX_FAILURES, TIME_TO_WAIT;
 	private final ActorRef cache;
 	private int failures;
+	
+	static class InnerProps implements Creator<CrawlFetcher> {
+		private int maxFailures;
+		private int time;
+		private boolean js;
+		
+		public InnerProps(int maxFailures, int time, boolean js) {
+			this.maxFailures = maxFailures;
+			this.time = time;
+			this.js = js;
+		}
+
+		@Override
+		public CrawlFetcher create() throws Exception {
+			return new CrawlFetcher(maxFailures, time, js);
+		}	
+	}
 	
 	static public class ResultMsg {
 		private final CrawlURL curl;
@@ -39,7 +57,7 @@ public class CrawlFetcher extends AbstractLoggingActor {
 	}
 		
 	public static Props props(int maxFailures, int time, boolean js) {
-		return Props.create(CrawlFetcher.class, () -> new CrawlFetcher(maxFailures, time, js));
+		return Props.create(CrawlFetcher.class, new InnerProps(maxFailures, time, js));
 	}
 	
 	public CrawlFetcher(int maxFailures, int time, boolean js) {
