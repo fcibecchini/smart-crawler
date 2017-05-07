@@ -38,7 +38,7 @@ public class CrawlFetcher extends AbstractLoggingActor {
 		}
 	}
 	
-	public CrawlFetcher(int maxFailures, int time, boolean js) {
+	public CrawlFetcher() {
 		this.id = Integer.parseInt(self().path().name().replace("fetcher", ""));
 		String cacheName = "cache" + id;
 		this.cache = context().actorOf(Props.create(CrawlCache.class), cacheName);

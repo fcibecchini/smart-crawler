@@ -49,12 +49,13 @@ public class CrawlerSettings implements Extension {
 	}
 	
 	private SeedConfig getSeedConfig(String site, Config config) {
-		String file = config.getString("crawler.modeler."+site+".file");
-		int pages = config.getInt("crawler.modeler."+site+".pages");
-		boolean js = config.getBoolean("crawler.modeler."+site+".javascript");
-		int wait = config.getInt("crawler.modeler."+site+".wait");
-		int random = config.getInt("crawler.modeler."+site+".randompause");
-		int failures = config.getInt("crawler.modeler."+site+".maxfailures");
+		String key = site.replaceAll("://|.", "\"$0\"");
+		String file = config.getString("crawler.modeler."+key+".file");
+		int pages = config.getInt("crawler.modeler."+key+".pages");
+		boolean js = config.getBoolean("crawler.modeler."+key+".javascript");
+		int wait = config.getInt("crawler.modeler."+key+".wait");
+		int random = config.getInt("crawler.modeler."+key+".randompause");
+		int failures = config.getInt("crawler.modeler."+key+".maxfailures");
 		return new SeedConfig(file,pages,js,wait,random,failures);
 	}
 
