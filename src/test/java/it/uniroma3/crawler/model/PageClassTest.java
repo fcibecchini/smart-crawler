@@ -14,15 +14,17 @@ import it.uniroma3.crawler.model.UrlDataType;
 
 public class PageClassTest {
 	private PageClass page;
+	private Website website;
 
 	@Before
 	public void setUp() throws Exception {
-		this.page = new PageClass("source", 1000);
+		this.website = new Website("http://www.proz.com",1,0,false);
+		this.page = new PageClass("source",website);
 	}
 	
 	@Test
 	public void testAddLink_creation() {
-		PageClass dest = new PageClass("destination", 1000);
+		PageClass dest = new PageClass("destination",website);
 		String xpath = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
 		assertTrue(page.addPageClassLink(xpath, dest));
 	}
@@ -50,7 +52,7 @@ public class PageClassTest {
 
 	@Test
 	public void testGetDestinationByXPath_found() {
-		PageClass dest = new PageClass("destination", 1000);
+		PageClass dest = new PageClass("destination",website);
 		String xpath = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
 		page.addPageClassLink(xpath, dest);
 		assertEquals(dest, page.getDestinationByXPath(xpath));
@@ -58,9 +60,9 @@ public class PageClassTest {
 	
 	@Test
 	public void testGetDestinationByXPath_multipleElementsFound() {
-		PageClass dest = new PageClass("destination", 1000);
-		PageClass dest2 = new PageClass("destination2", 1000);
-		PageClass dest3 = new PageClass("destination3", 1000);
+		PageClass dest = new PageClass("destination",website);
+		PageClass dest2 = new PageClass("destination2",website);
+		PageClass dest3 = new PageClass("destination3",website);
 		page.addPageClassLink("//ul", dest);
 		page.addPageClassLink("//li", dest2);
 		page.addPageClassLink("//a", dest3);
@@ -69,7 +71,7 @@ public class PageClassTest {
 	
 	@Test
 	public void testGetDestinationByXPath_notFound() {
-		PageClass dest = new PageClass("destination", 1000);
+		PageClass dest = new PageClass("destination",website);
 		String xpath = "//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']";
 		page.addPageClassLink(xpath, dest);
 		assertNull(page.getDestinationByXPath("//li[@class='dropdown']"));
@@ -102,9 +104,9 @@ public class PageClassTest {
 	
 	@Test
 	public void testgetXPaths() {
-		PageClass dest = new PageClass("destination", 1000);
-		PageClass dest2 = new PageClass("destination2", 1000);
-		PageClass dest3 = new PageClass("destination3", 1000);
+		PageClass dest = new PageClass("destination",website);
+		PageClass dest2 = new PageClass("destination2",website);
+		PageClass dest3 = new PageClass("destination3",website);
 		List<String> xpaths = new ArrayList<>();
 		String xpath1 = "//ul";
 		String xpath2 = "//li";

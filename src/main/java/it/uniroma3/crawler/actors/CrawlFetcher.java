@@ -10,33 +10,15 @@ import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.Props;
-import akka.japi.Creator;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.CrawlURL;
 import scala.concurrent.duration.Duration;
 
 public class CrawlFetcher extends AbstractLoggingActor {
 	private final static String NEXT = "next", START = "start";
-	private final int id, MAX_FAILURES, TIME_TO_WAIT;
+	private final int id;
 	private final ActorRef cache;
 	private int failures;
-	
-	static class InnerProps implements Creator<CrawlFetcher> {
-		private int maxFailures;
-		private int time;
-		private boolean js;
-		
-		public InnerProps(int maxFailures, int time, boolean js) {
-			this.maxFailures = maxFailures;
-			this.time = time;
-			this.js = js;
-		}
-
-		@Override
-		public CrawlFetcher create() throws Exception {
-			return new CrawlFetcher(maxFailures, time, js);
-		}	
-	}
 	
 	static public class ResultMsg {
 		private final CrawlURL curl;
@@ -55,18 +37,12 @@ public class CrawlFetcher extends AbstractLoggingActor {
 			return this.responseCode;
 		}
 	}
-		
-	public static Props props(int maxFailures, int time, boolean js) {
-		return Props.create(CrawlFetcher.class, new InnerProps(maxFailures, time, js));
-	}
 	
 	public CrawlFetcher(int maxFailures, int time, boolean js) {
 		this.id = Integer.parseInt(self().path().name().replace("fetcher", ""));
 		String cacheName = "cache" + id;
 		this.cache = context().actorOf(Props.create(CrawlCache.class), cacheName);
 		this.failures = 0;
-		MAX_FAILURES = maxFailures;
-		TIME_TO_WAIT = time;
 	}
 	
 	@Override
@@ -81,10 +57,11 @@ public class CrawlFetcher extends AbstractLoggingActor {
 	private void fetchRequest(CrawlURL curl) {
 		if (!curl.isCached()) {
 			String url = curl.getStringUrl();
+			boolean js = curl.getPageClass().useJavaScript();
 			ActorSelection repository = context().actorSelection("/user/repository");
 	
 			CompletableFuture<Object> future = 
-					ask(repository, new FetchMsg(url,id), 4000).toCompletableFuture();
+					ask(repository, new FetchMsg(url,id,js), 4000).toCompletableFuture();
 			CompletableFuture<ResultMsg> result = future.thenApply(v -> {
 				FetchedMsg msg = (FetchedMsg) future.join();
 				return new ResultMsg(curl, msg.getResponse());
@@ -114,7 +91,7 @@ public class CrawlFetcher extends AbstractLoggingActor {
 		else {
 			log().warning("HTTP REQUEST: FAILED "+url);
 			failures++;
-			if (failures <= MAX_FAILURES) {
+			if (failures <= curl.getPageClass().maxTries()) {
 				log().warning("HTTP REQUEST: TRY AGAIN...");
 				self().tell(curl, self());
 			}

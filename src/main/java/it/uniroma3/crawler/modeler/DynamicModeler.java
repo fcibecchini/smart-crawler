@@ -8,7 +8,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -26,27 +25,24 @@ import it.uniroma3.crawler.model.CandidatePageClass;
 import it.uniroma3.crawler.model.LinkCollection;
 import it.uniroma3.crawler.model.Page;
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.model.Website;
 import it.uniroma3.crawler.model.WebsiteModel;
 
 public class DynamicModeler extends WebsiteModeler {
 	private WebsiteModel model;
 	private int maxPages;
-	private long waitTime;
 	
 	private WebClient client;
-	private String base;
 	private Set<String> visitedURLs;
 	private int fetched;
 	private int classCounter;
 	private boolean allLinksFetched;
 	
-	public DynamicModeler(URI urlBase, int maxPages, long wait, boolean useJs) {
-		super(urlBase);
+	public DynamicModeler(Website website, int wait, int maxPages) {
+		super(website,wait);
 		
-		this.base = urlBase.toString();
 		this.maxPages = maxPages;
-		this.waitTime = wait;
-		this.client = makeWebClient(useJs);
+		this.client = makeWebClient(website.isJavascript());
 		
 		this.model = new WebsiteModel();
 		this.visitedURLs = new HashSet<>();
@@ -56,7 +52,9 @@ public class DynamicModeler extends WebsiteModeler {
 	}
 
 	@Override
-	public PageClass computeModel() {		
+	protected PageClass computeModel() {
+		String domain = getWebsite().getDomain();
+		
 		final int n = 3;
 		int max = n;
 		Queue<LinkCollection> queue = new PriorityQueue<>();
@@ -65,7 +63,7 @@ public class DynamicModeler extends WebsiteModeler {
 		Set<LinkCollection> visitedColl = new HashSet<>(); 
 		
 		// Feed queue with seed
-		queue.add(new LinkCollection(base));
+		queue.add(new LinkCollection(domain));
 		
 		while (!queue.isEmpty() && fetched<maxPages) {
 			LinkCollection coll = queue.poll();
@@ -90,16 +88,13 @@ public class DynamicModeler extends WebsiteModeler {
 		}
 				
 		// Transform candidates into Page Classes and Class Links
-		ModelFinalizer finalizer = new ModelFinalizer(model, base);
+		ModelFinalizer finalizer = new ModelFinalizer(model, getWebsite(), getWait());
 		TreeSet<PageClass> pClasses = finalizer.makePageClasses();
-		setClasses(pClasses);
-		setEntryPageClass(pClasses.first());
-		setHierarchy();
 		
 		// Log and save model to filesystem
 		logModel(pClasses, "src/main/resources/targets");
 		
-		return getEntryPageClass();
+		return pClasses.first();
 	}
 	
 	// Fetch at most MAX links from collection
@@ -117,7 +112,7 @@ public class DynamicModeler extends WebsiteModeler {
 				String normalizedUrl = transformURL(lcUrl);
 				if (!visitedURLs.contains(normalizedUrl) 
 						&& !normalizedUrl.equals("") 
-						&& isValidURL(transformURL(base),normalizedUrl)) {
+						&& isValidURL(transformURL(getWebsite().getDomain()),normalizedUrl)) {
 					
 					//visitedURLs.add(normalizedUrl);
 					HtmlPage body = getPage(lcUrl, client);
@@ -126,7 +121,7 @@ public class DynamicModeler extends WebsiteModeler {
 					counter++;
 					
 					getLogger().info("Fetched: "+lcUrl);
-					Thread.sleep(waitTime);
+					Thread.sleep(getWait());
 				}
 			} catch (Exception e) {
 				getLogger().warning("failed fetching: "+lcUrl);
@@ -151,7 +146,8 @@ public class DynamicModeler extends WebsiteModeler {
 			if (group != null)
 				group.addPageToClass(page);
 			else {
-				CandidatePageClass newClass = new CandidatePageClass("class"+(classCounter++), base);
+				CandidatePageClass newClass = 
+						new CandidatePageClass("class"+(classCounter++), getWebsite().getDomain());
 				page.getSchema().forEach(xp -> newClass.addXPathToSchema(xp));
 									
 				newClass.addPageToClass(page);
@@ -191,7 +187,8 @@ public class DynamicModeler extends WebsiteModeler {
 
 			double mergeLength = Double.MAX_VALUE;
 			for (CandidatePageClass cInModel : model.getModel()) {
-				CandidatePageClass tempClass = new CandidatePageClass(cInModel.getName(), base);
+				CandidatePageClass tempClass = 
+						new CandidatePageClass(cInModel.getName(), getWebsite().getDomain());
 				tempClass.collapse(candidate);
 				tempClass.collapse(cInModel);
 
@@ -217,7 +214,9 @@ public class DynamicModeler extends WebsiteModeler {
 	
 	private void logModel(Set<PageClass> pClasses, String dir) {
 //		String normalBase = transformURL(base);
-		String sitename = base.replaceAll("http[s]?://(www.)?|/", "").replaceAll("\\.|:", "_");
+		String sitename = 
+				getWebsite().getDomain()
+				.replaceAll("http[s]?://(www.)?|/", "").replaceAll("\\.|:", "_");
 //		String schema = dir+"/"+sitename+"_class_schema.txt";
 		String target = dir+"/"+sitename+"_target.csv";
 		
@@ -236,7 +235,7 @@ public class DynamicModeler extends WebsiteModeler {
 //			schemaFile.close();
 
 			FileWriter targetFile = new FileWriter(target);
-			targetFile.write(base+"\n");
+			targetFile.write(getWebsite().getDomain()+"\n");
 			for (PageClass pc : pClasses) {
 				for (String xp : pc.getMenuXPaths()) {
 					targetFile.write(

@@ -11,31 +11,27 @@ import it.uniroma3.crawler.messages.*;
 import scala.Option;
 
 public class CrawlRepository extends AbstractActor {
-	private boolean useJs;
 	private final ActorRef csvCache;
 	
 	static class InnerProps implements Creator<CrawlRepository> {
 		private String csv;
-		private boolean js;
 		
-		public InnerProps(String csv, boolean js) {
+		public InnerProps(String csv) {
 			this.csv = csv;
-			this.js = js;
 		}
 
 		@Override
 		public CrawlRepository create() throws Exception {
-			return new CrawlRepository(csv, js);
+			return new CrawlRepository(csv);
 		}
 		
 	}
 	
-	public static Props props(String csv, boolean js) {
-		return Props.create(CrawlRepository.class, new InnerProps(csv, js));
+	public static Props props(String csv) {
+		return Props.create(CrawlRepository.class, new InnerProps(csv));
 	}
 	
-	public CrawlRepository(String csvFile, boolean useJs) {
-		this.useJs = useJs;
+	public CrawlRepository(String csvFile) {
 		this.csvCache = context().actorOf(CrawlUrlClass.props(csvFile), "csvcache");
 		context().watch(csvCache);
 	}
@@ -81,8 +77,7 @@ public class CrawlRepository extends AbstractActor {
 		/* TODO: Map each Id to a different host */
 		//Address addr = new Address("akka.tcp", "CrawlSystem", "host", 2552);
 		String name = formatUrl(url);
-		ActorRef child = context().actorOf(
-				CrawlPage.props(useJs), name);
+		ActorRef child = context().actorOf(Props.create(CrawlPage.class), name);
 				//.withDeploy(new Deploy(new RemoteScope(addr))), name);
 		context().watch(child);
 		return child;

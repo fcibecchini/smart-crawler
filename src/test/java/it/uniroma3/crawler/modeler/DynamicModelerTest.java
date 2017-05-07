@@ -3,24 +3,24 @@ package it.uniroma3.crawler.modeler;
 import static org.junit.Assert.*;
 
 import java.io.File;
-import java.net.URI;
 
 import org.junit.After;
 import org.junit.Test;
 
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.model.Website;
 
 public class DynamicModelerTest {
 	private final static String TEST_SITE = "http://localhost:8081";
 
 	@Test
 	public void testComputeModel() throws Exception {
-		URI entry = new URI(TEST_SITE);
+		Website website = new Website(TEST_SITE,1,0,false);
 		String toDirectory = "(//ul[@id='menu']/li/a)[1]";
 		String toNext = "//a[@id='page']";
-		WebsiteModeler targetFromWebsite = new DynamicModeler(entry, 200, 0, false);
+		WebsiteModeler targetFromWebsite = new DynamicModeler(website,0,200);
 
-		PageClass home = targetFromWebsite.computeModel();
+		PageClass home = targetFromWebsite.compute();
 		PageClass directory1 = home.getDestinationByXPath(toDirectory);
 
 		assertEquals("class1", home.getName());

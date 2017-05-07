@@ -14,7 +14,7 @@ import akka.actor.Props;
 import akka.japi.Creator;
 import it.uniroma3.crawler.actors.CrawlFetcher;
 import it.uniroma3.crawler.model.CrawlURL;
-import it.uniroma3.crawler.settings.CrawlerSettings;
+import it.uniroma3.crawler.model.PageClass;
 import scala.concurrent.duration.Duration;
 
 public class BFSFrontier extends AbstractLoggingActor  {
@@ -25,26 +25,26 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	private Set<String> visitedUrls;
  	private Queue<ActorRef> requesters;
 	private Random random;
-	private int pause;
 	private int maxPages;
 	private int pageCount;
 	private boolean isEnding;
 	
 	static class InnerProps implements Creator<BFSFrontier> {
-		private CrawlerSettings settings;
+		private int fetchers, maxPages;
 		
-		public InnerProps(CrawlerSettings settings) {
-			this.settings = settings;
+		public InnerProps(int fetchers, int max) {
+			this.fetchers = fetchers;
+			this.maxPages = max;
 		}
 
 		@Override
 		public BFSFrontier create() throws Exception {
-			return new BFSFrontier(settings);
+			return new BFSFrontier(fetchers, maxPages);
 		}	
 	}
 		
-	public static Props props(CrawlerSettings s) {
-		return Props.create(BFSFrontier.class, new InnerProps(s));
+	public static Props props(int fetchers, int max) {
+		return Props.create(BFSFrontier.class, new InnerProps(fetchers,max));
 	}
 	
 	private BFSFrontier() {
@@ -56,14 +56,10 @@ public class BFSFrontier extends AbstractLoggingActor  {
 		this.isEnding = false;
 	}
 
-	public BFSFrontier(CrawlerSettings s) {
+	public BFSFrontier(int fetchers, int maxPages) {
 		this();
-		this.pause = s.randompause;
-		this.maxPages = s.pages;
-		int maxFailures = s.maxfailures;
-		int time = s.failuretime;
-		boolean js = s.javascript;
-		createFetchers(s.fetchers, maxFailures, time, js);
+		this.maxPages = maxPages;
+		createFetchers(fetchers);
 	}
 
 	public CrawlURL next() {
@@ -118,7 +114,8 @@ public class BFSFrontier extends AbstractLoggingActor  {
 				sender().tell(next, self());
 			else {
 				//TODO: update page class wait time somehow
-				long wait = next.getPageClass().getWaitTime() + random.nextInt(pause);
+				PageClass pClass = next.getPageClass();
+				long wait = pClass.getWaitTime() + random.nextInt(pClass.getPause());
 				context().system().scheduler().scheduleOnce(
 						Duration.create(wait, TimeUnit.MILLISECONDS),
 						sender(), next, context().dispatcher(),self());
@@ -146,10 +143,10 @@ public class BFSFrontier extends AbstractLoggingActor  {
 		context().actorSelection("*").tell(msg, self());
 	}
 	
-	private void createFetchers(int n, int maxFailures, int time, boolean js) {
+	private void createFetchers(int n) {
 		for (int i=1;i<n+1;i++) {
-			ActorRef child = context()
-					.actorOf(CrawlFetcher.props(maxFailures, time, js), "fetcher"+i);
+			ActorRef child = 
+					context().actorOf(Props.create(CrawlFetcher.class), "fetcher"+i);
 			context().watch(child);
 		}
 	}

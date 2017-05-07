@@ -4,29 +4,30 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class PageClass {
-	
 	private String name;
-	private String website;
+	private Website website;
 	private int depth;
-	private long waitTime;
+	private int waitTime;
 	
 	private Collection<ClassLink> links;
 	private Collection<DataType> dataTypes;
 	
-	public PageClass(String name, long waitTime) {
-		this(name);
+	public PageClass(String name, Website website, int waitTime) {
+		this(name,website);
 		this.waitTime = waitTime;
 	}
 	
-	public PageClass(String name) {
+	public PageClass(String name, Website website) {
 		this.name = name;
+		this.website = website;
 		this.links = new ArrayList<>();
 		this.dataTypes = new ArrayList<>();
 	}
-	
+		
 	public Collection<DataType> getDataTypes() {
 		return dataTypes;
 	}
@@ -35,11 +36,15 @@ public class PageClass {
 		return this.name;
 	}
 	
-	public String getWebsite() {
+	public Website getWebsite() {
 		return website;
 	}
+	
+	public String getDomain() {
+		return website.getDomain();
+	}
 
-	public void setWebsite(String website) {
+	public void setWebsite(Website website) {
 		this.website = website;
 	}
 
@@ -47,16 +52,32 @@ public class PageClass {
 		return this.waitTime;
 	}
 	
-	public void setWaitTime(long time) {
+	public void setWaitTime(int time) {
 		this.waitTime = time;
 	}
-	
+
 	public void setDepth(int depth) {
 		this.depth = depth;
 	}
 	
 	public int getDepth() {
 		return this.depth;
+	}
+	
+	public boolean useJavaScript() {
+		return website.isJavascript();
+	}
+	
+	public int maxTries() {
+		return website.getMaxFetchTries();
+	}
+	
+	public int getPause() {
+		return website.getPause();
+	}
+	
+	public Set<PageClass> children() {
+		return links.stream().map(l -> l.getDestination()).collect(Collectors.toSet());
 	}
 	
 	public PageClass getDestinationByXPath(String xpath) {
@@ -160,7 +181,7 @@ public class PageClass {
 	}
 	
 	public String toString() {
-		return name+", "+website;
+		return name+", "+getDomain();
 	}
 	
 	public int hashCode() {

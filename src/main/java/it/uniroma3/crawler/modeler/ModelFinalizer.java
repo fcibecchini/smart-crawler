@@ -8,16 +8,19 @@ import java.util.TreeSet;
 
 import it.uniroma3.crawler.model.CandidatePageClass;
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.model.Website;
 import it.uniroma3.crawler.model.WebsiteModel;
 
 public class ModelFinalizer {
 	private WebsiteModel model;
-	private String website;
+	private Website website;
 	private TreeSet<PageClass> pClasses;
+	private int wait;
 	
-	public ModelFinalizer(WebsiteModel model, String website) {
+	public ModelFinalizer(WebsiteModel model, Website website, int wait) {
 		this.model = model;
 		this.website = website;
+		this.wait = wait;
 	}
 	
 	public TreeSet<PageClass> makePageClasses() {
@@ -92,8 +95,7 @@ public class ModelFinalizer {
 					return r1-r2;
 				});
 		model.getModel().forEach(cand -> {
-			PageClass pc = new PageClass(cand.getName());
-			pc.setWebsite(website);
+			PageClass pc = new PageClass(cand.getName(),website,wait);
 			pClasses.add(pc);});
 		return pClasses;
 	}

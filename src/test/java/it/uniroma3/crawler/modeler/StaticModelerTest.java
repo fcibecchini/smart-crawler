@@ -8,6 +8,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.model.Website;
 
 public class StaticModelerTest {
 	private WebsiteModeler modeler;
@@ -15,8 +16,9 @@ public class StaticModelerTest {
 	@Before
 	public void setUp() throws Exception {
 		String file = System.class.getResource("/targets/target_test.csv").getPath();
-		modeler = new StaticModeler(file);
-		modeler.computeModel();
+		Website website = new Website("http://www.proz.com",3,0,false);
+		modeler = new StaticModeler(website,2000,file);
+		modeler.compute();
 	}
 
 	@Test
@@ -82,6 +84,18 @@ public class StaticModelerTest {
 		assertEquals(2, detPage.getDepth());
 		assertEquals(3, profPage.getDepth());
 	}
+	
+	@Test
+	public void getByName() {
+		PageClass entry = modeler.getEntryPageClass();
+		PageClass companies = entry.getDestinationByXPath("//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']");
+		PageClass detPage = companies.getDestinationByXPath("//tr/td[@colspan='2']//h2/a");
+		PageClass profPage = detPage.getDestinationByXPath("//tr/td[@align='right']/a");
 
-
+		assertEquals(entry, modeler.getByName("homepage"));
+		assertEquals(companies, modeler.getByName("companies"));
+		assertEquals(detPage, modeler.getByName("detailsPage"));
+		assertEquals(profPage, modeler.getByName("profilePage"));
+		assertNull(modeler.getByName("test"));
+	}
 }

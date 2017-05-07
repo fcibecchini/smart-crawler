@@ -21,7 +21,7 @@ public class CrawlDataWriter extends AbstractLoggingActor {
 	
 	private void write(CrawlURL curl) {
 		PageClass src = curl.getPageClass();
-		String dir = FileUtils.getWriteDir("html", src.getWebsite());
+		String dir = FileUtils.getWriteDir("html", src.getDomain());
 		String[] record = curl.getRecord();
 		if (record!=null) saveRecord(record, src.getName(), dir);
 		

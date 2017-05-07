@@ -1,79 +1,97 @@
 package it.uniroma3.crawler.modeler;
 
-import java.net.URI;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.logging.Logger;
 
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.model.Website;
 
 public abstract class WebsiteModeler {
-	private URI urlBase;
+	private Logger log = Logger.getLogger(WebsiteModeler.class.getName());
+
+	private Website website;
 	private PageClass entryClass;
-	private Set<PageClass> pClasses;
-		
-	private Logger log;
+	private int wait;		
 	
-	public WebsiteModeler() {
-		this.log = Logger.getLogger(WebsiteModeler.class.getName());
+	public WebsiteModeler(Website website, int wait) {
+		this.website = website;
+		this.wait = wait;
 	}
 	
-	public WebsiteModeler(URI urlBase) {
-		this();
-		this.urlBase = urlBase;
-	}
-	
-	public URI getUrlBase() {
-		return this.urlBase;
-	}
-	
-	public void setUrlBase(URI base) {
-		this.urlBase = base;
+	public Website getWebsite() {
+		return this.website;
 	}
 	
 	public PageClass getEntryPageClass() {
 		return this.entryClass;
 	}
-	
-	public void setEntryPageClass(PageClass entry) {
-		this.entryClass = entry;
+
+	public int getWait() {
+		return wait;
 	}
-	
+
 	public Logger getLogger() {
 		return this.log;
 	}
 	
-	public Set<PageClass> getClasses() {
-		return this.pClasses;
+	public PageClass compute() {
+		entryClass = computeModel();
+		setHierarchy();
+		return entryClass;
 	}
 	
-	public void setClasses(Set<PageClass> pClasses) {
-		this.pClasses = pClasses;
-	}
-	
-	public abstract PageClass computeModel();
+	protected abstract PageClass computeModel();
 
-	public void setHierarchy() {
+	private void setHierarchy() {
 		Queue<PageClass> queue = new LinkedList<>();
 		Set<PageClass> visited = new HashSet<>();
 		visited.add(entryClass);
 		queue.add(entryClass);
-		PageClass current, next = null;
 		entryClass.setDepth(0);
+		
+		PageClass current = null;
 		while ((current = queue.poll()) != null) {
-			if (!current.isEndPage()) {
-				for (String xpath : current.getNavigationXPaths()) {
-					next = current.getDestinationByXPath(xpath);
-					// avoid page class loops
-					if (!visited.contains(next)) {
-						visited.add(next);
-						queue.add(next);
-						next.setDepth(current.getDepth()+1);
-					}
-				}
-			}
+			int depth = current.getDepth();
+			
+			current.children().stream()
+			.filter(pc -> !visited.contains(pc))
+			.forEach(pc -> {
+				visited.add(pc); 
+				queue.add(pc); 
+				pc.setDepth(depth+1);});
 		}
+	}
+	
+	public PageClass getByName(String name) {
+		Queue<PageClass> queue = new LinkedList<>();
+		Set<PageClass> visited = new HashSet<>();
+		visited.add(entryClass);
+		queue.add(entryClass);
+		
+		PageClass current = null;
+		while ((current = queue.poll()) != null) {
+			if (current.getName().equals(name))
+				return current;
+			
+			current.children().stream()
+			.filter(pc -> !visited.contains(pc))
+			.forEach(pc -> {visited.add(pc); queue.add(pc);});
+		}
+		return null;
+	}
+
+	@Override
+	public int hashCode() {
+		return website.hashCode();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		WebsiteModeler other = (WebsiteModeler) obj;
+		return Objects.equals(website, other.getWebsite());
 	}
 }

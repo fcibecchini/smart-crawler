@@ -1,8 +1,7 @@
 /target/
-result*.csv
 .project
 .classpath
 /.settings/
 /html/
-/backup/
-/sites_navigation/
+/testsite/
+repository.csv

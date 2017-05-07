@@ -20,35 +20,11 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
-import akka.actor.Props;
-import akka.japi.Creator;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.DataType;
 
 public class CrawlPage extends AbstractLoggingActor {
 	private HtmlPage html;
-	private boolean useJs;
-	
-	static class InnerProps implements Creator<CrawlPage> {
-		private boolean js;
-		
-		public InnerProps(boolean js) {
-			this.js = js;
-		}
-
-		@Override
-		public CrawlPage create() throws Exception {
-			return new CrawlPage(js);
-		}	
-	}
-		
-	public static Props props(boolean useJs) {
-		return Props.create(CrawlPage.class, new InnerProps(useJs));
-	}
-	
-	public CrawlPage(boolean useJs) {
-		this.useJs = useJs;
-	}
 	
 	@Override
 	public Receive createReceive() {
@@ -61,7 +37,7 @@ public class CrawlPage extends AbstractLoggingActor {
 	}
 	
 	private void fetch(FetchMsg msg) {
-		HtmlPage html = fetchUrl(msg.getUrl());
+		HtmlPage html = fetchUrl(msg.getUrl(), msg.useJavaScript());
 		setHtml(html);
 		int code = (html!=null) ? 0 : 1;
 		sender().tell(new FetchedMsg(code), self());
@@ -114,8 +90,8 @@ public class CrawlPage extends AbstractLoggingActor {
 		this.html = html;
 	}
 	
-	private HtmlPage fetchUrl(String url) {
-		WebClient client = makeWebClient(useJs);
+	private HtmlPage fetchUrl(String url, boolean js) {
+		WebClient client = makeWebClient(js);
 		HtmlPage page;
 		try {
 			page = getPage(url, client);

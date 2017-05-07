@@ -71,21 +71,21 @@ public class CrawlExtractor extends AbstractLoggingActor {
 		if (src.isDataPage() || !src.isEndPage()) {
 			String url = curl.getStringUrl();
 			String htmlPath = curl.getFilePath();
-			String mirror = FileUtils.getMirror("html", src.getWebsite());
+			String mirror = FileUtils.getMirror("html", src.getDomain());
 			
 			ActorSelection repository = context().actorSelection("/user/repository");
 			CompletableFuture<Object> links, data;
 			
 			if (!src.isEndPage())
 				links = ask(repository,
-						new ExtractLinksMsg(url, htmlPath, src.getWebsite(), mirror, src.getNavigationXPaths()), 
+						new ExtractLinksMsg(url, htmlPath, src.getDomain(), mirror, src.getNavigationXPaths()), 
 						4000).toCompletableFuture();
 			else
 				links = completedFuture(new ExtractedLinksMsg());
 			
 			if (src.isDataPage() && !curl.isCached())
 				data = ask(repository, 
-					   new ExtractDataMsg(url, htmlPath, src.getWebsite(), src.getDataTypes()), 
+					   new ExtractDataMsg(url, htmlPath, src.getDomain(), src.getDataTypes()), 
 					   4000).toCompletableFuture();
 			else
 				data = completedFuture(null);

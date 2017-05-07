@@ -62,7 +62,7 @@ public class CrawlCache extends AbstractLoggingActor {
 	private void requestSave(CrawlURL curl) {
 		String url = curl.getStringUrl();
 		PageClass src = curl.getPageClass();
-		String mirror = FileUtils.getMirror("html", src.getWebsite());
+		String mirror = FileUtils.getMirror("html", src.getDomain());
 		ActorSelection repository = context().actorSelection("/user/repository");
 		
 		CompletableFuture<Object> future = 

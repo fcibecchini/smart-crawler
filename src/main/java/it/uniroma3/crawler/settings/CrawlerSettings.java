@@ -1,32 +1,61 @@
 package it.uniroma3.crawler.settings;
 
 import akka.actor.Extension;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigObject;
 
 public class CrawlerSettings implements Extension {
-	public final String modelfile;
-	public final String	modelseed;
-	public final int modelpages;
+	public final Map<String,SeedConfig> seeds;
 	public final int fetchers;
-	public final int wait;
-	public final int randompause;
-	public final int maxfailures;
-	public final int failuretime;
 	public final int pages;
-	public final boolean javascript;
+	
+	public static class SeedConfig {
+		public final String file;
+		public final int pages;
+		public final boolean javascript;
+		public final int wait;
+		public final int randompause;
+		public final int maxfailures;
+		
+		public SeedConfig(String file, int pages, boolean js, int wait,
+				int pause, int maxfailures) {
+			this.file = file;
+			this.pages = pages;
+			this.javascript = js;
+			this.wait = wait;
+			this.randompause = pause;
+			this.maxfailures = maxfailures;
+		}
+	}
 
 	public CrawlerSettings(Config config) {
-		modelfile = config.getString("crawler.modeler.file");
-		modelseed = config.getString("crawler.modeler.seed");
-		modelpages = config.getInt("crawler.modeler.pages");
+		ConfigObject sites = config.getObject("crawler.modeler");
 		
+		seeds = getSeeds(config,sites);
 		fetchers = config.getInt("crawler.crawling.fetchers");
-		wait = config.getInt("crawler.crawling.wait");
-		randompause = config.getInt("crawler.crawling.randompause");
-		maxfailures = config.getInt("crawler.crawling.maxfailures");
-		failuretime = config.getInt("crawler.crawling.failuretime");
 		pages = config.getInt("crawler.crawling.pages");
-		javascript = config.getBoolean("crawler.crawling.javascript");
+	}
+	
+	private Map<String,SeedConfig> getSeeds(Config config, ConfigObject sites) {
+		Map<String,SeedConfig> temp = new HashMap<>();
+		for (String site : sites.keySet()) {
+			temp.put(site, getSeedConfig(site,config));
+		}
+		return temp;
+	}
+	
+	private SeedConfig getSeedConfig(String site, Config config) {
+		String file = config.getString("crawler.modeler."+site+".file");
+		int pages = config.getInt("crawler.modeler."+site+".pages");
+		boolean js = config.getBoolean("crawler.modeler."+site+".javascript");
+		int wait = config.getInt("crawler.modeler."+site+".wait");
+		int random = config.getInt("crawler.modeler."+site+".randompause");
+		int failures = config.getInt("crawler.modeler."+site+".maxfailures");
+		return new SeedConfig(file,pages,js,wait,random,failures);
 	}
 
 }

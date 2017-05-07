@@ -24,10 +24,12 @@ import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.DataType;
 import it.uniroma3.crawler.model.OutgoingLink;
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.model.Website;
 
 public class CrawlRepositoryTest {
 	private static ActorSystem system;
-	private static String baseurl;
+	private static Website website;
+	private static String root;
 	private static String csv;
 	private static String mirror;
 	private static boolean js;
@@ -36,11 +38,12 @@ public class CrawlRepositoryTest {
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
 		system = ActorSystem.create("testSystem");
-		baseurl = "http://localhost:8081";
+		root = "http://localhost:8081";
 		csv = "repository-test.csv";
 		mirror = "html/test_mirror";
 		js = false;
-		props = CrawlRepository.props(csv, js);
+		website = new Website(root,1,0,js);
+		props = CrawlRepository.props(csv);
 	}
 
 	@AfterClass
@@ -57,7 +60,7 @@ public class CrawlRepositoryTest {
 	
 	@Test
 	public void testFetchUrl() throws Exception {
-		FetchMsg fetch = new FetchMsg("http://localhost:8081",1);
+		FetchMsg fetch = new FetchMsg("http://localhost:8081",1,js);
 		
 		final TestActorRef<CrawlRepository> repo = 
 				TestActorRef.create(system, props, "repoA");
@@ -72,8 +75,8 @@ public class CrawlRepositoryTest {
 	
 	@Test
 	public void testFetchUrl_multiplePages() throws Exception {
-		FetchMsg fetch1 = new FetchMsg(baseurl,1);
-		FetchMsg fetch2 = new FetchMsg(baseurl+"/directory1.html",1);
+		FetchMsg fetch1 = new FetchMsg(root,1,js);
+		FetchMsg fetch2 = new FetchMsg(root+"/directory1.html",1,js);
 
 		final TestActorRef<CrawlRepository> repo = 
 				TestActorRef.create(system, props, "repoB");
@@ -92,8 +95,8 @@ public class CrawlRepositoryTest {
 	
 	@Test
 	public void testSaveUrl() throws Exception {
-		FetchMsg fetch = new FetchMsg(baseurl,1);
-		SaveMsg save = new SaveMsg(baseurl, "class1", mirror);
+		FetchMsg fetch = new FetchMsg(root,1,js);
+		SaveMsg save = new SaveMsg(root, "class1", mirror);
 		
 		final TestActorRef<CrawlRepository> repo = 
 				TestActorRef.create(system, props, "repoC");
@@ -107,19 +110,26 @@ public class CrawlRepositoryTest {
 		
 		assertEquals(mirror+"/index.html", response.getFilePath());
 		File pageFile = new File(mirror+"/index.html");
+		File img = new File(mirror+"/index/fake.jpg");
+		File indexDir = new File(mirror+"/index");
+		
 		assertTrue(pageFile.exists());
+		assertTrue(indexDir.exists());
+		assertTrue(img.exists());
 		
 		pageFile.delete();
+		img.delete();
+		indexDir.delete();
 	}
 	
 	@Test
 	public void testSaveUrl_multiplePages() throws Exception {
-		PageClass details = new PageClass("details");
-		String url1 = baseurl+"/detail2.html";
-		String url2 = baseurl+"/detail3.html";
+		PageClass details = new PageClass("details",website);
+		String url1 = root+"/detail2.html";
+		String url2 = root+"/detail3.html";
 
-		FetchMsg fetch1 = new FetchMsg(url1,1);
-		FetchMsg fetch2 = new FetchMsg(url2,1);
+		FetchMsg fetch1 = new FetchMsg(url1,1,js);
+		FetchMsg fetch2 = new FetchMsg(url2,1,js);
 		
 		SaveMsg save1 = new SaveMsg(url1, details.getName(), mirror);
 		SaveMsg save2 = new SaveMsg(url2, details.getName(), mirror);
@@ -150,7 +160,7 @@ public class CrawlRepositoryTest {
 	
 	@Test
 	public void testExtractLinks() throws Exception {
-		String url = baseurl+"/directory1.html";
+		String url = root+"/directory1.html";
 		String file = mirror+"/directory1.html.html";
 		String detail = "//div[@id='content']/ul/li/a[not(@id)]";
 		String next = "//a[@id='page']";
@@ -158,9 +168,9 @@ public class CrawlRepositoryTest {
 		xpaths.add(detail);
 		xpaths.add(next);
 		
-		FetchMsg fetch = new FetchMsg(url,1);
+		FetchMsg fetch = new FetchMsg(url,1,js);
 		SaveMsg save = new SaveMsg(url, "class1", mirror);
-		ExtractLinksMsg extract = new ExtractLinksMsg(url, file, baseurl, mirror, xpaths);
+		ExtractLinksMsg extract = new ExtractLinksMsg(url, file, root, mirror, xpaths);
 		
 		final TestActorRef<CrawlRepository> repo = 
 				TestActorRef.create(system, props, "repoD");
@@ -178,29 +188,29 @@ public class CrawlRepositoryTest {
 		List<String> urlsDet = xpath2urls.get(detail).stream().map(ol -> ol.getUrl()).collect(toList());
 		
 		assertEquals(3, urlsDet.size());
-		assertTrue(urlsDet.contains(baseurl+"/detail1.html"));
-		assertTrue(urlsDet.contains(baseurl+"/detail2.html"));
-		assertTrue(urlsDet.contains(baseurl+"/detail3.html"));
+		assertTrue(urlsDet.contains(root+"/detail1.html"));
+		assertTrue(urlsDet.contains(root+"/detail2.html"));
+		assertTrue(urlsDet.contains(root+"/detail3.html"));
 		
 		assertEquals(1, urlsNext.size());
-		assertEquals(baseurl+"/directory1next.html", urlsNext.get(0));
+		assertEquals(root+"/directory1next.html", urlsNext.get(0));
 		
 		new File(file).delete();
 	}
 	
 	@Test
 	public void testExtractDataRecord() throws Exception {
-		String detail = baseurl+"/detail1.html";
+		String detail = root+"/detail1.html";
 		String file = mirror+"/detail1.html.html";
 		String titleXPath = "//div[@id='content']/h1/text()";
-		PageClass details = new PageClass("details");
+		PageClass details = new PageClass("details",website);
 		details.addData(titleXPath, "string");
 		List<DataType> data = new ArrayList<>();
 		data.add(details.getDataTypeByXPath(titleXPath));
 		
-		FetchMsg fetch = new FetchMsg(detail,1);
+		FetchMsg fetch = new FetchMsg(detail,1,js);
 		SaveMsg save = new SaveMsg(detail, details.getName(), mirror);
-		ExtractDataMsg extrData = new ExtractDataMsg(detail, file, baseurl, data);
+		ExtractDataMsg extrData = new ExtractDataMsg(detail, file, root, data);
 		
 		final TestActorRef<CrawlRepository> repo = TestActorRef.create(system, props, "repoE");
 		
@@ -218,7 +228,5 @@ public class CrawlRepositoryTest {
 		
 		new File(file).delete();
 	}
-	
-
 
 }
