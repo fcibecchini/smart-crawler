@@ -14,7 +14,6 @@ public abstract class WebsiteModeler {
 	private Logger log = Logger.getLogger(WebsiteModeler.class.getName());
 
 	private Website website;
-	private PageClass entryClass;
 	private int wait;		
 	
 	public WebsiteModeler(Website website, int wait) {
@@ -24,10 +23,6 @@ public abstract class WebsiteModeler {
 	
 	public Website getWebsite() {
 		return this.website;
-	}
-	
-	public PageClass getEntryPageClass() {
-		return this.entryClass;
 	}
 
 	public int getWait() {
@@ -39,49 +34,31 @@ public abstract class WebsiteModeler {
 	}
 	
 	public PageClass compute() {
-		entryClass = computeModel();
-		setHierarchy();
-		return entryClass;
+		PageClass root = computeModel();
+		setHierarchy(root);
+		return root;
 	}
 	
 	protected abstract PageClass computeModel();
 
-	private void setHierarchy() {
+	private void setHierarchy(PageClass root) {
 		Queue<PageClass> queue = new LinkedList<>();
 		Set<PageClass> visited = new HashSet<>();
-		visited.add(entryClass);
-		queue.add(entryClass);
-		entryClass.setDepth(0);
+		visited.add(root);
+		queue.add(root);
+		root.setDepth(0);
 		
 		PageClass current = null;
 		while ((current = queue.poll()) != null) {
 			int depth = current.getDepth();
 			
-			current.children().stream()
+			current.classLinks().stream()
 			.filter(pc -> !visited.contains(pc))
 			.forEach(pc -> {
 				visited.add(pc); 
 				queue.add(pc); 
 				pc.setDepth(depth+1);});
 		}
-	}
-	
-	public PageClass getByName(String name) {
-		Queue<PageClass> queue = new LinkedList<>();
-		Set<PageClass> visited = new HashSet<>();
-		visited.add(entryClass);
-		queue.add(entryClass);
-		
-		PageClass current = null;
-		while ((current = queue.poll()) != null) {
-			if (current.getName().equals(name))
-				return current;
-			
-			current.children().stream()
-			.filter(pc -> !visited.contains(pc))
-			.forEach(pc -> {visited.add(pc); queue.add(pc);});
-		}
-		return null;
 	}
 
 	@Override

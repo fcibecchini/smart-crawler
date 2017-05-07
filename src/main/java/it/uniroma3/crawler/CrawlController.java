@@ -4,9 +4,7 @@ import static it.uniroma3.crawler.factories.CrawlURLFactory.getCrawlUrl;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -28,11 +26,8 @@ import it.uniroma3.crawler.util.FileUtils;
 public class CrawlController {
 	private static final String HTML = "html";
 	private static CrawlController instance = null;
-    private Map<String,WebsiteModeler> modelers;
     
-    private CrawlController() {
-    	modelers = new HashMap<>();
-    }
+    private CrawlController() {}
 
     public static synchronized CrawlController getInstance() {
         if (instance==null) instance = new CrawlController();
@@ -47,16 +42,11 @@ public class CrawlController {
     	for (String site : s.seeds.keySet()) {
     		SeedConfig seedConfig = s.seeds.get(site);
 	    	WebsiteModeler modeler = chooseModeler(site, seedConfig);
-	    	modelers.put(site, modeler);
 	    	entryPoints.add(makeEntryPoint(site, modeler));
 		    makeDirectories(site);
     	}
     	
-    	startSystem(system, entryPoints, s.fetchers, s.pages);
-    }
-    
-    public PageClass findPageClass(String name, String site) {
-    	return modelers.get(site).getByName(name);
+    	startSystem(system, entryPoints, s.fetchers, s.pages, s.frontierheap);
     }
     
     private boolean makeDirectories(String site) {
@@ -84,10 +74,11 @@ public class CrawlController {
     	return getCrawlUrl(seedLink(site), entryClass);
     }
     
-    private void startSystem(ActorSystem system, List<CrawlURL> entries, int n, int pages) {
+    private void startSystem(ActorSystem system, 
+    		List<CrawlURL> entries, int n, int pages, int heap) {
     	/* Init. System Actors*/
     	system.actorOf(CrawlRepository.props("repository.csv"), "repository");
-    	ActorRef frontier = system.actorOf(BFSFrontier.props(n, pages), "frontier");
+    	ActorRef frontier = system.actorOf(BFSFrontier.props(n, pages, heap), "frontier");
 
     	final Inbox inbox = Inbox.create(system);
     	inbox.send(frontier, entries.get(0)); // for now use just 1 site

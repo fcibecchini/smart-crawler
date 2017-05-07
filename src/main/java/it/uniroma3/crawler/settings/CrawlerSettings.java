@@ -2,8 +2,8 @@ package it.uniroma3.crawler.settings;
 
 import akka.actor.Extension;
 
-import java.util.HashMap;
 import java.util.Map;
+import static java.util.stream.Collectors.toMap;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
@@ -12,6 +12,7 @@ public class CrawlerSettings implements Extension {
 	public final Map<String,SeedConfig> seeds;
 	public final int fetchers;
 	public final int pages;
+	public final int frontierheap;
 	
 	public static class SeedConfig {
 		public final String file;
@@ -35,20 +36,13 @@ public class CrawlerSettings implements Extension {
 	public CrawlerSettings(Config config) {
 		ConfigObject sites = config.getObject("crawler.modeler");
 		
-		seeds = getSeeds(config,sites);
+		seeds = sites.keySet().stream().collect(toMap(s->s, s -> seedConfig(s,config)));
 		fetchers = config.getInt("crawler.crawling.fetchers");
 		pages = config.getInt("crawler.crawling.pages");
+		frontierheap = config.getInt("crawler.crawling.frontierheap");
 	}
 	
-	private Map<String,SeedConfig> getSeeds(Config config, ConfigObject sites) {
-		Map<String,SeedConfig> temp = new HashMap<>();
-		for (String site : sites.keySet()) {
-			temp.put(site, getSeedConfig(site,config));
-		}
-		return temp;
-	}
-	
-	private SeedConfig getSeedConfig(String site, Config config) {
+	private SeedConfig seedConfig(String site, Config config) {
 		String key = site.replaceAll("://|.", "\"$0\"");
 		String file = config.getString("crawler.modeler."+key+".file");
 		int pages = config.getInt("crawler.modeler."+key+".pages");

@@ -41,6 +41,10 @@ public class CrawlURL implements Comparable<CrawlURL> {
 		return url.toString();
 	}
 	
+	public String getDomain() {
+		return pageClass.getDomain();
+	}
+	
 	public PageClass getPageClass() {
 		return this.pageClass;
 	}
@@ -92,13 +96,14 @@ public class CrawlURL implements Comparable<CrawlURL> {
 	}
 	
 	public int hashCode() {
-		return url.hashCode();
+		return url.hashCode() + pageClass.hashCode();
 	}
 
 	public boolean equals(Object obj) {
 		if (obj instanceof CrawlURL) {
 			CrawlURL other = (CrawlURL) obj;
-			return Objects.equals(url, other.getUrl());
+			return Objects.equals(url, other.getUrl())
+					&& Objects.equals(pageClass, other.getPageClass());
 		}
 		return false;
 	}

@@ -1,11 +1,8 @@
 package it.uniroma3.crawler.actors.frontier;
 
-import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import akka.actor.AbstractLoggingActor;
@@ -21,8 +18,7 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	private final static String NEXT = "next"; 
 	private final static String	START = "start"; 
 	private final static String	STOP = "stop";
-	private Queue<CrawlURL> urlsQueue;
-	private Set<String> visitedUrls;
+	private CrawlQueue queue;
  	private Queue<ActorRef> requesters;
 	private Random random;
 	private int maxPages;
@@ -30,102 +26,84 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	private boolean isEnding;
 	
 	static class InnerProps implements Creator<BFSFrontier> {
-		private int fetchers, maxPages;
+		private int fetchers, maxPages, inMemory;
 		
-		public InnerProps(int fetchers, int max) {
+		public InnerProps(int fetchers, int max, int inMemory) {
 			this.fetchers = fetchers;
 			this.maxPages = max;
+			this.inMemory = inMemory;
 		}
 
 		@Override
 		public BFSFrontier create() throws Exception {
-			return new BFSFrontier(fetchers, maxPages);
+			return new BFSFrontier(fetchers, maxPages, inMemory);
 		}	
 	}
 		
-	public static Props props(int fetchers, int max) {
-		return Props.create(BFSFrontier.class, new InnerProps(fetchers,max));
+	public static Props props(int fetchers, int maxPages, int inMemory) {
+		return Props.create(BFSFrontier.class, new InnerProps(fetchers,maxPages,inMemory));
 	}
 	
 	private BFSFrontier() {
-		this.urlsQueue = new PriorityQueue<>();
-		this.visitedUrls = new HashSet<>();
 		this.requesters = new LinkedList<>();
 		this.random = new Random();
 		this.pageCount = 0;
 		this.isEnding = false;
 	}
 
-	public BFSFrontier(int fetchers, int maxPages) {
+	public BFSFrontier(int fetchers, int maxPages, int inMemory) {
 		this();
+		this.queue = new CrawlQueue(inMemory);
 		this.maxPages = maxPages;
 		createFetchers(fetchers);
-	}
-
-	public CrawlURL next() {
-		return urlsQueue.poll();
-	}
-
-	public void scheduleUrl(CrawlURL curl) {
-		String url = curl.getStringUrl();
-		if (!visitedUrls.contains(url)) {
-			visitedUrls.add(url);
-			urlsQueue.add(curl);
-		}
-	}
-
-	public boolean isEmpty() {
-		return urlsQueue.isEmpty();
-	}
-	
-	public boolean isEnding() {
-		return isEnding;
-	}
-	
-	public boolean end() {
-		return pageCount==maxPages;
 	}
 	
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-		.match(CrawlURL.class, curl -> { if (!end()) store(curl); else terminate();})
-		.matchEquals(NEXT, msg -> {if (!end()) retrieve(); else terminate();})
-		.matchEquals(START, this::start)
+		.match(CrawlURL.class, this::store)
+		.matchEquals(NEXT, msg -> retrieve())
+		.matchEquals(START, msg -> context().actorSelection("*").tell(msg, self()))
 		.matchEquals(STOP, msg -> context().system().stop(self()))
 		.build();
 	}
 	
 	private void store(CrawlURL curl) {
-		// store the received url
-		scheduleUrl(curl);
-		if (!requesters.isEmpty()) { 
-			// request next CrawlURL as if it was 
-			// requested by the original fetcher
-			self().tell(NEXT, requesters.poll());
+		if (pageCount>=maxPages) terminate();
+		else {
+			// store the received url
+			queue.add(curl);
+			if (!requesters.isEmpty()) { 
+				// request next CrawlURL as if it was 
+				// requested by the original fetcher
+				self().tell(NEXT, requesters.poll());
+			}
 		}
 	}
 	
 	private void retrieve() {
-		if (!isEmpty()) {
-			// handle request for next url to be processed
-			CrawlURL next = next();
-			if (next.isCached())
-				sender().tell(next, self());
-			else {
-				//TODO: update page class wait time somehow
-				PageClass pClass = next.getPageClass();
-				long wait = pClass.getWaitTime() + random.nextInt(pClass.getPause());
-				context().system().scheduler().scheduleOnce(
-						Duration.create(wait, TimeUnit.MILLISECONDS),
-						sender(), next, context().dispatcher(),self());
-			}
-			pageCount++;
-		}
+		if (pageCount>=maxPages) terminate();
 		else {
-			// sender will be informed when 
-			// a new CrawlURL is available
-			requesters.add(sender()); 
+			if (!queue.isEmpty()) {
+				// handle request for next url to be processed
+				CrawlURL next = queue.next();
+				if (next.isCached())
+					sender().tell(next, self());
+				else {
+					//TODO: update page class wait time somehow
+					PageClass pClass = next.getPageClass();
+					long wait = pClass.getWaitTime() + random.nextInt(pClass.getPause());
+					context().system().scheduler().scheduleOnce(
+							Duration.create(wait, TimeUnit.MILLISECONDS),
+							sender(), next, context().dispatcher(),self());
+				}
+				pageCount++;
+			}
+			else {
+				// sender will be informed when 
+				// a new CrawlURL is available
+				requesters.add(sender()); 
+			}
 		}
 	}
 	
@@ -139,10 +117,6 @@ public class BFSFrontier extends AbstractLoggingActor  {
 		}
 	}
 	
-	private void start(String msg) {
-		context().actorSelection("*").tell(msg, self());
-	}
-	
 	private void createFetchers(int n) {
 		for (int i=1;i<n+1;i++) {
 			ActorRef child = 
@@ -153,6 +127,7 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	
 	@Override
 	public void postStop() {
+		queue.deleteStorage();
 		context().system().terminate();
 	}
 	

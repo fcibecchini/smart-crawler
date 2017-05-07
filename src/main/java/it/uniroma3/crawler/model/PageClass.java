@@ -2,8 +2,11 @@ package it.uniroma3.crawler.model;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -76,8 +79,25 @@ public class PageClass {
 		return website.getPause();
 	}
 	
-	public Set<PageClass> children() {
+	public Set<PageClass> classLinks() {
 		return links.stream().map(l -> l.getDestination()).collect(Collectors.toSet());
+	}
+	
+	public PageClass getDescendant(String name) {
+		Queue<PageClass> queue = new LinkedList<>();
+		Set<PageClass> visited = new HashSet<>();
+		visited.add(this);
+		queue.add(this);
+		
+		PageClass current = null;
+		while ((current = queue.poll()) != null) {
+			if (current.getName().equals(name))
+				return current;
+			current.classLinks().stream()
+			.filter(pc -> !visited.contains(pc))
+			.forEach(pc -> {visited.add(pc); queue.add(pc);});
+		}
+		return null;
 	}
 	
 	public PageClass getDestinationByXPath(String xpath) {
@@ -185,13 +205,14 @@ public class PageClass {
 	}
 	
 	public int hashCode() {
-		return name.hashCode() + website.hashCode();
+		return name.hashCode() + website.hashCode() + depth;
 	}
 
 	public boolean equals(Object obj) {
 		PageClass other = (PageClass) obj;
 		return Objects.equals(name, other.getName())
-			&& Objects.equals(website, other.getWebsite());
+			&& Objects.equals(website, other.getWebsite())
+			&& Objects.equals(depth, other.getDepth());
 	}
 
 }

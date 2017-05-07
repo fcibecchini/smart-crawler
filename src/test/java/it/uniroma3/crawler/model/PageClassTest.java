@@ -123,5 +123,27 @@ public class PageClassTest {
 			assertEquals(xpaths.get(i), pageXPaths.get(i));
 		}
 	}
+	
+	@Test
+	public void getByName() {
+		PageClass dest = new PageClass("destination",website);
+		PageClass dest2 = new PageClass("destination2",website);
+		PageClass dest3 = new PageClass("destination3",website);
+		PageClass dest4 = new PageClass("destination4",website);
+		PageClass dest5 = new PageClass("destination5",website);
+		PageClass dest6 = new PageClass("destination6",website);
+		
+		page.addPageClassLink("//ul", dest);
+		page.addPageClassLink("//li", dest2);
+		page.addPageClassLink("//a", dest3);
+		dest2.addPageClassLink("//a", dest4);
+		dest2.addPageClassLink("//li", dest6);
+		dest4.addPageClassLink("//ul", dest5);
+		dest4.addPageClassLink("//a", dest4);
+		
+		assertEquals(dest5, page.getDescendant(dest5.getName()));
+		assertEquals(dest4, page.getDescendant(dest4.getName()));
+		assertEquals(dest6, page.getDescendant(dest6.getName()));
+	}
 
 }
