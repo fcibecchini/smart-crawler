@@ -73,6 +73,19 @@ public class CrawlQueueTest {
 	}
 	
 	@Test
+	public void testAdd_urlsWithQuery() {
+		queue = new CrawlQueue(4);
+
+		CrawlURL curl1 = getCrawlUrl("http://localhost/directory",pclass);
+		CrawlURL curl2 = getCrawlUrl("http://localhost/directory?query=true&test=1",pclass);
+		CrawlURL curl3 = getCrawlUrl("http://localhost/directory#fragment",pclass);
+
+		assertTrue(queue.add(curl1));
+		assertTrue(queue.add(curl2));
+		assertFalse(queue.add(curl3));
+	}
+	
+	@Test
 	public void testAdd_storeOnFile() throws IOException {
 		queue = new CrawlQueue(2);
 

@@ -2,6 +2,7 @@ package it.uniroma3.crawler.actors.frontier;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -44,8 +45,8 @@ public class CrawlQueue {
 		this.maxsize = max;
 		this.visited = new HashMap<>();
 		this.rootClasses = new HashMap<>();
-		this.maxPriorityUrls = new PriorityQueue<>(maxsize);
-		this.minPriorityUrls = new PriorityQueue<>(maxsize, (c1,c2) -> c2.compareTo(c1));
+		this.maxPriorityUrls = new PriorityQueue<>();
+		this.minPriorityUrls = new PriorityQueue<>((c1,c2) -> c2.compareTo(c1));
 	}
 	
 	public CrawlURL next() {
@@ -59,14 +60,15 @@ public class CrawlQueue {
 		return next;
 	}
 	
-	public void add(CrawlURL curl) {
+	public boolean add(CrawlURL curl) {
 		String domain = curl.getDomain();
 		if (visited.get(domain)==null) {
 			visited.put(domain, new HashSet<>());
 			rootClasses.put(domain, curl.getPageClass());
 		}
 		Set<String> visitedUrls = visited.get(domain);
-		String cs = checksum(curl.getUrl().getPath());
+		URI url = curl.getUrl();
+		String cs = checksum(url.getPath()+url.getQuery());
 		if (!visitedUrls.contains(cs)) {
 			visitedUrls.add(cs);
 			
@@ -86,7 +88,9 @@ public class CrawlQueue {
 				}
 				store(toStore);
 			}
+			return true;
 		}
+		return false;
 	}
 	
 	public int size() {

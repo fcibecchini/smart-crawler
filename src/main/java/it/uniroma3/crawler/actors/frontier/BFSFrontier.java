@@ -69,13 +69,11 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	}
 	
 	private void store(CrawlURL curl) {
-		if (pageCount>=maxPages) terminate();
+		if (pageCount>=maxPages) 
+			terminate();
 		else {
-			// store the received url
-			queue.add(curl);
-			if (!requesters.isEmpty()) { 
-				// request next CrawlURL as if it was 
-				// requested by the original fetcher
+			if (queue.add(curl) && !requesters.isEmpty()) { 
+				// send request for next CURL from requester
 				self().tell(NEXT, requesters.poll());
 			}
 		}
