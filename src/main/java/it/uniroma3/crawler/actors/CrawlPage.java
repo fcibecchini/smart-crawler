@@ -55,7 +55,7 @@ public class CrawlPage extends AbstractLoggingActor {
 			//TODO: improve exception handling
 			sender().tell(new SavedMsg(""), self());
 			setHtml(null);
-			log().warning("save: IOException while saving page: "+e.getMessage());
+			log().warning("save: IOException while saving page: "+msg.getUrl()+" "+e.getMessage());
 		}
 	}
 	
@@ -69,7 +69,7 @@ public class CrawlPage extends AbstractLoggingActor {
 		} catch (Exception e) {
 			//TODO: improve exception handling
 			sender().tell(new ExtractedLinksMsg(), self());
-			log().warning("extract: Exception while restoring HtmlPage: "+e.getMessage());
+			log().warning("extract: Exception while restoring HtmlPage: "+msg.getHtmlPath()+" "+e.getMessage());
 			e.printStackTrace();
 		}
 	}
