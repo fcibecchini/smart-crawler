@@ -2,7 +2,6 @@ package it.uniroma3.crawler.actors.frontier;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -28,6 +27,7 @@ import java.util.List;
 import static it.uniroma3.crawler.factories.CrawlURLFactory.getCrawlUrl;
 
 import it.uniroma3.crawler.model.CrawlURL;
+import it.uniroma3.crawler.model.OutgoingLink;
 import it.uniroma3.crawler.model.PageClass;
 
 public class CrawlQueue {
@@ -35,14 +35,17 @@ public class CrawlQueue {
 	private final static String STORAGE = "src/main/resources/storage/queue.csv";
 	private final static String TEMP = STORAGE+"~";
 
-	private int maxsize;
+	private int maxsizeInMemory;
+	private int sizeStorage;
+	private boolean emptyStorage;
 	private Map<String,Set<String>> visited;
 	private Map<String,PageClass> rootClasses;
 	private PriorityQueue<CrawlURL> maxPriorityUrls;
 	private PriorityQueue<CrawlURL> minPriorityUrls;
 		
 	public CrawlQueue(int max) {
-		this.maxsize = max;
+		this.maxsizeInMemory = max;
+		this.emptyStorage = true;
 		this.visited = new HashMap<>();
 		this.rootClasses = new HashMap<>();
 		this.maxPriorityUrls = new PriorityQueue<>();
@@ -51,7 +54,7 @@ public class CrawlQueue {
 	
 	public CrawlURL next() {
 		if (maxPriorityUrls.isEmpty()) {
-			List<CrawlURL> loaded = retrieve(maxsize);
+			List<CrawlURL> loaded = retrieve(maxsizeInMemory);
 			maxPriorityUrls.addAll(loaded);
 			minPriorityUrls.addAll(loaded);
 		}
@@ -67,12 +70,13 @@ public class CrawlQueue {
 			rootClasses.put(domain, curl.getPageClass());
 		}
 		Set<String> visitedUrls = visited.get(domain);
-		URI url = curl.getUrl();
-		String cs = checksum(url.getPath()+url.getQuery());
+		String relative = ""+curl.getUrl().getPath()+curl.getUrl().getQuery();
+		if (relative.equals("/")) relative = "";
+		String cs = checksum(relative);
 		if (!visitedUrls.contains(cs)) {
 			visitedUrls.add(cs);
 			
-			if (maxPriorityUrls.size()<maxsize) {
+			if (maxPriorityUrls.size()<maxsizeInMemory) {
 				maxPriorityUrls.add(curl);
 				minPriorityUrls.add(curl);
 			}
@@ -94,17 +98,13 @@ public class CrawlQueue {
 	}
 	
 	public int size() {
-		return maxPriorityUrls.size();
-	}
-	
-	public boolean contains(CrawlURL curl) {
-		return maxPriorityUrls.contains(curl) 
-				&& minPriorityUrls.contains(curl);
+		return maxPriorityUrls.size()+sizeStorage;
 	}
 	
 	public boolean isEmpty() {
 		return maxPriorityUrls.isEmpty()
-				&& minPriorityUrls.isEmpty();
+				&& minPriorityUrls.isEmpty()
+				&& emptyStorage;
 	}
 	
 	public boolean deleteStorage() {
@@ -122,8 +122,8 @@ public class CrawlQueue {
 		String site = curl.getDomain();
 		String name = pc.getName();
 		String depth = String.valueOf(pc.getDepth());
-		
-		String[] toWrite = new String[]{url,site,name,depth};
+		String file = curl.getFilePath(); // TODO
+		String[] toWrite = new String[]{url,site,name,depth,file};
 		try {
 			Path stor = Paths.get(STORAGE);
 			CsvWriter writer = new CsvWriter(new FileWriter(TEMP), '\t');
@@ -145,6 +145,8 @@ public class CrawlQueue {
 			writer.flush();
 			writer.close();			
 			Files.move(Paths.get(TEMP), stor, REPLACE_EXISTING);
+			emptyStorage = false;
+			sizeStorage++;
 		} catch (IOException e) {
 			log.log(Level.WARNING, "Cannot store CURL to Queue Storage");
 		}
@@ -156,22 +158,27 @@ public class CrawlQueue {
 		try {
 			CsvWriter writer = new CsvWriter(new FileWriter(TEMP), '\t');
 			CsvReader reader = new CsvReader(STORAGE, '\t');
+			emptyStorage = true;
 			while (reader.readRecord()) {
 				String url = reader.get(0);
 				String website = reader.get(1);
 				String name = reader.get(2);
+				String file = reader.get(4);
 				if (count>0) {
 					PageClass pclass = rootClasses.get(website).getDescendant(name);
-					curls.add(getCrawlUrl(url,pclass));
+					curls.add(getCrawlUrl(new OutgoingLink(url,file),pclass));
 					count--;
 				}
-				else 
-					writer.writeRecord(new String[]{url,website,name});
+				else {
+					writer.writeRecord(reader.getValues());
+					if (emptyStorage) emptyStorage = false;
+				}
 			}
 			reader.close();
 			writer.flush();
 			writer.close();
 			Files.move(Paths.get(TEMP), Paths.get(STORAGE), REPLACE_EXISTING);
+			sizeStorage-=quantity;
 		} catch (IOException ie) {
 			log.log(Level.SEVERE, "Cannot retrieve CURL from Queue Storage");
 		}

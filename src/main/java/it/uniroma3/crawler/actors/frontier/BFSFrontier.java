@@ -54,6 +54,7 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	public BFSFrontier(int fetchers, int maxPages, int inMemory) {
 		this();
 		this.queue = new CrawlQueue(inMemory);
+		this.queue.deleteStorage();
 		this.maxPages = maxPages;
 		createFetchers(fetchers);
 	}
@@ -96,6 +97,7 @@ public class BFSFrontier extends AbstractLoggingActor  {
 							sender(), next, context().dispatcher(),self());
 				}
 				pageCount++;
+				log().info(""+pageCount);
 			}
 			else {
 				// sender will be informed when 
@@ -125,7 +127,6 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	
 	@Override
 	public void postStop() {
-		queue.deleteStorage();
 		context().system().terminate();
 	}
 	

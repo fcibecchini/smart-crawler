@@ -39,6 +39,40 @@ public class CrawlQueueTest {
 	public void tearDown() throws IOException {
 		queue.deleteStorage();
 	}
+	
+	@Test
+	public void testIsEmpty() {
+		queue = new CrawlQueue(1);
+		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
+		CrawlURL curl2 = getCrawlUrl("http://localhost/test",pclass);
+		
+		assertTrue(queue.isEmpty());
+		queue.add(curl1);
+		queue.add(curl2);
+		assertFalse(queue.isEmpty());
+	}
+	
+	@Test
+	public void testSize() {
+		queue = new CrawlQueue(2);
+		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
+		CrawlURL curl2 = getCrawlUrl("http://localhost/test2",pclass);
+		CrawlURL curl3 = getCrawlUrl("http://localhost/test3",pclass);
+		CrawlURL curl4 = getCrawlUrl("http://localhost/test4",pclass);
+		CrawlURL curl5 = getCrawlUrl("http://localhost/test5",pclass);
+		
+		queue.add(curl1);
+		queue.add(curl2);
+		queue.add(curl3);
+		queue.add(curl4);
+		queue.add(curl5);
+		assertEquals(5, queue.size());
+		queue.next();
+		queue.next();
+		assertEquals(3, queue.size());
+		queue.next();
+		assertEquals(2, queue.size());
+	}
 
 	@Test
 	public void testAdd_allInMemory() {
@@ -51,8 +85,6 @@ public class CrawlQueueTest {
 		queue.add(curl2);
 		
 		assertEquals(queue.size(), 2);
-		assertTrue(queue.contains(curl1));
-		assertTrue(queue.contains(curl2));
 	}
 	
 	@Test
@@ -140,7 +172,6 @@ public class CrawlQueueTest {
 		
 		assertEquals(curl1,queue.next());
 		assertEquals(curl3,queue.next());
-		assertTrue(queue.isEmpty());
 		assertEquals(curl2,queue.next());
 		assertEquals(curl4,queue.next());
 	}
