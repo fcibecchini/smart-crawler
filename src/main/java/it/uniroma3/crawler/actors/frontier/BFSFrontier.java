@@ -61,16 +61,14 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-		.match(CrawlURL.class, this::store)
-		.matchEquals(NEXT, msg -> retrieve())
 		.matchEquals(START, msg -> context().actorSelection("*").tell(msg, self()))
-		.matchEquals(STOP, msg -> context().system().stop(self()))
+		.matchEquals(NEXT, msg -> retrieve())
+		.match(CrawlURL.class, this::store)
 		.build();
 	}
 	
 	private void store(CrawlURL curl) {
-		if (pageCount>=maxPages) 
-			terminate();
+		if (pageCount>=maxPages) terminate();
 		else {
 			if (queue.add(curl) && !requesters.isEmpty()) { 
 				// send request for next CURL from requester
@@ -108,25 +106,17 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	
 	private void terminate() {
 		if (!isEnding) {
-			context().system().scheduler().scheduleOnce(
-					Duration.create(60, TimeUnit.SECONDS), 
-					self(), STOP, context().dispatcher(), null);
+			context().parent().tell(STOP, self());
 			isEnding = true; // job is done..
-			log().info("Reached "+pageCount+" pages: ending actor system");
+			log().info("Max Page Count "+pageCount+" reached: ending...");
 		}
 	}
 	
 	private void createFetchers(int n) {
 		for (int i=1;i<n+1;i++) {
-			ActorRef child = 
-					context().actorOf(Props.create(CrawlFetcher.class), "fetcher"+i);
+			ActorRef child = context().actorOf(Props.create(CrawlFetcher.class), "fetcher"+i);
 			context().watch(child);
 		}
-	}
-	
-	@Override
-	public void postStop() {
-		context().system().terminate();
 	}
 	
 }
