@@ -1,4 +1,3 @@
-http://www.pennyandsinclair.co.uk
 class1	link	(//div[@id='wrap']/header/div[@class]/div[@class]/div[@class]/nav/div/ul/li/div[@class]/ul/li/a[@target])[4]	class6	menu
 class1	link	(//div[@id='wrap']/header/div[@class]/div[@class]/div[@class]/nav/div/ul/li/div[@class]/ul/li/a[@target])[2]	class7	menu
 class1	link	(//div[@id='wrap']/header/div[@class]/div[@class]/div[@class]/nav/div/ul/li/div[@class]/ul/li/a[@target])[8]	class7	menu

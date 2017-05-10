@@ -1,4 +1,3 @@
-http://localhost:8081
 home	link	(//ul[@id='menu']/li/a)[1]	dir1	menu
 home	link	(//ul[@id='menu']/li/a)[2]	dir2	menu
 home	link	(//ul[@id='menu']/li/a)[3]	table	menu

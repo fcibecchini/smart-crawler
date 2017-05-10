@@ -2,12 +2,14 @@ package it.uniroma3.crawler.modeler;
 
 import static it.uniroma3.crawler.util.HtmlUtils.*;
 import static it.uniroma3.crawler.util.XPathUtils.*;
+import static it.uniroma3.crawler.util.Commands.*;
 import static java.util.stream.Collectors.toList;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -16,120 +18,192 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 
+import com.csvreader.CsvWriter;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
+import akka.actor.AbstractLoggingActor;
+import akka.actor.Props;
+import akka.japi.Creator;
 import it.uniroma3.crawler.model.CandidatePageClass;
 import it.uniroma3.crawler.model.LinkCollection;
 import it.uniroma3.crawler.model.Page;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.model.Website;
 import it.uniroma3.crawler.model.WebsiteModel;
+import scala.concurrent.duration.Duration;
 
-public class DynamicModeler extends WebsiteModeler {
-	private WebsiteModel model;
-	private int maxPages;
+public class DynamicModeler extends AbstractLoggingActor implements WebsiteModeler {
+	private final static String LOG = "src/main/resources/targets";
+	private CsvWriter csv;
 	
+	private Website website;
+	private WebsiteModel model;
+	private int wait;
+	private int maxPages; // max number of pages used to infer the web site model
 	private WebClient client;
-	private Set<String> visitedURLs;
-	private int fetched;
-	private int classCounter;
-	private boolean allLinksFetched;
+	private Set<String> visitedURLs; // set of visited URLs for duplicate removal
+	private int fetched; // number of currently fetched pages
+	private int classes; // number of currently created classes
+	
+	private Queue<LinkCollection> queue; // queue of discovered Links Collections
+	
+	private Set<LinkCollection> visitedColl; // A set of already visited link collections
+	
+	private Map<String, HtmlPage> currentPages; // map{url -> HtmlPage} of currently fetched pages
+	
+	private LinkCollection currentCollection; // current collection being fetched
+	
+	private TreeSet<String> currentLinks; // current Links Set being fetched
+	
+	int max; // max URLs fetched per collection
+	
+	int counter; // current number of URLs fetched
+
+	static class InnerProps implements Creator<DynamicModeler> {
+		private Website website;
+		private int wait, maxPages;
+		
+		public InnerProps(Website website, int wait, int maxPages) {
+			this.website = website;
+			this.wait = wait;
+			this.maxPages = maxPages;
+		}
+
+		@Override
+		public DynamicModeler create() throws Exception {
+			return new DynamicModeler(website, wait, maxPages);
+		}	
+	}
+	
+	public static Props props(Website website, int wait, int maxPages) {
+		return Props.create(DynamicModeler.class, new InnerProps(website,wait,maxPages));
+	}
 	
 	public DynamicModeler(Website website, int wait, int maxPages) {
-		super(website,wait);
-		
+		this.website = website;
+		this.wait = wait;
 		this.maxPages = maxPages;
-		this.client = makeWebClient(website.isJavascript());
 		
-		this.model = new WebsiteModel();
-		this.visitedURLs = new HashSet<>();
-		this.classCounter = 1;
-		this.fetched = 0;
-		this.allLinksFetched = false;
+		client = makeWebClient(website.isJavascript());
+		model = new WebsiteModel();
+		visitedURLs = new HashSet<>();
+		classes = 1;
+		fetched = 0;
+		max = 3;
+		counter = 0;
+		queue = new PriorityQueue<>();
+		visitedColl = new HashSet<>();
+		currentPages = new HashMap<>();
 	}
-
+	
+	
 	@Override
-	protected PageClass computeModel() {
-		String domain = getWebsite().getDomain();
-		
-		final int n = 3;
-		int max = n;
-		Queue<LinkCollection> queue = new PriorityQueue<>();
-		
-		// A set of already visited link collections
-		Set<LinkCollection> visitedColl = new HashSet<>(); 
-		
+	public Receive createReceive() {
+		return receiveBuilder()
+		.matchEquals(START, msg -> start())
+		.matchEquals(POLL, msg -> poll())
+		.matchEquals(FETCH, msg -> fetch())
+		.matchEquals(UPDATE, msg -> update())
+		.matchEquals(FINALIZE, msg -> finalizeModel())
+		.build();
+	}
+	
+	private void start() {
+		String domain = website.getDomain();
+				
 		// Feed queue with seed
 		queue.add(new LinkCollection(domain));
 		
-		while (!queue.isEmpty() && fetched<maxPages) {
-			LinkCollection coll = queue.poll();
-			
-			Map<String, HtmlPage> url2HtmlPage = fetchLinks(coll, max);
-			max = n; // restore default n
-			
-			Set<Page> newPages = makePages(url2HtmlPage);
-			List<CandidatePageClass> candidates = clusterPages(newPages);
-			
-			// fetch all links if they are from different classes
-			if (candidates.size() > 1 && !allLinksFetched) {
-				getLogger().info("MENU DETECTED: FETCHING ALL URLS IN LINK COLLECTION...");
-				queue.add(coll);
-				max = coll.size();
-			}
+		self().tell(POLL, self());
+	}
+	
+	private void poll() {
+		currentCollection = queue.poll();
+		log().info("Parent Page: "+currentCollection.getParent()+", "+currentCollection.size()+" total links");
+		currentLinks = new TreeSet<>(currentCollection.getLinks());
+
+		self().tell(FETCH, self());
+	}
+	
+	private void fetch() {
+		if (!currentLinks.isEmpty() && counter < max) {
+			String url = currentLinks.pollFirst();
+			// normalize URL for validity checks
+			String normURL = transformURL(url);
+			String normSite = transformURL(website.getDomain());
+			if (visitedURLs.contains(normURL) || normURL.isEmpty() || !isValidURL(normSite, normURL))
+				self().tell(FETCH, self()); // try next..
 			else {
-				updateModel(candidates);
-				queue.addAll(newLinks(newPages, visitedColl));
-				newPages.forEach(p -> visitedURLs.add(transformURL(p.getUrl())));
+				try {
+					HtmlPage body = getPage(url, client);
+					currentPages.put(url, body);
+					fetched++;
+					counter++;
+					log().info("Fetched: " + url);
+					scheduleNext();
+				} catch (Exception e) {
+					log().warning("Failed fetching: " + url);
+					self().tell(FETCH, self());
+				}
 			}
+		} else {
+			/* restore default values */
+			counter = 0;
+			max = 3;
+			self().tell(UPDATE, self());
 		}
-				
+	}
+	
+	private void scheduleNext() {
+		context().system().scheduler().scheduleOnce(
+			Duration.create(wait, TimeUnit.MILLISECONDS), 
+			self(), FETCH, context().dispatcher(), self());
+	}
+	
+	private void update() {		
+		Set<Page> newPages = makePages();
+		List<CandidatePageClass> candidates = clusterPages(newPages);
+		
+		// fetch all links if they are from different classes
+		if (candidates.size() > 1 && !currentLinks.isEmpty()) {
+			log().info("MENU DETECTED: FETCHING ALL URLS IN LINK COLLECTION...");
+			queue.add(currentCollection);
+			max = currentCollection.size();
+			fetched -= newPages.size(); // reset counter
+		}
+		else {
+			updateModel(candidates);
+			queue.addAll(newLinks(newPages));
+			newPages.forEach(p -> visitedURLs.add(transformURL(p.getUrl())));
+		}
+		
+		if (!queue.isEmpty() && fetched < maxPages)
+			self().tell(POLL, self());
+		else
+			self().tell(FINALIZE, self());
+	}
+	
+	private void finalizeModel() {
+		client.close();
+		PageClass entryClass = compute();
+		context().parent().tell(entryClass, self());
+	}
+	
+	public PageClass compute() {
 		// Transform candidates into Page Classes and Class Links
-		ModelFinalizer finalizer = new ModelFinalizer(model, getWebsite(), getWait());
+		ModelFinalizer finalizer = new ModelFinalizer(model, website, wait);
 		TreeSet<PageClass> pClasses = finalizer.makePageClasses();
 		
 		// Log and save model to filesystem
-		logModel(pClasses, "src/main/resources/targets");
+		logModel(pClasses);
 		
-		return pClasses.first();
-	}
-	
-	// Fetch at most MAX links from collection
-	private Map<String, HtmlPage> fetchLinks(LinkCollection coll, int max) {
-		Map<String, HtmlPage> url2HtmlPage = new HashMap<>();
-		
-		getLogger().info("Parent Page: "+coll.getParent()+", "+coll.size()+" total links");
-		
-		TreeSet<String> links = new TreeSet<>(coll.getLinks());
-		int counter = 0;
-		while (!links.isEmpty() && counter<max) {
-			String lcUrl = links.pollFirst();
-			try {
-				// normalize url for validity checks
-				String normalizedUrl = transformURL(lcUrl);
-				if (!visitedURLs.contains(normalizedUrl) 
-						&& !normalizedUrl.equals("") 
-						&& isValidURL(transformURL(getWebsite().getDomain()),normalizedUrl)) {
-					
-					//visitedURLs.add(normalizedUrl);
-					HtmlPage body = getPage(lcUrl, client);
-					url2HtmlPage.put(lcUrl, body);
-					fetched++; 
-					counter++;
-					
-					getLogger().info("Fetched: "+lcUrl);
-					Thread.sleep(getWait());
-				}
-			} catch (Exception e) {
-				getLogger().warning("failed fetching: "+lcUrl);
-			}
-		}
-		allLinksFetched = (links.isEmpty()) ? true : false;
-		
-		return url2HtmlPage;
+		PageClass root = pClasses.first();
+		setHierarchy(root);
+		return root;
 	}
 	
 	// Candidate class selection
@@ -147,7 +221,7 @@ public class DynamicModeler extends WebsiteModeler {
 				group.addPageToClass(page);
 			else {
 				CandidatePageClass newClass = 
-						new CandidatePageClass("class"+(classCounter++), getWebsite().getDomain());
+						new CandidatePageClass("class"+(classes++), website.getDomain());
 				page.getSchema().forEach(xp -> newClass.addXPathToSchema(xp));
 									
 				newClass.addPageToClass(page);
@@ -188,7 +262,7 @@ public class DynamicModeler extends WebsiteModeler {
 			double mergeLength = Double.MAX_VALUE;
 			for (CandidatePageClass cInModel : model.getModel()) {
 				CandidatePageClass tempClass = 
-						new CandidatePageClass(cInModel.getName(), getWebsite().getDomain());
+						new CandidatePageClass(cInModel.getName(), website.getDomain());
 				tempClass.collapse(candidate);
 				tempClass.collapse(cInModel);
 
@@ -212,66 +286,49 @@ public class DynamicModeler extends WebsiteModeler {
 		}
 	}
 	
-	private void logModel(Set<PageClass> pClasses, String dir) {
-//		String normalBase = transformURL(base);
-		String sitename = 
-				getWebsite().getDomain()
-				.replaceAll("http[s]?://(www.)?|/", "").replaceAll("\\.|:", "_");
-//		String schema = dir+"/"+sitename+"_class_schema.txt";
-		String target = dir+"/"+sitename+"_target.csv";
-		
-		new File(dir).mkdir();
+	private void logModel(Set<PageClass> pClasses) {
+		String sitename = website.getDomain()
+				.replaceAll("http[s]?://(www.)?|/", "")
+				.replaceAll("\\.|:", "_");
+		String target = LOG+"/"+sitename+"_target.csv";
 		
 		try {
-//			FileWriter schemaFile = new FileWriter(schema);
-//			for (CandidatePageClass cpc : model.getModel()) {
-//				schemaFile.write(cpc.getName()+": "+
-//						cpc.getClassPages().toString().replace(normalBase, "")+"\n");
-//				for (String xp : cpc.getClassSchema()) {
-//					schemaFile.write(xp+" -> "+cpc.getUrlsDiscoveredFromXPath(xp)+"\n");
-//				}
-//				schemaFile.write("\n");
-//			}
-//			schemaFile.close();
+			Path dirPath = Paths.get(LOG);
+			if (!Files.exists(dirPath)) Files.createDirectory(dirPath);
 
-			FileWriter targetFile = new FileWriter(target);
-			targetFile.write(getWebsite().getDomain()+"\n");
-			for (PageClass pc : pClasses) {
-				for (String xp : pc.getMenuXPaths()) {
-					targetFile.write(
-							pc.getName()+"\t"+"link"+"\t"+xp+"\t"+
-							pc.getDestinationByXPath(xp).getName()+"\t"+"menu"+"\n");
-				}
-				for (String xp : pc.getListXPaths()) {
-					targetFile.write(
-							pc.getName()+"\t"+"link"+"\t"+xp+"\t"+
-							pc.getDestinationByXPath(xp).getName()+"\t"+"list"+"\n");
-				}				
-				for (String xp : pc.getSingletonXPaths()) {
-					targetFile.write(
-							pc.getName()+"\t"+"link"+"\t"+xp+"\t"+
-							pc.getDestinationByXPath(xp).getName()+"\t"+"singleton"+"\n");
-				}
-			}
-			targetFile.close();
-		} 
-		catch (FileNotFoundException e) {
-			getLogger().severe("File not found while logging model");
+			csv = new CsvWriter(new FileWriter(target),'\t');
+			pClasses.forEach(pc -> {
+				pc.getMenuXPaths().forEach(xp -> writeRow(pc,xp,"menu"));
+				pc.getListXPaths().forEach(xp -> writeRow(pc,xp,"list"));
+				pc.getSingletonXPaths().forEach(xp -> writeRow(pc,xp,"singleton"));});
+			csv.close();
 		} 
 		catch (IOException e) {
-			getLogger().severe("IOException while logging model");
+			log().error("IOException while logging model");
 		}
-		
 	}
 	
-	private Set<LinkCollection> newLinks(Set<Page> pages, Set<LinkCollection> visited) {
+	private void writeRow(PageClass pc, String xp, String type) {
+		try {
+			csv.write(pc.getName());
+			csv.write("link");
+			csv.write(xp);
+			csv.write(pc.getDestinationByXPath(xp).getName());
+			csv.write(type);
+			csv.endRecord();
+		} catch (IOException e) {
+			throw new RuntimeException();
+		}
+	}
+	
+	private Set<LinkCollection> newLinks(Set<Page> pages) {
 		Set<LinkCollection> newLinks = new HashSet<>();
 		
 		for (Page p : pages) {
 			for (String xp : p.getSchema()) {
 				LinkCollection lCollection = new LinkCollection(p, xp, p.getUrlsByXPath(xp));
-				if (!visited.contains(lCollection)) {
-					visited.add(lCollection);
+				if (!visitedColl.contains(lCollection)) {
+					visitedColl.add(lCollection);
 					newLinks.add(lCollection);
 				}
 			}
@@ -279,20 +336,20 @@ public class DynamicModeler extends WebsiteModeler {
 		return newLinks;
 	}
 	
-	private Set<Page> makePages(Map<String, HtmlPage> url2HtmlPage) {
+	private Set<Page> makePages() {
 		Set<Page> newPages = new HashSet<>();
-		for (String pageUrl : url2HtmlPage.keySet()) {
-			HtmlPage htmlPage = url2HtmlPage.get(pageUrl);
+		for (String pageUrl : currentPages.keySet()) {
+			HtmlPage htmlPage = currentPages.get(pageUrl);
 			Page page = makePage(htmlPage, pageUrl);
 			newPages.add(page);
 		}
+		currentPages.clear();
 		return newPages;
 	}
 	
-	@SuppressWarnings("unchecked")
 	private Page makePage(HtmlPage page, String pageUrl) {
 		Page p = new Page(pageUrl, model);
-		List<HtmlAnchor> links = (List<HtmlAnchor>) getByMatchingXPath(page, "//a");
+		List<HtmlAnchor> links = page.getAnchors();
 		for (HtmlAnchor link : links) {
 			String href = link.getHrefAttribute();
 			String url = getAbsoluteURL(pageUrl, href);

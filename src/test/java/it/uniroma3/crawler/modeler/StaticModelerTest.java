@@ -4,21 +4,45 @@ import static org.junit.Assert.*;
 
 import java.util.List;
 
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.testkit.javadsl.TestKit;
+import it.uniroma3.crawler.messages.ModelMsg;
+import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.model.Website;
+import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 public class StaticModelerTest {
-	private PageClass root;
+	private static PageClass root;	
+	static ActorSystem system;
 
-	@Before
-	public void setUp() throws Exception {
+	@BeforeClass
+	public static void setup() {
 		String file = System.class.getResource("/targets/target_test.csv").getPath();
-		Website website = new Website("http://www.proz.com",3,0,false);
-		WebsiteModeler modeler = new StaticModeler(website,2000,file);
-		root = modeler.compute();
+		system = ActorSystem.create("ModelerTest");
+		new TestKit(system) {{
+			final ActorRef crawlModeler = system.actorOf(Props.create(CrawlModeler.class));
+			final ActorRef probe = getRef();
+				
+			SeedConfig conf = new SeedConfig(file, 0, false, 2000, 1000, 2);
+
+			crawlModeler.tell(new ModelMsg("html", "http://www.proz.com", conf), probe);
+
+			final CrawlURL curl = expectMsgClass(duration("60 seconds"), CrawlURL.class);
+
+			root = curl.getPageClass();
+		}};
+	}
+
+	@AfterClass
+	public static void tearDownAfterClass() {
+		TestKit.shutdownActorSystem(system);
+		system = null;
 	}
 
 	@Test

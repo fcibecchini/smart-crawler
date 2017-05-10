@@ -1,5 +1,6 @@
 package it.uniroma3.crawler.actors;
 
+import static it.uniroma3.crawler.util.Commands.*;
 import static akka.pattern.PatternsCS.ask;
 import static akka.pattern.PatternsCS.pipe;
 
@@ -15,7 +16,6 @@ import it.uniroma3.crawler.model.CrawlURL;
 import scala.concurrent.duration.Duration;
 
 public class CrawlFetcher extends AbstractLoggingActor {
-	private final static String NEXT = "next", START = "start";
 	private final int id;
 	private final ActorRef cache;
 	private int failures;

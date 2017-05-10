@@ -1,5 +1,7 @@
 package it.uniroma3.crawler.actors.frontier;
 
+import static it.uniroma3.crawler.util.Commands.*;
+
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Random;
@@ -15,9 +17,6 @@ import it.uniroma3.crawler.model.PageClass;
 import scala.concurrent.duration.Duration;
 
 public class BFSFrontier extends AbstractLoggingActor  {
-	private final static String NEXT = "next"; 
-	private final static String	START = "start"; 
-	private final static String	STOP = "stop";
 	private CrawlQueue queue;
  	private Queue<ActorRef> requesters;
 	private Random random;

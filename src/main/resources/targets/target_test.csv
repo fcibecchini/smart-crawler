@@ -1,4 +1,3 @@
-http://www.proz.com
 homepage	link	//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']	companies	singleton
 companies	link	//div[@style='background-color:#E2E1C5;']//div[@id='pager_string']/font//a[contains(., ' Next ')]	companies	singleton
 companies	link	//tr/td[@colspan='2']//h2/a	detailsPage	list

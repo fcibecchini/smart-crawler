@@ -2,6 +2,10 @@ package it.uniroma3.crawler.actors;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import static java.nio.file.Files.exists;
+import static java.nio.file.Files.createDirectories;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import com.csvreader.CsvWriter;
 
@@ -21,12 +25,22 @@ public class CrawlDataWriter extends AbstractLoggingActor {
 	
 	private void write(CrawlURL curl) {
 		PageClass src = curl.getPageClass();
-		String dir = FileUtils.getWriteDir("html", src.getDomain());
 		String[] record = curl.getRecord();
-		if (record!=null) saveRecord(record, src.getName(), dir);
-		
-		//TODO
-		//saveWARC(curl)
+		if (record!=null) {
+			String output = FileUtils.getWriteDir("html", src.getDomain());
+			Path dir = Paths.get(output);
+	    	if (!exists(dir)) {
+				try {
+					createDirectories(dir);
+				} catch (IOException e) {
+					log().error("Can't create output directory");
+					return;
+				}
+	    	}
+			saveRecord(record, src.getName(), output);
+			//TODO
+			//saveWARC(curl)
+		}
 	}
 	
 	private void saveRecord(String[] record, String className, String dir) {
