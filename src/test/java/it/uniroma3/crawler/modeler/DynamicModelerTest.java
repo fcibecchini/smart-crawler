@@ -21,7 +21,6 @@ import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 public class DynamicModelerTest {
-	final static String TEST_SITE = "http://localhost:8081";
 	static ActorSystem system;
 
 	@BeforeClass
@@ -41,14 +40,14 @@ public class DynamicModelerTest {
 	}
 	 
 	@Test
-	public void testBuncherActorBatchesCorrectly() {
+	public void testDynamicModeler_localhost() {
 		new TestKit(system) {{
 			final ActorRef crawlModeler = system.actorOf(Props.create(CrawlModeler.class));
 			final ActorRef probe = getRef();
 				
 			SeedConfig conf = new SeedConfig("null", 10, false, 0, 0, 1);
 
-			crawlModeler.tell(new ModelMsg("html", TEST_SITE, conf), probe);
+			crawlModeler.tell(new ModelMsg("html", "http://localhost:8081", conf), probe);
 
 			final CrawlURL curl = expectMsgClass(duration("60 seconds"), CrawlURL.class);
 
