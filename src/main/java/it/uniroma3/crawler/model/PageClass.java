@@ -205,13 +205,14 @@ public class PageClass {
 	}
 	
 	public int hashCode() {
-		return name.hashCode() + website.hashCode();
+		return name.hashCode() + website.hashCode() + depth;
 	}
 
 	public boolean equals(Object obj) {
 		PageClass other = (PageClass) obj;
 		return Objects.equals(name, other.getName())
-			&& Objects.equals(website, other.getWebsite());
+			&& Objects.equals(website, other.getWebsite())
+			&& depth==other.getDepth();
 	}
 
 }

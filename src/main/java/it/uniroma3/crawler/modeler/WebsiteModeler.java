@@ -13,8 +13,8 @@ public interface WebsiteModeler {
 		
 	public default void setHierarchy(PageClass root) {
 		Queue<PageClass> queue = new LinkedList<>();
-		Set<PageClass> visited = new HashSet<>();
-		visited.add(root);
+		Set<String> visited = new HashSet<>();
+		visited.add(root.getName());
 		queue.add(root);
 		root.setDepth(0);
 		
@@ -23,9 +23,9 @@ public interface WebsiteModeler {
 			int depth = current.getDepth();
 			
 			current.classLinks().stream()
-			.filter(pc -> !visited.contains(pc))
+			.filter(pc -> !visited.contains(pc.getName()))
 			.forEach(pc -> {
-				visited.add(pc); 
+				visited.add(pc.getName()); 
 				queue.add(pc); 
 				pc.setDepth(depth+1);});
 		}
