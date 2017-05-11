@@ -3,26 +3,20 @@ package it.uniroma3.crawler.actors.frontier;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.csvreader.CsvReader;
 import com.csvreader.CsvWriter;
-
-import java.util.List;
 
 import static it.uniroma3.crawler.factories.CrawlURLFactory.getCrawlUrl;
 
@@ -30,83 +24,102 @@ import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.OutgoingLink;
 import it.uniroma3.crawler.model.PageClass;
 
+/**
+ * A CrawlQueue is a queue of priority-ordered {@link CrawlURL} elements <b>of the same Host</b> with a fixed-size
+ * in-memory capacity. 
+ * <br>
+ * When the in-memory side of the CrawlQueue is full, the exceeding CrawlURL elements are stored 
+ * on a persistent-side file queue. 
+ */
 public class CrawlQueue {
 	private static Logger log = Logger.getLogger(CrawlQueue.class.getName());
 	private final static String STORAGE = "src/main/resources/storage/queue.csv";
 	private final static String TEMP = STORAGE+"~";
 
-	private int maxsizeInMemory;
+	private int max;
 	private int sizeStorage;
-	private boolean emptyStorage;
-	private Map<String,Set<String>> visited;
-	private Map<String,PageClass> rootClasses;
-	private PriorityQueue<CrawlURL> maxPriorityUrls;
-	private PriorityQueue<CrawlURL> minPriorityUrls;
-		
+	private Set<String> visited;
+	private String domain;
+	private PageClass root;
+	private TreeSet<CrawlURL> urls;
+	
+	/**
+	 * Constructs a new CrawlQueue with the given maximum in-memory capacity 
+	 * @param max the max number of elements that can be stored in memory
+	 */
 	public CrawlQueue(int max) {
-		this.maxsizeInMemory = max;
-		this.emptyStorage = true;
-		this.visited = new HashMap<>();
-		this.rootClasses = new HashMap<>();
-		this.maxPriorityUrls = new PriorityQueue<>();
-		this.minPriorityUrls = new PriorityQueue<>((c1,c2) -> c2.compareTo(c1));
+		this.max = max;
+		this.visited = new HashSet<>();
+		this.urls = new TreeSet<>();
 	}
 	
+	/**
+	 * Poll the top-priority (in memory) {@link CrawlURL} from this queue.
+	 * <br>
+	 * Due to the low-efficient implementation of the persistent-side of this queue, 
+	 * there could be elements more important then the one returned in the persistent-side. 
+	 * @return the (in memory) top-priority CrawlURL
+	 */
 	public CrawlURL next() {
-		if (maxPriorityUrls.isEmpty()) {
-			List<CrawlURL> loaded = retrieve(maxsizeInMemory);
-			maxPriorityUrls.addAll(loaded);
-			minPriorityUrls.addAll(loaded);
+		if (urls.isEmpty()) {
+			if (sizeStorage>0) dequeue(max);
+			else return null;
 		}
-		CrawlURL next = maxPriorityUrls.poll();
-		minPriorityUrls.remove(next);
+		CrawlURL next = urls.pollFirst();
 		return next;
 	}
 	
+	/**
+	 * Adds the given {@link CrawlURL} to this queue if it has not been visited. 
+	 * @param curl CrawlURL
+	 * @return true if the CrawlURL was added to this queue, false if it was already visited
+	 */
 	public boolean add(CrawlURL curl) {
-		String domain = curl.getDomain();
-		if (visited.get(domain)==null) {
-			visited.put(domain, new HashSet<>());
-			rootClasses.put(domain, curl.getPageClass());
+		if (domain==null) {
+			domain = curl.getDomain();
+			root = curl.getPageClass();
 		}
-		Set<String> visitedUrls = visited.get(domain);
-		String relative = ""+curl.getUrl().getPath()+curl.getUrl().getQuery();
-		if (relative.equals("/")) relative = "";
-		String cs = checksum(relative);
-		if (!visitedUrls.contains(cs)) {
-			visitedUrls.add(cs);
+		String cs = checksum(curl.getRelativeUrl());
+		if (!visited.contains(cs)) {
+			visited.add(cs);
 			
-			if (maxPriorityUrls.size()<maxsizeInMemory) {
-				maxPriorityUrls.add(curl);
-				minPriorityUrls.add(curl);
-			}
+			if (urls.size()<max)
+				urls.add(curl);
 			else {
 				CrawlURL toStore = curl;
-				CrawlURL last = minPriorityUrls.peek();
+				CrawlURL last = urls.last();
 				if (curl.compareTo(last)<=-1) {
-					maxPriorityUrls.remove(last);
-					maxPriorityUrls.add(curl);
-					minPriorityUrls.poll();
-					minPriorityUrls.add(curl);
+					urls.pollLast();
+					urls.add(curl);
 					toStore = last;
 				}
-				store(toStore);
+				enqueue(toStore);
 			}
 			return true;
 		}
 		return false;
 	}
 	
+	/**
+	 * Returns the total number of elements in the queue
+	 * @return the size of this queue
+	 */
 	public int size() {
-		return maxPriorityUrls.size()+sizeStorage;
+		return urls.size()+sizeStorage;
 	}
 	
+	/**
+	 * Returns true if no element is present
+	 * @return true if the queue is empty
+	 */
 	public boolean isEmpty() {
-		return maxPriorityUrls.isEmpty()
-				&& minPriorityUrls.isEmpty()
-				&& emptyStorage;
+		return size()==0;
 	}
 	
+	/**
+	 * Deletes the current Storage file if it exists
+	 * @return true if the Storage was deleted, false otherwise
+	 */
 	public boolean deleteStorage() {
 		try {
 			return Files.deleteIfExists(Paths.get(STORAGE));
@@ -115,84 +128,59 @@ public class CrawlQueue {
 		}
 	}
 	
-	private void store(CrawlURL curl) {
-		PageClass pc = curl.getPageClass();
-		
-		String url = curl.getStringUrl();
-		String site = curl.getDomain();
-		String name = pc.getName();
-		String depth = String.valueOf(pc.getDepth());
-		String file = curl.getFilePath(); // TODO
-		String[] toWrite = new String[]{url,site,name,depth,file};
+	/**
+	 * Appends the given {@link CrawlURL} to the persistent-side queue.
+	 * The priority order is not preserved
+	 * @param curl the CrawlURL
+	 */
+	private void enqueue(CrawlURL curl) {		
 		try {
-			Path stor = Paths.get(STORAGE);
-			CsvWriter writer = new CsvWriter(new FileWriter(TEMP), '\t');
-			boolean written = false;
-			if (Files.exists(stor)) {
-				CsvReader reader = new CsvReader(STORAGE, '\t');
-				while (reader.readRecord()) {
-					String[] current = reader.getValues();
-					if (!written && compare(toWrite,current)<=-1) {
-						writer.writeRecord(toWrite);
-						written = true;
-					}
-					writer.writeRecord(current);
-				}
-				reader.close();
-			}
-			if (!written) 
-				writer.writeRecord(toWrite);
+			CsvWriter writer = new CsvWriter(new FileWriter(STORAGE, true), '\t');
+			writer.write(curl.getRelativeUrl());
+			writer.write(curl.getPageClass().getName());
+			writer.write(curl.getFilePath()); // TODO: temp
+			writer.endRecord();
 			writer.flush();
-			writer.close();			
-			Files.move(Paths.get(TEMP), stor, REPLACE_EXISTING);
-			emptyStorage = false;
+			writer.close();	
 			sizeStorage++;
 		} catch (IOException e) {
 			log.log(Level.WARNING, "Cannot store CURL to Queue Storage");
 		}
 	}
 	
-	private List<CrawlURL> retrieve(int quantity) {
-		List<CrawlURL> curls = new ArrayList<>();
+	/**
+	 * Fills the queue with the given number of URLs from the persistent-side of the queue 
+	 * <br><br>
+	 * Note that there is no warranty that the given dequeued URLs are the most relevant
+	 * with respect to the entire persistent-side queue
+	 * @param quantity number of urls to retrieve
+	 */
+	private void dequeue(int quantity) {
 		int count = quantity;
 		try {
 			CsvWriter writer = new CsvWriter(new FileWriter(TEMP), '\t');
 			CsvReader reader = new CsvReader(STORAGE, '\t');
-			emptyStorage = true;
 			while (reader.readRecord()) {
-				String url = reader.get(0);
-				String website = reader.get(1);
-				String name = reader.get(2);
-				String file = reader.get(4);
+				String relativeURL = reader.get(0);
+				String name = reader.get(1);
+				String file = reader.get(2);
 				if (count>0) {
-					PageClass pclass = rootClasses.get(website).getDescendant(name);
-					curls.add(getCrawlUrl(new OutgoingLink(url,file),pclass));
+					PageClass pclass = root.getDescendant(name);
+					String url = domain + relativeURL;
+					urls.add(getCrawlUrl(new OutgoingLink(url,file),pclass));
 					count--;
 				}
-				else {
-					writer.writeRecord(reader.getValues());
-					if (emptyStorage) emptyStorage = false;
-				}
+				else writer.writeRecord(reader.getValues());
 			}
 			reader.close();
 			writer.flush();
 			writer.close();
 			Files.move(Paths.get(TEMP), Paths.get(STORAGE), REPLACE_EXISTING);
-			sizeStorage-=quantity;
+			
+			sizeStorage -= (quantity-count);
 		} catch (IOException ie) {
-			log.log(Level.SEVERE, "Cannot retrieve CURL from Queue Storage");
+			log.log(Level.SEVERE, "Cannot retrieve CURL from Queue Storage: "+ie.getMessage());
 		}
-		return curls;
-	}
-	
-	private int compare(String[] record1, String[] record2) {
-		int cmp1 = Integer.valueOf(record1[3]) - Integer.valueOf(record2[3]);
-		if (cmp1!=0) return cmp1;
-		int cmp2 = record1[1].compareTo(record2[1]);
-		if (cmp2!=0) return cmp2;
-		int cmp3 = record1[2].compareTo(record2[2]);
-		if (cmp3!=0) return cmp3;	
-		return record1[0].compareTo(record2[0]);
 	}
 	
     private String checksum(String input)  {

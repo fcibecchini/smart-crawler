@@ -93,7 +93,7 @@ public class CrawlQueueTest {
 
 		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost",pclass);
-		CrawlURL curl3 = getCrawlUrl("http://localhost",pclass);
+		CrawlURL curl3 = getCrawlUrl("http://localhost/",pclass);
 
 		queue.add(curl1);
 		queue.add(curl2);
@@ -131,9 +131,8 @@ public class CrawlQueueTest {
 		
 		CsvReader reader = new CsvReader(storage, '\t');
 		reader.readRecord();
-		assertEquals(curl2.getStringUrl(), reader.get(0));
-		assertEquals(curl2.getDomain(), reader.get(1));
-		assertEquals(pclass.getName(), reader.get(2));
+		assertEquals(curl2.getRelativeUrl(), reader.get(0));
+		assertEquals(pclass.getName(), reader.get(1));
 		reader.close();
 	}
 	
@@ -170,20 +169,21 @@ public class CrawlQueueTest {
 		queue.add(curl4);
 		queue.add(curl3);
 		
+		/* When max=1 policy is FIFO */
 		assertEquals(curl1,queue.next());
-		assertEquals(curl3,queue.next());
 		assertEquals(curl2,queue.next());
 		assertEquals(curl4,queue.next());
+		assertEquals(curl3,queue.next());
 	}
 	
 	@Test
-	public void testNext_retrieveFromFile2() throws IOException {
+	public void testNext_retrieveFromFile2() {
 		queue = new CrawlQueue(4);
 
 		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
-		CrawlURL curl2 = getCrawlUrl("http://localhost/test",pclass2);
-		CrawlURL curl3 = getCrawlUrl("http://localhost/directory",pclass);
-		CrawlURL curl4 = getCrawlUrl("http://localhost/index",pclass3);
+		CrawlURL curl2 = getCrawlUrl("http://localhost/2",pclass2);
+		CrawlURL curl3 = getCrawlUrl("http://localhost/3",pclass);
+		CrawlURL curl4 = getCrawlUrl("http://localhost/4",pclass3);
 		
 		CrawlURL curl5 = getCrawlUrl("http://localhost/5",pclass3);
 		CrawlURL curl6 = getCrawlUrl("http://localhost/6",pclass3);
@@ -193,33 +193,27 @@ public class CrawlQueueTest {
 		CrawlURL curl9 = getCrawlUrl("http://localhost/9",pclass2);
 		CrawlURL curl10 = getCrawlUrl("http://localhost/10",pclass2);
 		CrawlURL curl11 = getCrawlUrl("http://localhost/11",pclass2);
-		CrawlURL curl12 = getCrawlUrl("http://localhost/12",pclass);
+		CrawlURL curl12 = getCrawlUrl("http://localhost/122",pclass);
 
 		queue.add(curl1);
 		queue.add(curl2);
 		queue.add(curl4);
 		queue.add(curl3);
+		
 		queue.add(curl5);
 		queue.add(curl6);
 		queue.add(curl7);
 		queue.add(curl8);
+		
 		queue.add(curl9);
 		queue.add(curl10);
 		queue.add(curl11);
 		queue.add(curl12);
 		
-		assertEquals(curl1,queue.next());
-		assertEquals(curl12,queue.next());
-		assertEquals(curl3,queue.next());
-		assertEquals(curl10,queue.next());
-		assertEquals(curl11,queue.next());
-		assertEquals(curl9,queue.next());
-		assertEquals(curl2,queue.next());
-		assertEquals(curl5,queue.next());
-		assertEquals(curl6,queue.next());
-		assertEquals(curl7,queue.next());
-		assertEquals(curl8,queue.next());
-		assertEquals(curl4,queue.next());
+		assertEquals(curl1, queue.next());
+		assertEquals(curl12, queue.next());
+		assertEquals(curl3, queue.next());
+		assertEquals(curl10, queue.next());
 	}
 
 }

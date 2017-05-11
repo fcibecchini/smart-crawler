@@ -85,6 +85,16 @@ public class CrawlURL implements Comparable<CrawlURL> {
 		return this.record;
 	}
 	
+	public String getRelativeUrl() {
+		String path = url.getPath();
+		String query = url.getQuery();
+		if (path==null || path.equals("/")) 
+			return "";
+		if (query==null) 
+			return path;
+		return path+query;
+	}
+	
 	public int compareTo(CrawlURL c2) {
 		int cmpPc = this.getPageClass().compareTo(c2.getPageClass());
 		if (cmpPc!=0) return cmpPc;
