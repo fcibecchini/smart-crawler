@@ -58,7 +58,7 @@ public class CrawlFetcher extends AbstractLoggingActor {
 		if (!curl.isCached()) {
 			String url = curl.getStringUrl();
 			boolean js = curl.getPageClass().useJavaScript();
-			ActorSelection repository = context().actorSelection("/user/repository");
+			ActorSelection repository = context().actorSelection(REPOSITORY);
 	
 			CompletableFuture<Object> future = 
 					ask(repository, new FetchMsg(url,id,js), 4000).toCompletableFuture();
@@ -98,7 +98,7 @@ public class CrawlFetcher extends AbstractLoggingActor {
 			else {
 				failures = 0;
 				// Stop crawlPage actor
-				context().actorSelection("/user/repository")
+				context().actorSelection(REPOSITORY)
 				.tell(new StopMsg(curl.getStringUrl()), self());
 				
 				log().info("TRYING NEXT URL");

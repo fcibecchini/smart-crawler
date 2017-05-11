@@ -18,7 +18,7 @@ import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 import scala.concurrent.duration.Duration;
 
 public class CrawlController extends AbstractLoggingActor {
-	private final static String HTML = "html", REPOSITORY="repository.csv";
+	private final static String HTML = "html";
 	
 	private boolean started;
 	
@@ -41,7 +41,7 @@ public class CrawlController extends AbstractLoggingActor {
     private void startCrawling() {
     	CrawlerSettings s = Settings.SettingsProvider.get(context().system());
     	
-    	ActorRef repository = context().actorOf(CrawlRepository.props(REPOSITORY), "repository");
+    	ActorRef repository = context().actorOf(CrawlRepository.props("repository.csv"), "repository");
     	ActorRef frontier = context().actorOf(BFSFrontier.props(s.fetchers, s.pages, s.frontierheap), 
     			"frontier");
     	context().watch(repository);
@@ -50,8 +50,8 @@ public class CrawlController extends AbstractLoggingActor {
     	for (String site : s.seeds.keySet()) {
         	String name = site.replace("://", "_");
     		SeedConfig conf = s.seeds.get(site);
-    		ActorRef modeler = context().actorOf(Props.create(CrawlModeler.class, 
-    				"CrawlModeler_"+name));
+    		ActorRef modeler = context().actorOf(Props.create(CrawlModeler.class), 
+    				"CrawlModeler_"+name);
     		modeler.tell(new ModelMsg(HTML,site,conf), self());
     	}
     }

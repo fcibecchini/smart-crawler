@@ -21,7 +21,7 @@ public class Crawler {
 		final Logger logger = Logger.getLogger(Crawler.class.getName());
 		final ActorSystem system = ActorSystem.create("CrawlSystem");
 		
-		ActorRef controller = system.actorOf(Props.create(CrawlController.class), "CrawlController");
+		ActorRef controller = system.actorOf(Props.create(CrawlController.class), "controller");
 		final Inbox inbox = Inbox.create(system);
 		inbox.send(controller, START);
 		try {

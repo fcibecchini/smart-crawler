@@ -3,6 +3,7 @@ package it.uniroma3.crawler.actors;
 import static akka.pattern.PatternsCS.ask;
 import static akka.pattern.PatternsCS.pipe;
 import static it.uniroma3.crawler.factories.CrawlURLFactory.copy;
+import static it.uniroma3.crawler.util.Commands.REPOSITORY;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -63,7 +64,7 @@ public class CrawlCache extends AbstractLoggingActor {
 		String url = curl.getStringUrl();
 		PageClass src = curl.getPageClass();
 		String mirror = FileUtils.getMirror("html", src.getDomain());
-		ActorSelection repository = context().actorSelection("/user/repository");
+		ActorSelection repository = context().actorSelection(REPOSITORY);
 		
 		CompletableFuture<Object> future = 
 				ask(repository, 
@@ -88,7 +89,7 @@ public class CrawlCache extends AbstractLoggingActor {
 		}
 		else {
 			// Stop crawlPage actor
-			context().actorSelection("/user/repository")
+			context().actorSelection(REPOSITORY)
 			.tell(new StopMsg(curl.getStringUrl()), self());
 		}
 	}

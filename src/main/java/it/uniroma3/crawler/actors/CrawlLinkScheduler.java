@@ -1,6 +1,7 @@
 package it.uniroma3.crawler.actors;
 
 import static it.uniroma3.crawler.factories.CrawlURLFactory.getCrawlUrl;
+import static it.uniroma3.crawler.util.Commands.REPOSITORY;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorSelection;
@@ -17,8 +18,8 @@ public class CrawlLinkScheduler extends AbstractActor {
 	}
 	
 	private void handleCURLS(CrawlURL curl) {
-		ActorSelection frontier = context().actorSelection("/user/frontier");
-		ActorSelection repository = context().actorSelection("/user/repository");
+		ActorSelection frontier = context().actorSelection("../../../..");
+		ActorSelection repository = context().actorSelection(REPOSITORY);
 		
 		curl.getOutLinks().stream()
 		.map(ol -> getCrawlUrl(ol, curl.getOutLinkPageClass(ol)))

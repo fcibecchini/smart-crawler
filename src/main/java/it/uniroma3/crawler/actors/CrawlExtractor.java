@@ -4,6 +4,7 @@ import static akka.pattern.PatternsCS.ask;
 import static akka.pattern.PatternsCS.pipe;
 import static java.util.concurrent.CompletableFuture.allOf;
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static it.uniroma3.crawler.util.Commands.REPOSITORY;
 
 import static it.uniroma3.crawler.factories.CrawlURLFactory.copy;
 
@@ -73,7 +74,7 @@ public class CrawlExtractor extends AbstractLoggingActor {
 			String htmlPath = curl.getFilePath();
 			String mirror = FileUtils.getMirror("html", src.getDomain());
 			
-			ActorSelection repository = context().actorSelection("/user/repository");
+			ActorSelection repository = context().actorSelection(REPOSITORY);
 			CompletableFuture<Object> links, data;
 			
 			if (!src.isEndPage())
@@ -104,7 +105,7 @@ public class CrawlExtractor extends AbstractLoggingActor {
 		CrawlURL curl = msg.getCurl();
 		if (msg.getLinks().isEmpty() && msg.getRecord()==null)
 			// nothing to do, stop crawlPage actor
-			context().actorSelection("/user/repository")
+			context().actorSelection(REPOSITORY)
 			.tell(new StopMsg(curl.getStringUrl()), self());
 		else
 			forward(msg);

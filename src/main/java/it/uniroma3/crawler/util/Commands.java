@@ -9,4 +9,6 @@ public class Commands {
 	public static final short UPDATE = 5;
 	public static final short FINALIZE = 6;
 	public static final short END_SYSTEM = 7;
+	
+	public static final String REPOSITORY = "/user/controller/repository";
 }
