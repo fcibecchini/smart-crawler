@@ -16,7 +16,7 @@ import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
 import scala.concurrent.duration.Duration;
 
-public class BFSFrontier extends AbstractLoggingActor  {
+public class CrawlFrontier extends AbstractLoggingActor  {
 	private CrawlQueue queue;
  	private Queue<ActorRef> requesters;
 	private Random random;
@@ -24,7 +24,7 @@ public class BFSFrontier extends AbstractLoggingActor  {
 	private int pageCount;
 	private boolean isEnding;
 	
-	static class InnerProps implements Creator<BFSFrontier> {
+	static class InnerProps implements Creator<CrawlFrontier> {
 		private int fetchers, maxPages, inMemory;
 		
 		public InnerProps(int fetchers, int max, int inMemory) {
@@ -34,23 +34,23 @@ public class BFSFrontier extends AbstractLoggingActor  {
 		}
 
 		@Override
-		public BFSFrontier create() throws Exception {
-			return new BFSFrontier(fetchers, maxPages, inMemory);
+		public CrawlFrontier create() throws Exception {
+			return new CrawlFrontier(fetchers, maxPages, inMemory);
 		}	
 	}
 		
 	public static Props props(int fetchers, int maxPages, int inMemory) {
-		return Props.create(BFSFrontier.class, new InnerProps(fetchers,maxPages,inMemory));
+		return Props.create(CrawlFrontier.class, new InnerProps(fetchers,maxPages,inMemory));
 	}
 	
-	private BFSFrontier() {
+	private CrawlFrontier() {
 		this.requesters = new LinkedList<>();
 		this.random = new Random();
 		this.pageCount = 0;
 		this.isEnding = false;
 	}
 
-	public BFSFrontier(int fetchers, int maxPages, int inMemory) {
+	public CrawlFrontier(int fetchers, int maxPages, int inMemory) {
 		this();
 		this.queue = new CrawlQueue(inMemory);
 		this.queue.deleteStorage();

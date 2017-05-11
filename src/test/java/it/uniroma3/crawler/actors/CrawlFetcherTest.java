@@ -15,7 +15,7 @@ import akka.testkit.TestActorRef;
 import akka.testkit.javadsl.TestKit;
 import it.uniroma3.crawler.CrawlController;
 import it.uniroma3.crawler.actors.CrawlFetcher;
-import it.uniroma3.crawler.actors.frontier.BFSFrontier;
+import it.uniroma3.crawler.actors.frontier.CrawlFrontier;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;

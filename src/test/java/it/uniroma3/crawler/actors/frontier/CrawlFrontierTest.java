@@ -14,7 +14,7 @@ import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
 
-public class BFSFrontierTest {
+public class CrawlFrontierTest {
 	private static ActorSystem system;
 
 	/*

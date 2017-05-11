@@ -8,7 +8,7 @@ import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import it.uniroma3.crawler.actors.CrawlRepository;
-import it.uniroma3.crawler.actors.frontier.BFSFrontier;
+import it.uniroma3.crawler.actors.frontier.CrawlFrontier;
 import it.uniroma3.crawler.messages.ModelMsg;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.modeler.CrawlModeler;
@@ -42,7 +42,7 @@ public class CrawlController extends AbstractLoggingActor {
     	CrawlerSettings s = Settings.SettingsProvider.get(context().system());
     	
     	ActorRef repository = context().actorOf(CrawlRepository.props("repository.csv"), "repository");
-    	ActorRef frontier = context().actorOf(BFSFrontier.props(s.fetchers, s.pages, s.frontierheap), 
+    	ActorRef frontier = context().actorOf(CrawlFrontier.props(s.fetchers, s.pages, s.frontierheap), 
     			"frontier");
     	context().watch(repository);
     	context().watch(frontier);
