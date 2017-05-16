@@ -27,17 +27,17 @@
 			</plugin>
 		</plugins>
 	</build>
-	
+
 	<repositories>
 		<repository>
-	        <snapshots>
-	            <enabled>false</enabled>
-	        </snapshots>
-	        <id>central</id>
-	        <name>Maven Central Repository</name>
-	        <url>http://repo1.maven.org/maven2</url>
-	    </repository>
-    </repositories>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<id>central</id>
+			<name>Maven Central Repository</name>
+			<url>http://repo1.maven.org/maven2</url>
+		</repository>
+	</repositories>
 
 	<dependencies>
 		<dependency>
@@ -75,12 +75,18 @@
 			<artifactId>akka-remote_2.11</artifactId>
 			<version>2.5.1</version>
 		</dependency>
-		
+
 		<dependency>
-	        <groupId>com.github.romix.akka</groupId>
-	        <artifactId>akka-kryo-serialization_2.11</artifactId>
-	        <version>0.5.0</version>
-    	</dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-multi-node-testkit_2.11</artifactId>
+			<version>2.5.1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.romix.akka</groupId>
+			<artifactId>akka-kryo-serialization_2.11</artifactId>
+			<version>0.5.0</version>
+		</dependency>
 
 	</dependencies>
 
