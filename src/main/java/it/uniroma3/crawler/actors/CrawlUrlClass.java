@@ -2,75 +2,49 @@ package it.uniroma3.crawler.actors;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
+//import java.util.List;
+//import java.util.Map;
+//import java.util.Set;
+//import java.util.function.Function;
+//
+//import static java.util.stream.Collectors.toMap;
+//import static java.util.stream.Collectors.toSet;
+//import static java.util.stream.Collectors.toList;
+//
+//import com.csvreader.CsvReader;
+//import it.uniroma3.crawler.model.OutgoingLink;
 
-import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
-import static java.util.stream.Collectors.toList;
-
-import com.csvreader.CsvReader;
 import com.csvreader.CsvWriter;
 
 import akka.actor.AbstractLoggingActor;
-import akka.actor.Props;
-import akka.japi.Creator;
 import it.uniroma3.crawler.messages.*;
-import it.uniroma3.crawler.model.OutgoingLink;
+import it.uniroma3.crawler.util.FileUtils;
 
 public class CrawlUrlClass extends AbstractLoggingActor {
-	private String csv; // <URL, PageClass, Local URI>
-	private CsvWriter csvWriter;
-	
-	static class InnerProps implements Creator<CrawlUrlClass> {
-		private String csv;
-		
-		public InnerProps(String csv) {
-			this.csv = csv;
-		}
-
-		@Override
-		public CrawlUrlClass create() throws Exception {
-			return new CrawlUrlClass(csv);
-		}
-		
-	}
-	
-	public static Props props(String csv) {
-		return Props.create(CrawlUrlClass.class, new InnerProps(csv));
-	}
-
-	public CrawlUrlClass(String csv) {
-		try {
-			this.csvWriter = new CsvWriter(new FileWriter(csv, true), '\t');
-		} catch (IOException e) {
-			log().error("CSV repository not writable");
-		}
-		this.csv = csv;
-	}
+	private final static String DIRECTORY = "src/main/resources/repository/";
 
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
 		.match(SaveCacheMsg.class, this::writeCache)
-		.match(ResolveLinksMsg.class, this::resolveUrls)
 		.build();
 	}
 	
 	private void writeCache(SaveCacheMsg msg) {
 		try {
-			String url = msg.getUrl();
-			csvWriter.write(url);
-			csvWriter.write(msg.getPageClass());
-			csvWriter.write(msg.getFilePath());
-			csvWriter.endRecord();
+			String csv = DIRECTORY+FileUtils.normalizeURL(msg.getDomain())+".csv";
+			CsvWriter writer = new CsvWriter(new FileWriter(csv, true), '\t');
+			writer.write(msg.getUrl());
+			writer.write(msg.getPageClass());
+			writer.write(msg.getFilePath());
+			writer.endRecord();
+			writer.flush();
 		} catch (IOException e) {
 			log().warning("Could not write URL-PAGECLASS-FILEPATH Cache");
 		}
 	}
 	
+	/*
 	private void resolveUrls(ResolveLinksMsg msg) {
 		ExtractedLinksMsg result = new ExtractedLinksMsg(resolve(msg));
 		sender().tell(result, self());
@@ -108,10 +82,6 @@ public class CrawlUrlClass extends AbstractLoggingActor {
 		}
 		return cached;
 	}
-	
-	@Override
-	public void postStop() {
-		this.csvWriter.close();
-	}
+	*/
 
 }

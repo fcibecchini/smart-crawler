@@ -3,16 +3,16 @@ package it.uniroma3.crawler.messages;
 public class SaveMsg {
 	
 	private final String url;
-	private final String pClass, mirror;
+	private final String pClass, domain;
 	
-	public SaveMsg(String url, String pClass, String mirror) {
+	public SaveMsg(String url, String pClass, String domain) {
 		this.url = url;
 		this.pClass = pClass;
-		this.mirror = mirror;
+		this.domain = domain;
 	}
 	
-	public String getMirror() {
-		return this.mirror;
+	public String getDomain() {
+		return this.domain;
 	}
 	
 	public String getPageClass() {

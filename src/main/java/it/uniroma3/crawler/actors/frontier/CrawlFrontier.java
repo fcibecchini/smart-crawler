@@ -11,13 +11,17 @@ import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.japi.Creator;
+import it.uniroma3.crawler.actors.CrawlDataWriter;
 import it.uniroma3.crawler.actors.CrawlFetcher;
+import it.uniroma3.crawler.messages.InitCrawling;
+import it.uniroma3.crawler.messages.OldCrawlURL;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
 import scala.concurrent.duration.Duration;
 
 public class CrawlFrontier extends AbstractLoggingActor  {
 	private CrawlQueue queue;
+	private ActorRef writer;
  	private Queue<ActorRef> requesters;
 	private Random random;
 	private int maxPages;
@@ -55,15 +59,19 @@ public class CrawlFrontier extends AbstractLoggingActor  {
 		this.queue = new CrawlQueue(inMemory);
 		this.queue.deleteStorage();
 		this.maxPages = maxPages;
+		this.writer = context().actorOf(Props.create(CrawlDataWriter.class), "writer");
 		createFetchers(fetchers);
 	}
 	
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-		.matchEquals(START, msg -> context().actorSelection("*").tell(msg, self()))
 		.matchEquals(NEXT, msg -> retrieve())
 		.match(CrawlURL.class, this::store)
+		.match(OldCrawlURL.class, this::handleOldCURL)
+		.match(InitCrawling.class, msg -> {
+			store(msg.getURL());
+			context().actorSelection("*").tell(START, self());})
 		.build();
 	}
 	
@@ -104,16 +112,23 @@ public class CrawlFrontier extends AbstractLoggingActor  {
 		}
 	}
 	
+	private void handleOldCURL(OldCrawlURL msg) {
+		CrawlURL curl = msg.getURL();
+		writer.tell(curl, self());
+	}
+	
 	private void terminate() {
 		if (!isEnding) {
-			context().parent().tell(STOP, self());
+			context().system().scheduler().scheduleOnce(
+					Duration.create(60, TimeUnit.SECONDS), 
+					context().parent(), STOP, context().dispatcher(), self());
 			isEnding = true; // job is done..
 			log().info("Max Page Count "+pageCount+" reached: ending...");
 		}
 	}
 	
 	private void createFetchers(int n) {
-		for (int i=1;i<n+1;i++) {
+		for (int i=0;i<n;i++) {
 			ActorRef child = context().actorOf(Props.create(CrawlFetcher.class), "fetcher"+i);
 			context().watch(child);
 		}

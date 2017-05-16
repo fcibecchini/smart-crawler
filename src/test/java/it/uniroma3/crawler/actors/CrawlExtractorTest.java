@@ -18,7 +18,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.javadsl.TestKit;
-import it.uniroma3.crawler.CrawlController;
 import it.uniroma3.crawler.actors.CrawlExtractor;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;

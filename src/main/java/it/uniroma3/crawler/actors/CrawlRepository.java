@@ -1,11 +1,13 @@
 package it.uniroma3.crawler.actors;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Address;
 import akka.actor.Deploy;
 import akka.actor.Props;
-import akka.japi.Creator;
 import akka.remote.RemoteScope;
 import it.uniroma3.crawler.messages.*;
 import scala.Option;
@@ -13,26 +15,8 @@ import scala.Option;
 public class CrawlRepository extends AbstractActor {
 	private final ActorRef csvCache;
 	
-	static class InnerProps implements Creator<CrawlRepository> {
-		private String csv;
-		
-		public InnerProps(String csv) {
-			this.csv = csv;
-		}
-
-		@Override
-		public CrawlRepository create() throws Exception {
-			return new CrawlRepository(csv);
-		}
-		
-	}
-	
-	public static Props props(String csv) {
-		return Props.create(CrawlRepository.class, new InnerProps(csv));
-	}
-	
-	public CrawlRepository(String csvFile) {
-		this.csvCache = context().actorOf(CrawlUrlClass.props(csvFile), "csvcache");
+	public CrawlRepository() {
+		this.csvCache = context().actorOf(Props.create(CrawlUrlClass.class), "csvcache");
 		context().watch(csvCache);
 	}
 	
@@ -40,17 +24,17 @@ public class CrawlRepository extends AbstractActor {
 	public Receive createReceive() {
 		return receiveBuilder()
 		.match(FetchMsg.class, msg -> 
-			findOrCreate(msg.getUrl()).forward(msg, context()))
+			findOrCreate(msg.getUrl(), msg.getId()).forward(msg, context()))
 		.match(SaveMsg.class, msg -> 
 			find(msg.getUrl()).forward(msg, context()))
 		.match(ExtractLinksMsg.class, msg -> 
-			findOrCreate(msg.getUrl()).forward(msg, context()))
+			find(msg.getUrl()).forward(msg, context()))
 		.match(ExtractDataMsg.class, msg -> 
-			findOrCreate(msg.getUrl()).forward(msg, context()))
+			find(msg.getUrl()).forward(msg, context()))
 		.match(SaveCacheMsg.class, 
 			msg -> csvCache.forward(msg, context()))
-		.match(ResolveLinksMsg.class,
-			msg -> csvCache.forward(msg, context()))
+//		.match(ResolveLinksMsg.class,
+//			msg -> csvCache.forward(msg, context()))
 		.match(StopMsg.class, this::stopChildPage)
 		.build();
 	}
@@ -61,29 +45,38 @@ public class CrawlRepository extends AbstractActor {
 		context().stop(child);
 	}
 	
-	private ActorRef findOrCreate(String url) {
+	private ActorRef findOrCreate(String url, int id) {
 		ActorRef child = find(url);
-		if (child==null) child = create(url);
+		if (child==null) child = create(url, id);
 		return child;
 	}
 	
 	private ActorRef find(String url) {
 		String name = formatUrl(url);
 		Option<ActorRef> option = context().child(name);
-		return (option.isEmpty()) ? null : option.get();
+		ActorRef ref = (option.isEmpty()) ? null : option.get();
+		return ref;
 	}
 	
-	private ActorRef create(String url) {
-		/* TODO: Map each Id to a different host */
-		//Address addr = new Address("akka.tcp", "CrawlSystem", "host", 2552);
+	private ActorRef create(String url, int id) {	
 		String name = formatUrl(url);
-		ActorRef child = context().actorOf(Props.create(CrawlPage.class), name);
-				//.withDeploy(new Deploy(new RemoteScope(addr))), name);
+		Address addr = getAddress(id);
+		Props props = Props.create(CrawlPage.class).withDeploy(new Deploy(new RemoteScope(addr)));
+		ActorRef child = context().actorOf(props, name);		
 		context().watch(child);
 		return child;
 	}
 	
 	private String formatUrl(String id) {
 		return id.replaceAll("/", "_").replaceAll("\\?", "-");
+	}
+	
+	private Address getAddress(int id) {
+		Config conf = ConfigFactory.load("nodes").getConfig("repository"+id);
+		String host = conf.getString("host");
+		int port = conf.getInt("port");
+		String protocol = conf.getString("protocol");
+		String system = conf.getString("system");
+		return new Address(protocol, system, host, port);
 	}
 }

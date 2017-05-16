@@ -22,6 +22,8 @@ import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.DataType;
+import it.uniroma3.crawler.model.OutgoingLink;
+import it.uniroma3.crawler.util.FileUtils;
 
 public class CrawlPage extends AbstractLoggingActor {
 	private HtmlPage html;
@@ -44,13 +46,14 @@ public class CrawlPage extends AbstractLoggingActor {
 	}
 	
 	private void save(SaveMsg msg) {
-		String htmlPath = getFileUrlPath(html, msg.getMirror());
+		String htmlPath = getFileUrlPath(html, FileUtils.getMirror("html", msg.getDomain()));
 		try {
 			savePageMirror(html, htmlPath);
 			setHtml(null);
 			sender().tell(new SavedMsg(htmlPath), self());
 			context().parent()
-			.tell(new SaveCacheMsg(msg.getUrl(), msg.getPageClass(), htmlPath), ActorRef.noSender());
+			.tell(new SaveCacheMsg(msg.getDomain(),msg.getUrl(),msg.getPageClass(),htmlPath), 
+					ActorRef.noSender());
 		} catch (IOException e) {
 			//TODO: improve exception handling
 			sender().tell(new SavedMsg(""), self());
@@ -63,9 +66,10 @@ public class CrawlPage extends AbstractLoggingActor {
 		try {
 			String baseUrl = msg.getBaseUrl();
 			HtmlPage html = restorePageFromFile(msg.getHtmlPath(), URI.create(baseUrl));
-			Map<String, List<String>> outLinks = getOutLinks(html, baseUrl, msg.getNavXPaths());
-			ResolveLinksMsg question = new ResolveLinksMsg(outLinks);
-			context().parent().tell(question, sender());
+			Map<String, List<OutgoingLink>> outLinks = getOutLinks(html, baseUrl, msg.getNavXPaths());
+			//ResolveLinksMsg question = new ResolveLinksMsg(outLinks);
+			//context().parent().tell(question, sender());
+			sender().tell(new ExtractedLinksMsg(outLinks), self());
 		} catch (Exception e) {
 			//TODO: improve exception handling
 			sender().tell(new ExtractedLinksMsg(), self());
@@ -77,11 +81,11 @@ public class CrawlPage extends AbstractLoggingActor {
 	private void extract(ExtractDataMsg msg) {
 		try {
 			HtmlPage html = restorePageFromFile(msg.getHtmlPath(), URI.create(msg.getBaseUrl()));
-			String[] record = getDataRecord(html, msg.getData());
-			sender().tell(record, self());
+			List<String> record = getDataRecord(html, msg.getData());
+			sender().tell(new ExtractedDataMsg(record), self());
 		} catch (Exception e) {
 			//TODO: improve exception handling
-			sender().tell(new String[0], self());
+			sender().tell(new ExtractedDataMsg(), self());
 			log().warning("extract: Exception while restoring HtmlPage: "+e.getMessage());
 		}
 	}
@@ -120,19 +124,18 @@ public class CrawlPage extends AbstractLoggingActor {
 		return path;
 	}
 	
-	private Map<String, List<String>> getOutLinks(HtmlPage html, String base, List<String> xPaths) {		
+	private Map<String, List<OutgoingLink>> getOutLinks(HtmlPage html, String base, List<String> xPaths) {		
 		return xPaths.stream().distinct()
 		.collect(toMap(Function.identity(), 
 					   xp -> getAnchors(html, xp).stream()
 					  .map(a -> a.getHrefAttribute())
 					  .filter(l -> isValidURL(base, l))
-					  .map(l -> getAbsoluteURL(base, l))
+					  .map(l -> new OutgoingLink(getAbsoluteURL(base, l)))
 					  .collect(toList())));
 	}
 	
-	private String[] getDataRecord(HtmlPage html, Collection<DataType> dataTypes) {		
-		List<String> values = dataTypes.stream().map(dt -> dt.extract(html)).collect(toList());
-		String[] record = values.toArray(new String[dataTypes.size()]);
+	private List<String> getDataRecord(HtmlPage html, Collection<DataType> dataTypes) {		
+		List<String> record = dataTypes.stream().map(dt -> dt.extract(html)).collect(toList());
 		return record;
 	}
 }

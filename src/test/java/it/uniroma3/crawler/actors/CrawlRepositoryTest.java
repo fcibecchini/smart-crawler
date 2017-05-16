@@ -30,20 +30,16 @@ public class CrawlRepositoryTest {
 	private static ActorSystem system;
 	private static Website website;
 	private static String root;
-	private static String csv;
 	private static String mirror;
 	private static boolean js;
-	private static Props props;
 
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
 		system = ActorSystem.create("testSystem");
 		root = "http://localhost:8081";
-		csv = "repository-test.csv";
-		mirror = "html/test_mirror";
+		mirror = "html/localhost:8081";
 		js = false;
 		website = new Website(root,1,0,js);
-		props = CrawlRepository.props(csv);
 	}
 
 	@AfterClass
@@ -55,7 +51,7 @@ public class CrawlRepositoryTest {
 	
 	@After
 	public void tearDown() throws Exception {
-		new File(csv).delete();
+		//new File(csv).delete();
 	}
 	
 	@Test
@@ -63,7 +59,7 @@ public class CrawlRepositoryTest {
 		FetchMsg fetch = new FetchMsg("http://localhost:8081",1,js);
 		
 		final TestActorRef<CrawlRepository> repo = 
-				TestActorRef.create(system, props, "repoA");
+				TestActorRef.create(system, Props.create(CrawlRepository.class), "repoA");
 		
 		final CompletableFuture<Object> future = 
 				ask(repo, fetch, 4000).toCompletableFuture();
@@ -79,7 +75,7 @@ public class CrawlRepositoryTest {
 		FetchMsg fetch2 = new FetchMsg(root+"/directory1.html",1,js);
 
 		final TestActorRef<CrawlRepository> repo = 
-				TestActorRef.create(system, props, "repoB");
+				TestActorRef.create(system, Props.create(CrawlRepository.class), "repoB");
 		
 		final CompletableFuture<Object> future1 = 
 				ask(repo, fetch1, 4000).toCompletableFuture();
@@ -96,10 +92,10 @@ public class CrawlRepositoryTest {
 	@Test
 	public void testSaveUrl() throws Exception {
 		FetchMsg fetch = new FetchMsg(root,1,js);
-		SaveMsg save = new SaveMsg(root, "class1", mirror);
+		SaveMsg save = new SaveMsg(root, "class1", root);
 		
 		final TestActorRef<CrawlRepository> repo = 
-				TestActorRef.create(system, props, "repoC");
+				TestActorRef.create(system, Props.create(CrawlRepository.class), "repoC");
 		
 		ask(repo, fetch, 4000);
 		
@@ -131,11 +127,11 @@ public class CrawlRepositoryTest {
 		FetchMsg fetch1 = new FetchMsg(url1,1,js);
 		FetchMsg fetch2 = new FetchMsg(url2,1,js);
 		
-		SaveMsg save1 = new SaveMsg(url1, details.getName(), mirror);
-		SaveMsg save2 = new SaveMsg(url2, details.getName(), mirror);
+		SaveMsg save1 = new SaveMsg(url1, details.getName(), root);
+		SaveMsg save2 = new SaveMsg(url2, details.getName(), root);
 		
 		final TestActorRef<CrawlRepository> repo = 
-				TestActorRef.create(system, props, "repoF");
+				TestActorRef.create(system, Props.create(CrawlRepository.class), "repoF");
 		
 		ask(repo, fetch1, 4000);
 		ask(repo, fetch2, 4000);
@@ -169,11 +165,11 @@ public class CrawlRepositoryTest {
 		xpaths.add(next);
 		
 		FetchMsg fetch = new FetchMsg(url,1,js);
-		SaveMsg save = new SaveMsg(url, "class1", mirror);
+		SaveMsg save = new SaveMsg(url, "class1", root);
 		ExtractLinksMsg extract = new ExtractLinksMsg(url, file, root, mirror, xpaths);
 		
 		final TestActorRef<CrawlRepository> repo = 
-				TestActorRef.create(system, props, "repoD");
+				TestActorRef.create(system, Props.create(CrawlRepository.class), "repoD");
 		
 		ask(repo, fetch, 4000);
 		ask(repo, save, 4000);
@@ -209,10 +205,11 @@ public class CrawlRepositoryTest {
 		data.add(details.getDataTypeByXPath(titleXPath));
 		
 		FetchMsg fetch = new FetchMsg(detail,1,js);
-		SaveMsg save = new SaveMsg(detail, details.getName(), mirror);
+		SaveMsg save = new SaveMsg(detail, details.getName(), root);
 		ExtractDataMsg extrData = new ExtractDataMsg(detail, file, root, data);
 		
-		final TestActorRef<CrawlRepository> repo = TestActorRef.create(system, props, "repoE");
+		final TestActorRef<CrawlRepository> repo = 
+				TestActorRef.create(system, Props.create(CrawlRepository.class), "repoE");
 		
 		ask(repo, fetch, 4000).toCompletableFuture();
 		ask(repo, save, 4000).toCompletableFuture();

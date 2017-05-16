@@ -5,6 +5,7 @@ import static it.uniroma3.crawler.util.Commands.REPOSITORY;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorSelection;
+import it.uniroma3.crawler.messages.OldCrawlURL;
 import it.uniroma3.crawler.messages.StopMsg;
 import it.uniroma3.crawler.model.CrawlURL;
 
@@ -21,12 +22,13 @@ public class CrawlLinkScheduler extends AbstractActor {
 		ActorSelection frontier = context().actorSelection("../../../..");
 		ActorSelection repository = context().actorSelection(REPOSITORY);
 		
+		frontier.tell(new OldCrawlURL(curl), self());
+		// stop crawlPage actor for this URL
+		repository.tell(new StopMsg(curl.getStringUrl()), self());
+				
 		curl.getOutLinks().stream()
 		.map(ol -> getCrawlUrl(ol, curl.getOutLinkPageClass(ol)))
 		.forEach(newcurl -> frontier.tell(newcurl, self()));
-		
-		// CrawlURL lifecycle ended, stop crawlPage actor
-		repository.tell(new StopMsg(curl.getStringUrl()), self());
 		
 	}
 

@@ -15,7 +15,6 @@ import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.messages.SaveMsg;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.util.FileUtils;
 
 public class CrawlCache extends AbstractLoggingActor {
 	private final int id;
@@ -63,7 +62,7 @@ public class CrawlCache extends AbstractLoggingActor {
 	private void requestSave(CrawlURL curl) {
 		String url = curl.getStringUrl();
 		PageClass src = curl.getPageClass();
-		String mirror = FileUtils.getMirror("html", src.getDomain());
+		String mirror = src.getDomain();
 		ActorSelection repository = context().actorSelection(REPOSITORY);
 		
 		CompletableFuture<Object> future = 
