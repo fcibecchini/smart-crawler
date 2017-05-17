@@ -7,19 +7,23 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 import akka.japi.Creator;
+import akka.persistence.AbstractPersistentActor;
 import it.uniroma3.crawler.actors.CrawlDataWriter;
 import it.uniroma3.crawler.actors.CrawlFetcher;
-import it.uniroma3.crawler.messages.InitCrawling;
-import it.uniroma3.crawler.messages.OldCrawlURL;
+import it.uniroma3.crawler.messages.StoreURLMsg;
+import it.uniroma3.crawler.messages.OldURLMsg;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
 import scala.concurrent.duration.Duration;
 
-public class CrawlFrontier extends AbstractLoggingActor  {
+public class CrawlFrontier extends AbstractPersistentActor  {
+	LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
+
 	private CrawlQueue queue;
 	private ActorRef writer;
  	private Queue<ActorRef> requesters;
@@ -29,22 +33,25 @@ public class CrawlFrontier extends AbstractLoggingActor  {
 	private boolean isEnding;
 	
 	static class InnerProps implements Creator<CrawlFrontier> {
-		private int fetchers, maxPages, inMemory;
+		private static final long serialVersionUID = 1L;
+		private PageClass pclass;
+		private int fetchers, maxPages, size;
 		
-		public InnerProps(int fetchers, int max, int inMemory) {
+		public InnerProps(int fetchers, int max, int size, PageClass pclass) {
 			this.fetchers = fetchers;
 			this.maxPages = max;
-			this.inMemory = inMemory;
+			this.size = size;
+			this.pclass = pclass;
 		}
 
 		@Override
 		public CrawlFrontier create() throws Exception {
-			return new CrawlFrontier(fetchers, maxPages, inMemory);
+			return new CrawlFrontier(fetchers, maxPages, size, pclass);
 		}	
 	}
 		
-	public static Props props(int fetchers, int maxPages, int inMemory) {
-		return Props.create(CrawlFrontier.class, new InnerProps(fetchers,maxPages,inMemory));
+	public static Props props(int fetchers, int maxPages, int size, PageClass pclass) {
+		return Props.create(CrawlFrontier.class, new InnerProps(fetchers,maxPages,size, pclass));
 	}
 	
 	private CrawlFrontier() {
@@ -54,9 +61,9 @@ public class CrawlFrontier extends AbstractLoggingActor  {
 		this.isEnding = false;
 	}
 
-	public CrawlFrontier(int fetchers, int maxPages, int inMemory) {
+	public CrawlFrontier(int fetchers, int maxPages, int size, PageClass pclass) {
 		this();
-		this.queue = new CrawlQueue(inMemory);
+		this.queue = new CrawlQueue(size,pclass);
 		this.queue.deleteStorage();
 		this.maxPages = maxPages;
 		this.writer = context().actorOf(Props.create(CrawlDataWriter.class), "writer");
@@ -64,55 +71,66 @@ public class CrawlFrontier extends AbstractLoggingActor  {
 	}
 	
 	@Override
-	public Receive createReceive() {
+	public String persistenceId() {
+		return self().path().name();
+	}
+
+	@Override
+	public Receive createReceiveRecover() {
 		return receiveBuilder()
-		.matchEquals(NEXT, msg -> retrieve())
-		.match(CrawlURL.class, this::store)
-		.match(OldCrawlURL.class, this::handleOldCURL)
-		.match(InitCrawling.class, msg -> {
-			store(msg.getURL());
-			context().actorSelection("*").tell(START, self());})
+		.matchEquals(NEXT, n -> queue.next())
+		.match(StoreURLMsg.class, msg -> queue.add(msg.getURL(), msg.getPageClass()))
 		.build();
 	}
 	
-	private void store(CrawlURL curl) {
-		if (pageCount>=maxPages) terminate();
-		else {
-			if (queue.add(curl) && !requesters.isEmpty()) { 
-				// send request for next CURL from requester
+	@Override
+	public Receive createReceive() {
+		return receiveBuilder()
+		.matchEquals(START, msg -> context().actorSelection("*").tell(msg, self()))
+		.matchEquals(NEXT, n -> retrieve())
+		.match(StoreURLMsg.class, this::store)
+		.match(OldURLMsg.class, this::handleOldCURL)
+		.build();
+	}
+	
+	private void store(StoreURLMsg msg) {
+		if (pageCount>=maxPages) {
+			terminate();
+			return;
+		}
+		
+		persist(msg, (StoreURLMsg ev) -> {
+			if (queue.add(ev.getURL(), ev.getPageClass()) && !requesters.isEmpty()) 
 				self().tell(NEXT, requesters.poll());
-			}
-		}
+		});
 	}
-	
+		
 	private void retrieve() {
-		if (pageCount>=maxPages) terminate();
-		else {
-			if (!queue.isEmpty()) {
-				// handle request for next url to be processed
-				CrawlURL next = queue.next();
-				if (next.isCached())
-					sender().tell(next, self());
-				else {
-					//TODO: update page class wait time somehow
-					PageClass pClass = next.getPageClass();
-					long wait = pClass.getWaitTime() + random.nextInt(pClass.getPause());
-					context().system().scheduler().scheduleOnce(
-							Duration.create(wait, TimeUnit.MILLISECONDS),
-							sender(), next, context().dispatcher(),self());
-				}
-				pageCount++;
-				log().info(""+pageCount);
-			}
-			else {
-				// sender will be informed when 
-				// a new CrawlURL is available
-				requesters.add(sender()); 
-			}
+		if (pageCount>=maxPages) {
+			terminate();
+			return;
 		}
+		
+		if (queue.isEmpty()) {
+			requesters.add(sender()); // waiting for a URL
+			return;
+		}
+		
+		// handle request for next url to be processed
+		persist(NEXT, n -> {
+			CrawlURL next = queue.next();
+			//TODO: update page class wait time somehow
+			PageClass pClass = next.getPageClass();
+			long wait = pClass.getWaitTime() + random.nextInt(pClass.getPause());
+			context().system().scheduler().scheduleOnce(
+					Duration.create(wait, TimeUnit.MILLISECONDS),
+					sender(), next, context().dispatcher(), self());
+			pageCount++;
+			log.info(""+pageCount);
+		});
 	}
 	
-	private void handleOldCURL(OldCrawlURL msg) {
+	private void handleOldCURL(OldURLMsg msg) {
 		CrawlURL curl = msg.getURL();
 		writer.tell(curl, self());
 	}
@@ -123,14 +141,13 @@ public class CrawlFrontier extends AbstractLoggingActor  {
 					Duration.create(60, TimeUnit.SECONDS), 
 					context().parent(), STOP, context().dispatcher(), self());
 			isEnding = true; // job is done..
-			log().info("Max Page Count "+pageCount+" reached: ending...");
+			log.info("Max Page Count "+pageCount+" reached: ending...");
 		}
 	}
 	
 	private void createFetchers(int n) {
 		for (int i=0;i<n;i++) {
-			ActorRef child = context().actorOf(Props.create(CrawlFetcher.class), "fetcher"+i);
-			context().watch(child);
+			context().watch(context().actorOf(Props.create(CrawlFetcher.class), "fetcher"+i));
 		}
 	}
 	

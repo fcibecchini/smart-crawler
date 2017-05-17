@@ -47,16 +47,9 @@ public class CrawlCache extends AbstractLoggingActor {
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-		.match(CrawlURL.class, this::save)
+		.match(CrawlURL.class, this::requestSave)
 		.match(ResultMsg.class, this::sendSavedCurl)
 		.build();
-	}
-	
-	private void save(CrawlURL curl) {
-		if (!curl.isCached()) 
-			requestSave(curl);
-		else 
-			extractor.tell(curl, self());
 	}
 	
 	private void requestSave(CrawlURL curl) {

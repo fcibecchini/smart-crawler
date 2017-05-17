@@ -18,7 +18,6 @@ import akka.actor.ActorSelection;
 import akka.actor.Props;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.CrawlURL;
-import it.uniroma3.crawler.model.OutgoingLink;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.util.FileUtils;
 
@@ -28,10 +27,10 @@ public class CrawlExtractor extends AbstractLoggingActor {
 	
 	static public class ResultMsg {
 		private final CrawlURL curl;
-		private final Map<String, List<OutgoingLink>> outLinks;
+		private final Map<String, List<String>> outLinks;
 		private final List<String> record;
 		
-		public ResultMsg(CrawlURL curl, Map<String, List<OutgoingLink>> links, List<String> record) {
+		public ResultMsg(CrawlURL curl, Map<String, List<String>> links, List<String> record) {
 			this.curl = curl;
 			this.outLinks = links;
 			this.record = record;
@@ -41,7 +40,7 @@ public class CrawlExtractor extends AbstractLoggingActor {
 			return this.curl;
 		}
 		
-		public Map<String, List<OutgoingLink>> getLinks() {
+		public Map<String, List<String>> getLinks() {
 			return this.outLinks;
 		}
 		
@@ -85,7 +84,7 @@ public class CrawlExtractor extends AbstractLoggingActor {
 		else
 			links = completedFuture(new ExtractedLinksMsg());
 
-		if (src.isDataPage() && !curl.isCached())
+		if (src.isDataPage())
 			data = ask(repository, 
 					new ExtractDataMsg(url, 
 					htmlPath, 
@@ -108,15 +107,14 @@ public class CrawlExtractor extends AbstractLoggingActor {
 		CrawlURL curl = msg.getCurl();
 		CrawlURL copy = copy(curl);
 		
-		copy.setCached(curl.isCached());
 		copy.setFilePath(curl.getFilePath());
 		
-		Map<String, List<OutgoingLink>> links = msg.getLinks();
+		Map<String, List<String>> links = msg.getLinks();
 		PageClass src = curl.getPageClass();
 		for (String xPath : links.keySet()) {
-			for (OutgoingLink link : links.get(xPath)) {
+			for (String link : links.get(xPath)) {
 				PageClass dest = src.getDestinationByXPath(xPath);
-				copy.addOutLink(link, dest);
+				copy.addOutLink(link, dest.getName());
 			}
 		}
 		

@@ -22,7 +22,6 @@ import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.DataType;
-import it.uniroma3.crawler.model.OutgoingLink;
 import it.uniroma3.crawler.util.FileUtils;
 
 public class CrawlPage extends AbstractLoggingActor {
@@ -66,7 +65,7 @@ public class CrawlPage extends AbstractLoggingActor {
 		try {
 			String baseUrl = msg.getBaseUrl();
 			HtmlPage html = restorePageFromFile(msg.getHtmlPath(), URI.create(baseUrl));
-			Map<String, List<OutgoingLink>> outLinks = getOutLinks(html, baseUrl, msg.getNavXPaths());
+			Map<String, List<String>> outLinks = getOutLinks(html, baseUrl, msg.getNavXPaths());
 			//ResolveLinksMsg question = new ResolveLinksMsg(outLinks);
 			//context().parent().tell(question, sender());
 			sender().tell(new ExtractedLinksMsg(outLinks), self());
@@ -124,13 +123,13 @@ public class CrawlPage extends AbstractLoggingActor {
 		return path;
 	}
 	
-	private Map<String, List<OutgoingLink>> getOutLinks(HtmlPage html, String base, List<String> xPaths) {		
+	private Map<String, List<String>> getOutLinks(HtmlPage html, String base, List<String> xPaths) {		
 		return xPaths.stream().distinct()
 		.collect(toMap(Function.identity(), 
 					   xp -> getAnchors(html, xp).stream()
 					  .map(a -> a.getHrefAttribute())
 					  .filter(l -> isValidURL(base, l))
-					  .map(l -> new OutgoingLink(getAbsoluteURL(base, l)))
+					  .map(l -> getAbsoluteURL(base, l))
 					  .collect(toList())));
 	}
 	

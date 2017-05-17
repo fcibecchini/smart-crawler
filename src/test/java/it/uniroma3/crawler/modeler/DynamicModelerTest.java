@@ -16,7 +16,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.javadsl.TestKit;
 import it.uniroma3.crawler.messages.ModelMsg;
-import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
@@ -47,11 +46,9 @@ public class DynamicModelerTest {
 				
 			SeedConfig conf = new SeedConfig("null", 10, false, 0, 0, 1);
 
-			crawlModeler.tell(new ModelMsg("html", "http://localhost:8081", conf), probe);
+			crawlModeler.tell(new ModelMsg("http://localhost:8081", conf), probe);
 
-			final CrawlURL curl = expectMsgClass(duration("60 seconds"), CrawlURL.class);
-
-			PageClass home = curl.getPageClass();
+			final PageClass home = expectMsgClass(duration("60 seconds"), PageClass.class);
 			
 			String toDirectory = "(//ul[@id='menu']/li/a)[1]";
 			String toNext = "//a[@id='page']";

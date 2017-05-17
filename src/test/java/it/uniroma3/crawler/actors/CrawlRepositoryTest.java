@@ -22,7 +22,6 @@ import akka.testkit.javadsl.TestKit;
 import akka.testkit.TestActorRef;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.DataType;
-import it.uniroma3.crawler.model.OutgoingLink;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.model.Website;
 
@@ -178,10 +177,10 @@ public class CrawlRepositoryTest {
 				ask(repo, extract, 4000).toCompletableFuture();
 		
 		ExtractedLinksMsg response = (ExtractedLinksMsg) future.get();
-		Map<String, List<OutgoingLink>> xpath2urls = response.getLinks();
+		Map<String, List<String>> xpath2urls = response.getLinks();
 		
-		List<String> urlsNext = xpath2urls.get(next).stream().map(ol -> ol.getUrl()).collect(toList());
-		List<String> urlsDet = xpath2urls.get(detail).stream().map(ol -> ol.getUrl()).collect(toList());
+		List<String> urlsNext = xpath2urls.get(next);
+		List<String> urlsDet = xpath2urls.get(detail);
 		
 		assertEquals(3, urlsDet.size());
 		assertTrue(urlsDet.contains(root+"/detail1.html"));

@@ -6,7 +6,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import it.uniroma3.crawler.model.CrawlURL;
-import it.uniroma3.crawler.model.OutgoingLink;
 import it.uniroma3.crawler.model.PageClass;
 
 public class CrawlURLFactory {
@@ -22,16 +21,6 @@ public class CrawlURLFactory {
 	
 	public static CrawlURL getCrawlUrl(URI url, PageClass pClass) {
 		return factory.create(url, pClass);
-	}
-	
-	public static CrawlURL getCrawlUrl(OutgoingLink link, PageClass pClass) {
-		CrawlURL curl = factory.create(link.getUrl(), pClass);
-		String cachedLink = link.getCachedFile();
-		if (cachedLink!=null) {
-			curl.setFilePath(cachedLink);
-			curl.setCached(true);
-		}
-		return curl;
 	}
 	
 	public static CrawlURL copy(CrawlURL curl) {

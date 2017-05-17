@@ -13,7 +13,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.javadsl.TestKit;
 import it.uniroma3.crawler.messages.ModelMsg;
-import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
@@ -31,11 +30,9 @@ public class StaticModelerTest {
 				
 			SeedConfig conf = new SeedConfig(file, 0, false, 2000, 1000, 2);
 
-			crawlModeler.tell(new ModelMsg("html", "http://www.proz.com", conf), probe);
+			crawlModeler.tell(new ModelMsg("http://www.proz.com", conf), probe);
 
-			final CrawlURL curl = expectMsgClass(duration("60 seconds"), CrawlURL.class);
-
-			root = curl.getPageClass();
+			root = expectMsgClass(duration("60 seconds"), PageClass.class);
 		}};
 	}
 

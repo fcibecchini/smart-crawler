@@ -55,22 +55,17 @@ public class CrawlFetcher extends AbstractLoggingActor {
 	}
 	
 	private void fetchRequest(CrawlURL curl) {
-		if (!curl.isCached()) {
-			String url = curl.getStringUrl();
-			boolean js = curl.getPageClass().useJavaScript();
-			ActorSelection repository = context().actorSelection(REPOSITORY);
+		String url = curl.getStringUrl();
+		boolean js = curl.getPageClass().useJavaScript();
+		ActorSelection repository = context().actorSelection(REPOSITORY);
 	
-			CompletableFuture<Object> future = 
-					ask(repository, new FetchMsg(url,id,js), 4000).toCompletableFuture();
-			CompletableFuture<ResultMsg> result = future.thenApply(v -> {
-				FetchedMsg msg = (FetchedMsg) future.join();
-				return new ResultMsg(curl, msg.getResponse());
-			});
-			pipe(result, context().dispatcher()).to(self());
-		}
-		else { //synchronous fetch handling since curl is cached
-			fetchHandle(new ResultMsg(curl, 0));
-		}
+		CompletableFuture<Object> future = 
+				ask(repository, new FetchMsg(url,id,js), 4000).toCompletableFuture();
+		CompletableFuture<ResultMsg> result = future.thenApply(v -> {
+			FetchedMsg msg = (FetchedMsg) future.join();
+			return new ResultMsg(curl, msg.getResponse());
+		});
+		pipe(result, context().dispatcher()).to(self());
 	}
 	
 	private void fetchHandle(ResultMsg msg) {

@@ -2,10 +2,10 @@ package it.uniroma3.crawler.messages;
 
 import it.uniroma3.crawler.model.CrawlURL;
 
-public class OldCrawlURL {
+public class OldURLMsg {
 	private final CrawlURL curl;
 
-	public OldCrawlURL(CrawlURL curl) {
+	public OldURLMsg(CrawlURL curl) {
 		this.curl = curl;
 	}
 	

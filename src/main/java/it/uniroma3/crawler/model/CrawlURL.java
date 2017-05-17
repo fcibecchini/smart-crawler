@@ -10,17 +10,10 @@ import java.util.Objects;
 import java.util.Set;
 
 public class CrawlURL implements Comparable<CrawlURL> {
-			
 	private URI url;
-	
 	private PageClass pageClass;
-	
 	private String filePath;
-	
-	private boolean isCached;
-	
-	private Map<OutgoingLink, PageClass> outLinks;
-		
+	private Map<String, String> outLinks;
 	private String[] record;
 	
 	public CrawlURL(String url, PageClass pageClass) throws URISyntaxException {
@@ -57,23 +50,15 @@ public class CrawlURL implements Comparable<CrawlURL> {
 		this.filePath = filePath;
 	}
 
-	public boolean isCached() {
-		return isCached;
-	}
-	
-	public void setCached(boolean isCached) {
-		this.isCached = isCached;
-	}
-
-	public void addOutLink(OutgoingLink link, PageClass pClass) {
+	public void addOutLink(String link, String pClass) {
 		this.outLinks.putIfAbsent(link, pClass);
 	}
 	
-	public Set<OutgoingLink> getOutLinks() {
+	public Set<String> getOutLinks() {
 		return outLinks.keySet().stream().collect(toSet());
 	}
 	
-	public PageClass getOutLinkPageClass(OutgoingLink link) {
+	public String getOutLinkPageClass(String link) {
 		return outLinks.get(link);
 	}
 	

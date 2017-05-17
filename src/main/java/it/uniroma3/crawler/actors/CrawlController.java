@@ -6,29 +6,33 @@ import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import it.uniroma3.crawler.actors.frontier.CrawlFrontier;
-import it.uniroma3.crawler.messages.InitCrawling;
 import it.uniroma3.crawler.messages.ModelMsg;
-import it.uniroma3.crawler.model.CrawlURL;
+import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.modeler.CrawlModeler;
 import it.uniroma3.crawler.settings.CrawlerSettings;
 import it.uniroma3.crawler.settings.Settings;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
-public class CrawlController extends AbstractLoggingActor {
-	private final static String HTML = "html";
-	private int frontiers;
+public class CrawlController extends AbstractLoggingActor {	
+	private int fetchers, pages, heapSize, frontiers;
 	
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
 		.matchEquals(START, msg -> startCrawling())
 		.matchEquals(STOP, msg -> stop())
-		.match(CrawlURL.class, this::sendToFrontier)
+		.match(PageClass.class, pclass -> {
+			sender().tell(STOP, self());
+			initFrontier(pclass);
+		})
 		.build();
 	}
     
     private void startCrawling() {
     	CrawlerSettings s = Settings.SettingsProvider.get(context().system());
+    	fetchers = s.fetchers;
+    	pages = s.pages;
+    	heapSize = s.frontierheap;
     	
     	ActorRef repository = context().actorOf(Props.create(CrawlRepository.class), "repository");
     	context().watch(repository);
@@ -37,20 +41,24 @@ public class CrawlController extends AbstractLoggingActor {
         	String name = site.replace("://", "_");
     		SeedConfig conf = s.seeds.get(site);
     		ActorRef modeler = context().actorOf(Props.create(CrawlModeler.class), 
-    				"CrawlModeler_"+name);
-    		ActorRef frontier = context().actorOf(CrawlFrontier.props(s.fetchers, s.pages, s.frontierheap), 
-        			"frontier_"+name);
-        	context().watch(frontier);
-        	frontiers++;
-    		modeler.tell(new ModelMsg(HTML,site,conf), self());
+    				"modeler_"+name);
+    		modeler.tell(new ModelMsg(site,conf), self());
     	}
     }
     
-    private void sendToFrontier(CrawlURL curl) {
-    	sender().tell(STOP, self());
-    	String frontierName = curl.getDomain().replace("://", "_");
-    	ActorRef frontier = context().child("frontier_"+frontierName).get();
-    	frontier.tell(new InitCrawling(curl), self());
+    private void initFrontier(PageClass root) {
+    	ActorRef frontier = createFrontier(root);
+    	frontier.tell(START, self());
+    }
+    
+    private ActorRef createFrontier(PageClass pclass) {
+    	String name = pclass.getDomain().replace("://", "_");
+		ActorRef frontier = context().actorOf(
+				CrawlFrontier.props(fetchers, pages, heapSize, pclass), 
+    			"frontier_"+name);
+    	context().watch(frontier);
+    	frontiers++;
+    	return frontier;
     }
     
     private void stop() {

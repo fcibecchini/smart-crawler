@@ -19,9 +19,7 @@ import com.csvreader.CsvReader;
 import com.csvreader.CsvWriter;
 
 import static it.uniroma3.crawler.factories.CrawlURLFactory.getCrawlUrl;
-
 import it.uniroma3.crawler.model.CrawlURL;
-import it.uniroma3.crawler.model.OutgoingLink;
 import it.uniroma3.crawler.model.PageClass;
 
 /**
@@ -39,7 +37,6 @@ public class CrawlQueue {
 	private int max;
 	private int sizeStorage;
 	private Set<String> visited;
-	private String domain;
 	private PageClass root;
 	private TreeSet<CrawlURL> urls;
 	
@@ -51,6 +48,19 @@ public class CrawlQueue {
 		this.max = max;
 		this.visited = new HashSet<>();
 		this.urls = new TreeSet<>();
+	}
+	
+	/**
+	 * Constructs a new CrawlQueue with the given maximum in-memory capacity<br>
+	 * and the specified root {@link PageClass}. The initialized queue contains
+	 * the seed of the corresponding web site.
+	 * @param max the max number of elements that can be stored in memory
+	 * @param root the root PageClass of a web site
+	 */
+	public CrawlQueue(int max, PageClass root) {
+		this(max);
+		this.root = root;
+		this.add(getCrawlUrl(root.getDomain(), root));
 	}
 	
 	/**
@@ -75,8 +85,7 @@ public class CrawlQueue {
 	 * @return true if the CrawlURL was added to this queue, false if it was already visited
 	 */
 	public boolean add(CrawlURL curl) {
-		if (domain==null) {
-			domain = curl.getDomain();
+		if (root==null) {
 			root = curl.getPageClass();
 		}
 		String cs = checksum(curl.getRelativeUrl());
@@ -98,6 +107,20 @@ public class CrawlQueue {
 			return true;
 		}
 		return false;
+	}
+	
+	
+	/**
+	 * Convenience method to add a CrawlURL to this queue given a URL and a PageClass name.
+	 * <br> The PageClass must be reachable from the root PageClass of this queue.
+	 * @param url the URL to add
+	 * @param className the PageClass name 
+	 * @return true if the resulting CrawlURL was added to this queue, false if it was already visited
+	 */
+	public boolean add(String url, String className) {
+		PageClass pclass = root.getDescendant(className);
+		CrawlURL curl = getCrawlUrl(url, pclass);
+		return this.add(curl);
 	}
 	
 	/**
@@ -138,7 +161,6 @@ public class CrawlQueue {
 			CsvWriter writer = new CsvWriter(new FileWriter(STORAGE, true), '\t');
 			writer.write(curl.getRelativeUrl());
 			writer.write(curl.getPageClass().getName());
-			writer.write(curl.getFilePath()); // TODO: temp
 			writer.endRecord();
 			writer.flush();
 			writer.close();	
@@ -163,11 +185,10 @@ public class CrawlQueue {
 			while (reader.readRecord()) {
 				String relativeURL = reader.get(0);
 				String name = reader.get(1);
-				String file = reader.get(2);
 				if (count>0) {
 					PageClass pclass = root.getDescendant(name);
-					String url = domain + relativeURL;
-					urls.add(getCrawlUrl(new OutgoingLink(url,file),pclass));
+					String url = root.getDomain() + relativeURL;
+					urls.add(getCrawlUrl(url,pclass));
 					count--;
 				}
 				else writer.writeRecord(reader.getValues());
