@@ -2,8 +2,6 @@ package it.uniroma3.crawler.actors.frontier;
 
 import static it.uniroma3.crawler.util.Commands.*;
 
-import java.util.LinkedList;
-import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -13,6 +11,7 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Creator;
 import akka.persistence.AbstractPersistentActor;
+import akka.persistence.RecoveryCompleted;
 import it.uniroma3.crawler.actors.CrawlDataWriter;
 import it.uniroma3.crawler.actors.CrawlFetcher;
 import it.uniroma3.crawler.messages.StoreURLMsg;
@@ -26,7 +25,6 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 
 	private CrawlQueue queue;
 	private ActorRef writer;
- 	private Queue<ActorRef> requesters;
 	private Random random;
 	private int maxPages;
 	private int pageCount;
@@ -54,8 +52,14 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 		return Props.create(CrawlFrontier.class, new InnerProps(fetchers,maxPages,size, pclass));
 	}
 	
+	static class CompletedURL {
+		public final String url;
+		public CompletedURL(String url) {
+			this.url = url;
+		}
+	}
+	
 	private CrawlFrontier() {
-		this.requesters = new LinkedList<>();
 		this.random = new Random();
 		this.pageCount = 0;
 		this.isEnding = false;
@@ -79,7 +83,9 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 	public Receive createReceiveRecover() {
 		return receiveBuilder()
 		.matchEquals(NEXT, n -> queue.next())
-		.match(StoreURLMsg.class, msg -> queue.add(msg.getURL(), msg.getPageClass()))
+		.match(StoreURLMsg.class, ev -> queue.add(ev.getURL(), ev.getPageClass()))
+		.match(CompletedURL.class, ev -> queue.removeProcessed(ev.url))
+		.match(RecoveryCompleted.class, ev -> queue.recoverInProcessURLs())
 		.build();
 	}
 	
@@ -100,8 +106,8 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 		}
 		
 		persist(msg, (StoreURLMsg ev) -> {
-			if (queue.add(ev.getURL(), ev.getPageClass()) && !requesters.isEmpty()) 
-				self().tell(NEXT, requesters.poll());
+			boolean added = queue.add(ev.getURL(), ev.getPageClass());
+			if (added) context().system().eventStream().publish(NEW_URL);
 		});
 	}
 		
@@ -112,7 +118,7 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 		}
 		
 		if (queue.isEmpty()) {
-			requesters.add(sender()); // waiting for a URL
+			context().system().eventStream().subscribe(sender(), Short.class);
 			return;
 		}
 		
@@ -133,6 +139,8 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 	private void handleOldCURL(OldURLMsg msg) {
 		CrawlURL curl = msg.getURL();
 		writer.tell(curl, self());
+		CompletedURL event = new CompletedURL(curl.getStringUrl());
+		persist(event, (CompletedURL ev) -> queue.removeProcessed(ev.url));
 	}
 	
 	private void terminate() {

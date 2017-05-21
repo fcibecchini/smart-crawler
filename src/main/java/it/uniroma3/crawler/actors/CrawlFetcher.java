@@ -48,7 +48,11 @@ public class CrawlFetcher extends AbstractLoggingActor {
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-		.matchEquals(START, msg -> context().parent().tell(NEXT, getSelf()))
+		.matchEquals(START, msg -> context().parent().tell(NEXT, self()))
+		.matchEquals(NEW_URL, msg -> { 
+			context().parent().tell(NEXT, self());
+			context().system().eventStream().unsubscribe(self());
+		})
 		.match(CrawlURL.class, this::fetchRequest)
 		.match(ResultMsg.class, this::fetchHandle)
 		.build();

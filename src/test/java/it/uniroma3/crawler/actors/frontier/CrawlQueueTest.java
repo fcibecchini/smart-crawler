@@ -42,7 +42,7 @@ public class CrawlQueueTest {
 	
 	@Test
 	public void testIsEmpty() {
-		queue = new CrawlQueue(1);
+		queue = new CrawlQueue(1, pclass);
 		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost/test",pclass);
 		
@@ -54,7 +54,7 @@ public class CrawlQueueTest {
 	
 	@Test
 	public void testSize() {
-		queue = new CrawlQueue(2);
+		queue = new CrawlQueue(2, pclass);
 		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost/test2",pclass);
 		CrawlURL curl3 = getCrawlUrl("http://localhost/test3",pclass);
@@ -76,7 +76,7 @@ public class CrawlQueueTest {
 
 	@Test
 	public void testAdd_allInMemory() {
-		queue = new CrawlQueue(2);
+		queue = new CrawlQueue(2, pclass);
 
 		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost/test",pclass);
@@ -89,7 +89,7 @@ public class CrawlQueueTest {
 	
 	@Test
 	public void testAdd_duplticateUrls() {
-		queue = new CrawlQueue(2);
+		queue = new CrawlQueue(2, pclass);
 
 		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost",pclass);
@@ -106,7 +106,7 @@ public class CrawlQueueTest {
 	
 	@Test
 	public void testAdd_urlsWithQuery() {
-		queue = new CrawlQueue(4);
+		queue = new CrawlQueue(4, pclass);
 
 		CrawlURL curl1 = getCrawlUrl("http://localhost/directory",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost/directory?query=true&test=1",pclass);
@@ -119,7 +119,7 @@ public class CrawlQueueTest {
 	
 	@Test
 	public void testAdd_storeOnFile() throws IOException {
-		queue = new CrawlQueue(2);
+		queue = new CrawlQueue(2, pclass);
 
 		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost/test",pclass);
@@ -138,7 +138,7 @@ public class CrawlQueueTest {
 	
 	@Test
 	public void testNext_allInMemory() {
-		queue = new CrawlQueue(2);
+		queue = new CrawlQueue(2, pclass);
 
 		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost/test",pclass2);
@@ -157,7 +157,7 @@ public class CrawlQueueTest {
 	
 	@Test
 	public void testNext_retrieveFromFile() throws IOException {
-		queue = new CrawlQueue(1);
+		queue = new CrawlQueue(1, pclass);
 
 		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost/test",pclass2);
@@ -178,7 +178,7 @@ public class CrawlQueueTest {
 	
 	@Test
 	public void testNext_retrieveFromFile2() {
-		queue = new CrawlQueue(4);
+		queue = new CrawlQueue(4, pclass);
 
 		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost/2",pclass2);

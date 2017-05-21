@@ -9,7 +9,9 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -38,16 +40,15 @@ public class CrawlQueue {
 	private int sizeStorage;
 	private Set<String> visited;
 	private PageClass root;
-	private TreeSet<CrawlURL> urls;
+	private TreeSet<CrawlURL> urls; // discovered URLs 
 	
-	/**
-	 * Constructs a new CrawlQueue with the given maximum in-memory capacity 
-	 * @param max the max number of elements that can be stored in memory
-	 */
-	public CrawlQueue(int max) {
+	private Collection<CrawlURL> inProcessURLs; // URLs currently being processed by the Crawler
+	
+	private CrawlQueue(int max) {
 		this.max = max;
 		this.visited = new HashSet<>();
 		this.urls = new TreeSet<>();
+		this.inProcessURLs = new LinkedList<>();
 	}
 	
 	/**
@@ -64,46 +65,29 @@ public class CrawlQueue {
 	}
 	
 	/**
-	 * Poll the top-priority (in memory) {@link CrawlURL} from this queue.
+	 * Retrieves the next top-priority (in memory) {@link CrawlURL} from this queue.
 	 * <br>
 	 * Due to the low-efficient implementation of the persistent-side of this queue, 
 	 * there could be elements more important then the one returned in the persistent-side. 
 	 * @return the (in memory) top-priority CrawlURL
 	 */
 	public CrawlURL next() {
-		if (urls.isEmpty()) {
-			if (sizeStorage>0) dequeue(max);
-			else return null;
-		}
+		if (urls.isEmpty() && sizeStorage>0)
+			dequeue(max-inProcessURLs.size());
+		
 		CrawlURL next = urls.pollFirst();
+		inProcessURLs.add(next);
 		return next;
 	}
 	
 	/**
-	 * Adds the given {@link CrawlURL} to this queue if it has not been visited. 
+	 * Adds the given {@link CrawlURL} to this queue if it has not been visited yet. 
 	 * @param curl CrawlURL
 	 * @return true if the CrawlURL was added to this queue, false if it was already visited
 	 */
 	public boolean add(CrawlURL curl) {
-		if (root==null) {
-			root = curl.getPageClass();
-		}
-		String cs = checksum(curl.getRelativeUrl());
-		if (!visited.contains(cs)) {
-			visited.add(cs);
-			
-			if (urls.size()<max)
-				urls.add(curl);
-			else {
-				CrawlURL toStore = curl;
-				CrawlURL last = urls.last();
-				if (curl.compareTo(last)<=-1) {
-					urls.pollLast();
-					urls.add(curl);
-					toStore = last;
-				}
-				enqueue(toStore);
-			}
+		if (testAndSetVisited(curl)) {
+			addToQueue(curl);
 			return true;
 		}
 		return false;
@@ -140,7 +124,7 @@ public class CrawlQueue {
 	}
 	
 	/**
-	 * Deletes the current Storage file if it exists
+	 * Deletes the current Storage file if exists
 	 * @return true if the Storage was deleted, false otherwise
 	 */
 	public boolean deleteStorage() {
@@ -151,6 +135,46 @@ public class CrawlQueue {
 		}
 	}
 	
+	/**
+	 * Sets that the given URL has completed his process chain and removes it from the queue.
+	 * @param url The String URL to be removed
+	 */
+	public void removeProcessed(String url) {
+		for (CrawlURL curl : inProcessURLs) {
+			if (curl.getStringUrl().equals(url)) {
+				inProcessURLs.remove(curl);
+				return;
+			}
+		}
+	}
+	
+	public void recoverInProcessURLs() {
+		inProcessURLs.forEach(this::addToQueue);
+		inProcessURLs.clear();
+	}
+	
+	private boolean testAndSetVisited(CrawlURL curl) {
+		String cs = checksum(curl.getRelativeUrl());
+		boolean isNew = !visited.contains(cs);
+		if (isNew) visited.add(cs);
+		return isNew;
+	}
+	
+	private void addToQueue(CrawlURL curl) {
+		if (urls.size()+inProcessURLs.size()<max)
+			urls.add(curl);
+		else {
+			CrawlURL toStore = curl;
+			CrawlURL last = urls.last();
+			if (curl.compareTo(last)<=-1) {
+				urls.pollLast();
+				urls.add(curl);
+				toStore = last;
+			}
+			enqueue(toStore);
+		}
+	}
+	 
 	/**
 	 * Appends the given {@link CrawlURL} to the persistent-side queue.
 	 * The priority order is not preserved
