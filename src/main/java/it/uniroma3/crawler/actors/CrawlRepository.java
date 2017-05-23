@@ -33,8 +33,6 @@ public class CrawlRepository extends AbstractActor {
 			find(msg.getUrl()).forward(msg, context()))
 		.match(SaveCacheMsg.class, 
 			msg -> csvCache.forward(msg, context()))
-//		.match(ResolveLinksMsg.class,
-//			msg -> csvCache.forward(msg, context()))
 		.match(StopMsg.class, this::stopChildPage)
 		.build();
 	}

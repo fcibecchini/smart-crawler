@@ -23,7 +23,7 @@ public class CrawlQueueTest {
 	
 	@Before
 	public void setUp() {
-		storage = "src/main/resources/storage/queue.csv";
+		storage = "src/main/resources/storage/queue_localhost.csv";
 		Website website = new Website("http://localhost",0,0,false);
 		pclass = new PageClass("class1",website);
 		pclass2 = new PageClass("class2",website);
@@ -43,11 +43,10 @@ public class CrawlQueueTest {
 	@Test
 	public void testIsEmpty() {
 		queue = new CrawlQueue(1, pclass);
-		CrawlURL curl1 = getCrawlUrl("http://localhost",pclass);
 		CrawlURL curl2 = getCrawlUrl("http://localhost/test",pclass);
 		
+		queue.next(); // remove seed
 		assertTrue(queue.isEmpty());
-		queue.add(curl1);
 		queue.add(curl2);
 		assertFalse(queue.isEmpty());
 	}

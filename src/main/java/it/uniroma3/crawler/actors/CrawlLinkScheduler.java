@@ -21,15 +21,12 @@ public class CrawlLinkScheduler extends AbstractActor {
 	private void handleCURLS(CrawlURL curl) {
 		ActorSelection frontier = context().actorSelection("../../../..");
 		ActorSelection repository = context().actorSelection(REPOSITORY);
-		
-		frontier.tell(new OldURLMsg(curl), self());
-		// stop crawlPage actor for this URL
-		repository.tell(new StopMsg(curl.getStringUrl()), self());
-				
+						
 		curl.getOutLinks().stream()
 		.map(link -> new StoreURLMsg(link, curl.getOutLinkPageClass(link)))
 		.forEach(newcurl -> frontier.tell(newcurl, self()));
-		
+		repository.tell(new StopMsg(curl.getStringUrl()), self());
+		frontier.tell(new OldURLMsg(curl), self());
 	}
 
 }

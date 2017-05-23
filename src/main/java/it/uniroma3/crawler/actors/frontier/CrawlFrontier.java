@@ -3,6 +3,7 @@ package it.uniroma3.crawler.actors.frontier;
 import static it.uniroma3.crawler.util.Commands.*;
 
 import java.util.Random;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
 import akka.actor.ActorRef;
@@ -24,6 +25,7 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 	LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
 	private CrawlQueue queue;
+	private TreeSet<CrawlURL> inProcessURLs;
 	private ActorRef writer;
 	private Random random;
 	private int maxPages;
@@ -58,16 +60,12 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 			this.url = url;
 		}
 	}
-	
-	private CrawlFrontier() {
-		this.random = new Random();
-		this.pageCount = 0;
-		this.isEnding = false;
-	}
 
 	public CrawlFrontier(int fetchers, int maxPages, int size, PageClass pclass) {
-		this();
+		this.random = new Random();
+		this.isEnding = false;
 		this.queue = new CrawlQueue(size,pclass);
+		this.inProcessURLs = new TreeSet<>();
 		this.queue.deleteStorage();
 		this.maxPages = maxPages;
 		this.writer = context().actorOf(Props.create(CrawlDataWriter.class), "writer");
@@ -82,10 +80,24 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 	@Override
 	public Receive createReceiveRecover() {
 		return receiveBuilder()
-		.matchEquals(NEXT, n -> queue.next())
+		.matchEquals(NEXT, n -> { 
+			CrawlURL next = queue.next();
+			if (next!=null) inProcessURLs.add(next);
+		})
 		.match(StoreURLMsg.class, ev -> queue.add(ev.getURL(), ev.getPageClass()))
-		.match(CompletedURL.class, ev -> queue.removeProcessed(ev.url))
-		.match(RecoveryCompleted.class, ev -> queue.recoverInProcessURLs())
+		.match(CompletedURL.class, ev -> {
+			for (CrawlURL curl : inProcessURLs) {
+				if (curl.getStringUrl().equals(ev.url)) {
+					inProcessURLs.remove(curl); 
+					break;
+				}
+			}
+		})
+		.match(RecoveryCompleted.class, ev -> {
+			log.info("RECOVERING "+inProcessURLs.toString());
+			inProcessURLs.forEach(queue::recover);
+			inProcessURLs.clear();
+		})
 		.build();
 	}
 	
@@ -93,64 +105,50 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 	public Receive createReceive() {
 		return receiveBuilder()
 		.matchEquals(START, msg -> context().actorSelection("*").tell(msg, self()))
-		.matchEquals(NEXT, n -> retrieve())
-		.match(StoreURLMsg.class, this::store)
-		.match(OldURLMsg.class, this::handleOldCURL)
+		.matchEquals(NEXT, n -> {if (!end()) retrieve();})
+		.match(StoreURLMsg.class, msg -> {if (!end()) store(msg);})
+		.match(OldURLMsg.class, this::complete)
 		.build();
 	}
 	
 	private void store(StoreURLMsg msg) {
-		if (pageCount>=maxPages) {
-			terminate();
-			return;
-		}
-		
-		persist(msg, (StoreURLMsg ev) -> {
-			boolean added = queue.add(ev.getURL(), ev.getPageClass());
-			if (added) context().system().eventStream().publish(NEW_URL);
-		});
+		if (queue.add(msg.getURL(), msg.getPageClass()))
+			persist(msg, (StoreURLMsg ev) -> context().system().eventStream().publish(NEW_URL));
 	}
 		
 	private void retrieve() {
-		if (pageCount>=maxPages) {
-			terminate();
-			return;
-		}
-		
-		if (queue.isEmpty()) {
-			context().system().eventStream().subscribe(sender(), Short.class);
-			return;
-		}
-		
-		// handle request for next url to be processed
-		persist(NEXT, n -> {
-			CrawlURL next = queue.next();
-			//TODO: update page class wait time somehow
-			PageClass pClass = next.getPageClass();
-			long wait = pClass.getWaitTime() + random.nextInt(pClass.getPause());
-			context().system().scheduler().scheduleOnce(
-					Duration.create(wait, TimeUnit.MILLISECONDS),
-					sender(), next, context().dispatcher(), self());
-			pageCount++;
-			log.info(""+pageCount);
-		});
+		if (!queue.isEmpty()) 
+			persist(NEXT, ev -> sendURL(queue.next()));
+		else context().system().eventStream().subscribe(sender(), Short.class);
 	}
 	
-	private void handleOldCURL(OldURLMsg msg) {
+	private void sendURL(CrawlURL next) {
+		//TODO: update page class wait time somehow
+		PageClass pClass = next.getPageClass();
+		long wait = pClass.getWaitTime() + random.nextInt(pClass.getPause());
+		context().system().scheduler().scheduleOnce(
+				Duration.create(wait, TimeUnit.MILLISECONDS),
+				sender(), next, context().dispatcher(), self());
+		log.info(""+(++pageCount));
+	}
+	
+	private void complete(OldURLMsg msg) {
 		CrawlURL curl = msg.getURL();
 		writer.tell(curl, self());
 		CompletedURL event = new CompletedURL(curl.getStringUrl());
-		persist(event, (CompletedURL ev) -> queue.removeProcessed(ev.url));
+		persist(event, ev -> {});
 	}
 	
-	private void terminate() {
-		if (!isEnding) {
+	private boolean end() {
+		boolean end = pageCount>=maxPages;
+		if (end && !isEnding) {
 			context().system().scheduler().scheduleOnce(
 					Duration.create(60, TimeUnit.SECONDS), 
 					context().parent(), STOP, context().dispatcher(), self());
 			isEnding = true; // job is done..
 			log.info("Max Page Count "+pageCount+" reached: ending...");
 		}
+		return end;
 	}
 	
 	private void createFetchers(int n) {

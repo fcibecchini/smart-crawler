@@ -9,9 +9,7 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -23,6 +21,7 @@ import com.csvreader.CsvWriter;
 import static it.uniroma3.crawler.factories.CrawlURLFactory.getCrawlUrl;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.util.FileUtils;
 
 /**
  * A CrawlQueue is a queue of priority-ordered {@link CrawlURL} elements <b>of the same Host</b> with a fixed-size
@@ -33,23 +32,14 @@ import it.uniroma3.crawler.model.PageClass;
  */
 public class CrawlQueue {
 	private static Logger log = Logger.getLogger(CrawlQueue.class.getName());
-	private final static String STORAGE = "src/main/resources/storage/queue.csv";
-	private final static String TEMP = STORAGE+"~";
+	private String storage;
+	private String temp;
 
 	private int max;
 	private int sizeStorage;
 	private Set<String> visited;
 	private PageClass root;
 	private TreeSet<CrawlURL> urls; // discovered URLs 
-	
-	private Collection<CrawlURL> inProcessURLs; // URLs currently being processed by the Crawler
-	
-	private CrawlQueue(int max) {
-		this.max = max;
-		this.visited = new HashSet<>();
-		this.urls = new TreeSet<>();
-		this.inProcessURLs = new LinkedList<>();
-	}
 	
 	/**
 	 * Constructs a new CrawlQueue with the given maximum in-memory capacity<br>
@@ -59,9 +49,14 @@ public class CrawlQueue {
 	 * @param root the root PageClass of a web site
 	 */
 	public CrawlQueue(int max, PageClass root) {
-		this(max);
+		this.max = max;
+		this.visited = new HashSet<>();
+		this.urls = new TreeSet<>();
 		this.root = root;
 		this.add(getCrawlUrl(root.getDomain(), root));
+		this.storage = "src/main/resources/storage/queue_"
+				+FileUtils.normalizeURL(root.getDomain())+".csv";
+		this.temp = storage+"~";
 	}
 	
 	/**
@@ -69,14 +64,12 @@ public class CrawlQueue {
 	 * <br>
 	 * Due to the low-efficient implementation of the persistent-side of this queue, 
 	 * there could be elements more important then the one returned in the persistent-side. 
-	 * @return the (in memory) top-priority CrawlURL
+	 * @return the (in memory) top-priority CrawlURL, or null if the queue is empty
 	 */
 	public CrawlURL next() {
-		if (urls.isEmpty() && sizeStorage>0)
-			dequeue(max-inProcessURLs.size());
-		
+		if (urls.isEmpty() && sizeStorage>0) 
+			dequeue(max);		
 		CrawlURL next = urls.pollFirst();
-		inProcessURLs.add(next);
 		return next;
 	}
 	
@@ -93,7 +86,6 @@ public class CrawlQueue {
 		return false;
 	}
 	
-	
 	/**
 	 * Convenience method to add a CrawlURL to this queue given a URL and a PageClass name.
 	 * <br> The PageClass must be reachable from the root PageClass of this queue.
@@ -105,6 +97,14 @@ public class CrawlQueue {
 		PageClass pclass = root.getDescendant(className);
 		CrawlURL curl = getCrawlUrl(url, pclass);
 		return this.add(curl);
+	}
+	
+	/**
+	 * Convenience method to re-add a previously visited CrawlURL to the queue.
+	 * @param curl CrawlURL
+	 */
+	public void recover(CrawlURL curl) {
+		addToQueue(curl);
 	}
 	
 	/**
@@ -129,28 +129,10 @@ public class CrawlQueue {
 	 */
 	public boolean deleteStorage() {
 		try {
-			return Files.deleteIfExists(Paths.get(STORAGE));
+			return Files.deleteIfExists(Paths.get(storage));
 		} catch (IOException e) {
 			return false;
 		}
-	}
-	
-	/**
-	 * Sets that the given URL has completed his process chain and removes it from the queue.
-	 * @param url The String URL to be removed
-	 */
-	public void removeProcessed(String url) {
-		for (CrawlURL curl : inProcessURLs) {
-			if (curl.getStringUrl().equals(url)) {
-				inProcessURLs.remove(curl);
-				return;
-			}
-		}
-	}
-	
-	public void recoverInProcessURLs() {
-		inProcessURLs.forEach(this::addToQueue);
-		inProcessURLs.clear();
 	}
 	
 	private boolean testAndSetVisited(CrawlURL curl) {
@@ -161,7 +143,7 @@ public class CrawlQueue {
 	}
 	
 	private void addToQueue(CrawlURL curl) {
-		if (urls.size()+inProcessURLs.size()<max)
+		if (urls.size()<max)
 			urls.add(curl);
 		else {
 			CrawlURL toStore = curl;
@@ -182,7 +164,7 @@ public class CrawlQueue {
 	 */
 	private void enqueue(CrawlURL curl) {		
 		try {
-			CsvWriter writer = new CsvWriter(new FileWriter(STORAGE, true), '\t');
+			CsvWriter writer = new CsvWriter(new FileWriter(storage, true), '\t');
 			writer.write(curl.getRelativeUrl());
 			writer.write(curl.getPageClass().getName());
 			writer.endRecord();
@@ -204,8 +186,8 @@ public class CrawlQueue {
 	private void dequeue(int quantity) {
 		int count = quantity;
 		try {
-			CsvWriter writer = new CsvWriter(new FileWriter(TEMP), '\t');
-			CsvReader reader = new CsvReader(STORAGE, '\t');
+			CsvWriter writer = new CsvWriter(new FileWriter(temp), '\t');
+			CsvReader reader = new CsvReader(storage, '\t');
 			while (reader.readRecord()) {
 				String relativeURL = reader.get(0);
 				String name = reader.get(1);
@@ -220,7 +202,7 @@ public class CrawlQueue {
 			reader.close();
 			writer.flush();
 			writer.close();
-			Files.move(Paths.get(TEMP), Paths.get(STORAGE), REPLACE_EXISTING);
+			Files.move(Paths.get(temp), Paths.get(storage), REPLACE_EXISTING);
 			
 			sizeStorage -= (quantity-count);
 		} catch (IOException ie) {
