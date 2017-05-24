@@ -22,6 +22,8 @@ public class StaticModeler extends AbstractLoggingActor implements WebsiteModele
 	private String configFile;
 	
 	static class InnerProps implements Creator<StaticModeler> {
+		private static final long serialVersionUID = 1L;
+		
 		private Website website;
 		private int wait;
 		private String config;

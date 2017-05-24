@@ -1,6 +1,5 @@
 package it.uniroma3.crawler.util;
 
-import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -41,16 +40,6 @@ public class HtmlUtils {
 		return entry;
 	}
 	
-	public static String getWebResponse(String url, WebClient client) throws Exception {
-		final HtmlPage entry = client.getPage(url);
-		return entry.getWebResponse().getContentAsString();
-	}
-	
-	public static String getXmlPage(String url, WebClient client) throws Exception {
-		final HtmlPage entry = client.getPage(url);
-		return entry.asXml();
-	}
-	
 	public static HtmlPage restorePage(String htmlSrc, URI url) throws Exception {
 		StringWebResponse response = new StringWebResponse(htmlSrc, url.toURL());
 		WebClient client = makeWebClient();
@@ -74,44 +63,6 @@ public class HtmlUtils {
 		}
 	}
 	
-	public static URL getURL(String base, String relative) {
-		try {
-			URL baseUrl = new URL(base);
-			URL url = new URL(baseUrl, relative);
-			return url;
-		} catch (MalformedURLException e) {
-			return null;
-		}
-	}
-	
-	public static String getCachedURL(String root, URL url) {
-		String file = url.getPath();
-		if (url.getQuery() != null) file += transformURLQuery(url.getQuery());
-		String result = new File(root + file + ".html").toURI().toString();
-		return result;
-	}
-	
-	public static String getCachedURL(String root, String base, String relative) {
-		String result;
-		try {
-			URL baseUrl = new URL(base);
-			URL url = new URL(baseUrl, relative);
-			result = getCachedURL(root, url);
-		} catch (MalformedURLException e) {
-			result = "";
-		}
-		return result;
-	}
-	
-	public static String transformURLQuery(String queryString) {
-		String subPath = "";
-		String[] query = queryString.split("&");
-		for (String param : query) {
-			subPath += param.replaceAll("=|%", "_");
-		}
-		return subPath;
-	}
-	
 	public static String transformURL(String url) {
 		String newUrl = url.toLowerCase();
 		if (newUrl.endsWith("/")) 
@@ -120,14 +71,12 @@ public class HtmlUtils {
 	}
 	
 	public static boolean isValidURL(String base, String href) {
-		if (href.startsWith("http") && !href.startsWith(base))
-			return false;
-		if (href.contains("javascript") 
-				|| href.contains("crawler") 
-				|| href.contains("@") 
-				|| href.contains("#"))
-			return false;
-		return true;
+		return !href.contains("javascript") 
+				&& !href.contains("crawler") 
+				&& !href.contains("@") 
+				&& !href.contains("#")
+				&& (!href.startsWith("http") 
+					|| href.startsWith(base));
 	}
 
 }

@@ -11,7 +11,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 
 public class CandidatePageClass implements Comparable<CandidatePageClass> {
-	private String baseUrl;
 	private String name;
 	private Set<Page> classPages;
 	private Set<String> classSchema;
@@ -22,13 +21,9 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 		this.classSchema = new HashSet<>();
 	}
 	
-	public CandidatePageClass(String name, String base) {
+	public CandidatePageClass(String name, List<Page> pages) {
 		this(name);
-		this.baseUrl = base;
-	}
-	
-	public String getBaseUrl() {
-		return this.baseUrl;
+		pages.forEach(this::addPageToClass);
 	}
 	
 	public String getName() {
@@ -40,7 +35,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	}
 	
 	public void addPageToClass(Page p) {
-		p.getSchema().forEach(xp -> classSchema.add(xp));
+		p.getSchema().forEach(classSchema::add);
 		this.classPages.add(p);
 	}
 	
@@ -61,7 +56,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	}
 	
 	public void collapse(CandidatePageClass c2) {
-		c2.getClassPages().forEach(p -> this.addPageToClass(p));
+		c2.getClassPages().forEach(this::addPageToClass);
 	}
 	
 	public boolean containsXPath(String xpath) {
@@ -147,7 +142,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	}
 	
 	public String toString() {
-		return getName();
+		return getName()+" "+classPages.toString();
 	}
  
 	public int hashCode() {

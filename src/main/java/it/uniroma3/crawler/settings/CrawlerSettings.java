@@ -13,6 +13,7 @@ public class CrawlerSettings implements Extension {
 	public final int fetchers;
 	public final int pages;
 	public final int frontierheap;
+	public final boolean modelOnly;
 	
 	public static class SeedConfig {
 		public final String file;
@@ -40,6 +41,7 @@ public class CrawlerSettings implements Extension {
 		fetchers = config.getInt("crawler.crawling.fetchers");
 		pages = config.getInt("crawler.crawling.pages");
 		frontierheap = config.getInt("crawler.crawling.frontierheap");
+		modelOnly = config.getBoolean("crawler.modelonly");
 	}
 	
 	private SeedConfig seedConfig(String site, Config config) {

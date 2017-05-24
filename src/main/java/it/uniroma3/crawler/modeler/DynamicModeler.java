@@ -3,6 +3,8 @@ package it.uniroma3.crawler.modeler;
 import static it.uniroma3.crawler.util.HtmlUtils.*;
 import static it.uniroma3.crawler.util.XPathUtils.*;
 import static it.uniroma3.crawler.util.Commands.*;
+
+import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
 import java.io.FileWriter;
@@ -34,6 +36,7 @@ import it.uniroma3.crawler.model.Page;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.model.Website;
 import it.uniroma3.crawler.model.WebsiteModel;
+import it.uniroma3.crawler.util.FileUtils;
 import scala.concurrent.duration.Duration;
 
 public class DynamicModeler extends AbstractLoggingActor implements WebsiteModeler {
@@ -46,24 +49,19 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 	private int maxPages; // max number of pages used to infer the web site model
 	private WebClient client;
 	private Set<String> visitedURLs; // set of visited URLs for duplicate removal
-	private int fetched; // number of currently fetched pages
-	private int classes; // number of currently created classes
+	private int fetched; // total number of fetched pages
+	private int classes; // total number of created classes
 	
 	private Queue<LinkCollection> queue; // queue of discovered Links Collections
-	
 	private Set<LinkCollection> visitedColl; // A set of already visited link collections
-	
 	private Map<String, HtmlPage> currentPages; // map{url -> HtmlPage} of currently fetched pages
-	
 	private LinkCollection currentCollection; // current collection being fetched
-	
 	private TreeSet<String> currentLinks; // current Links Set being fetched
+	private int max; // max URLs fetched per collection
+	private int counter; // current number of URLs fetched
 	
-	int max; // max URLs fetched per collection
-	
-	int counter; // current number of URLs fetched
-
 	static class InnerProps implements Creator<DynamicModeler> {
+		private static final long serialVersionUID = 1L;
 		private Website website;
 		private int wait, maxPages;
 		
@@ -87,14 +85,11 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 		this.website = website;
 		this.wait = wait;
 		this.maxPages = maxPages;
-		
 		client = makeWebClient(website.isJavascript());
+		
 		model = new WebsiteModel();
 		visitedURLs = new HashSet<>();
-		classes = 1;
-		fetched = 0;
 		max = 3;
-		counter = 0;
 		queue = new PriorityQueue<>();
 		visitedColl = new HashSet<>();
 		currentPages = new HashMap<>();
@@ -113,11 +108,8 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 	}
 	
 	private void start() {
-		String domain = website.getDomain();
-				
 		// Feed queue with seed
-		queue.add(new LinkCollection(domain));
-		
+		queue.add(new LinkCollection(website.getDomain()));
 		self().tell(POLL, self());
 	}
 	
@@ -125,17 +117,14 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 		currentCollection = queue.poll();
 		log().info("Parent Page: "+currentCollection.getParent()+", "+currentCollection.size()+" total links");
 		currentLinks = new TreeSet<>(currentCollection.getLinks());
-
 		self().tell(FETCH, self());
 	}
 	
 	private void fetch() {
 		if (!currentLinks.isEmpty() && counter < max) {
 			String url = currentLinks.pollFirst();
-			// normalize URL for validity checks
 			String normURL = transformURL(url);
-			String normSite = transformURL(website.getDomain());
-			if (visitedURLs.contains(normURL) || normURL.isEmpty() || !isValidURL(normSite, normURL))
+			if (visitedURLs.contains(normURL) || normURL.isEmpty() || !isValidURL(website.getDomain(), normURL))
 				self().tell(FETCH, self()); // try next..
 			else {
 				try {
@@ -164,23 +153,23 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 			self(), FETCH, context().dispatcher(), self());
 	}
 	
-	private void update() {		
+	private void update() {
 		Set<Page> newPages = makePages();
-		List<CandidatePageClass> candidates = clusterPages(newPages);
-		
-		// fetch all links if they are from different classes
-		if (candidates.size() > 1 && !currentLinks.isEmpty()) {
-			log().info("MENU DETECTED: FETCHING ALL URLS IN LINK COLLECTION...");
-			queue.add(currentCollection);
-			max = currentCollection.size();
-			fetched -= newPages.size(); // reset counter
+		if (!newPages.isEmpty()) {
+			List<CandidatePageClass> candidates = clusterPages(newPages);
+			// fetch all links if they are from different classes
+			if (candidates.size() > 1 && !currentLinks.isEmpty()) {
+				log().info("MENU DETECTED: FETCHING ALL URLS IN LINK COLLECTION...");
+				queue.add(currentCollection);
+				max = currentCollection.size();
+				fetched -= newPages.size(); // reset counter
+			}
+			else {
+				updateModel(candidates);
+				queue.addAll(newLinks(newPages));
+				newPages.forEach(p -> visitedURLs.add(transformURL(p.getUrl())));
+			}
 		}
-		else {
-			updateModel(candidates);
-			queue.addAll(newLinks(newPages));
-			newPages.forEach(p -> visitedURLs.add(transformURL(p.getUrl())));
-		}
-		
 		if (!queue.isEmpty() && fetched < maxPages)
 			self().tell(POLL, self());
 		else
@@ -188,8 +177,10 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 	}
 	
 	private void finalizeModel() {
+		log().info("FINALIZING MODEL...");
 		client.close();
 		PageClass entryClass = compute();
+		log().info("END");
 		context().parent().tell(entryClass, self());
 	}
 	
@@ -209,45 +200,28 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 	// Candidate class selection
 	// Collapse classes with similar structure
 	private List<CandidatePageClass> clusterPages(Set<Page> pages) {
-				
-		Set<CandidatePageClass> candidates = new HashSet<>();
+		List<CandidatePageClass> candidates =
+			pages.stream()
+			.collect(groupingBy(Page::getSchema)).values().stream()
+			.map(p -> new CandidatePageClass("class"+(++classes),p))
+			.sorted((c1,c2) -> c2.size()-c1.size())
+			.collect(toList());
 		
-		for (Page page : pages) {
-
-			CandidatePageClass group = candidates.stream()
-					.filter(cand -> cand.getClassSchema().equals(page.getSchema()))
-					.findAny().orElse(null);
-			if (group != null)
-				group.addPageToClass(page);
-			else {
-				CandidatePageClass newClass = 
-						new CandidatePageClass("class"+(classes++), website.getDomain());
-				page.getSchema().forEach(xp -> newClass.addXPathToSchema(xp));
-									
-				newClass.addPageToClass(page);
-				candidates.add(newClass);
-			}
-			
-		}
-				
-		List<CandidatePageClass> orderedCandidates = candidates.stream()
-				.sorted((cc1, cc2) -> cc2.getClassPages().size() - cc1.getClassPages().size())
-				.collect(toList());
-		
-		Set<CandidatePageClass> toRemove = new HashSet<>();
-		for (int i = 0; i < orderedCandidates.size(); i++) {
-			for (int j = orderedCandidates.size() - 1; j > i; j--) {
-				CandidatePageClass ci = orderedCandidates.get(i);
-				CandidatePageClass cj = orderedCandidates.get(j);
-				if (ci.distance(cj) < 0.2) {
-					ci.collapse(cj);
-					toRemove.add(cj);
+		Set<CandidatePageClass> deleted = new HashSet<>();
+		for (int i = 0; i < candidates.size(); i++) {
+			for (int j = candidates.size() - 1; j > i; j--) {
+				CandidatePageClass ci = candidates.get(i);
+				CandidatePageClass cj = candidates.get(j);
+				if (!deleted.contains(ci) && !deleted.contains(cj)) {
+					if (ci.distance(cj) < 0.2) {
+						ci.collapse(cj);
+						deleted.add(cj);
+					}
 				}
 			}
 		}
-		orderedCandidates.removeAll(toRemove);
-
-		return orderedCandidates;
+		candidates.removeAll(deleted);
+		return candidates;
 	}
 	
 	// Update Model
@@ -261,8 +235,7 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 
 			double mergeLength = Double.MAX_VALUE;
 			for (CandidatePageClass cInModel : model.getModel()) {
-				CandidatePageClass tempClass = 
-						new CandidatePageClass(cInModel.getName(), website.getDomain());
+				CandidatePageClass tempClass = new CandidatePageClass(cInModel.getName());
 				tempClass.collapse(candidate);
 				tempClass.collapse(cInModel);
 
@@ -287,10 +260,7 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 	}
 	
 	private void logModel(Set<PageClass> pClasses) {
-		String sitename = website.getDomain()
-				.replaceAll("http[s]?://(www.)?|/", "")
-				.replaceAll("\\.|:", "_");
-		String target = LOG+"/"+sitename+"_target.csv";
+		String target = LOG+"/"+FileUtils.normalizeURL(website.getDomain())+"_target.csv";
 		
 		try {
 			Path dirPath = Paths.get(LOG);
@@ -304,7 +274,7 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 			csv.close();
 		} 
 		catch (IOException e) {
-			log().error("IOException while logging model");
+			log().error("IOException :"+e.getMessage());
 		}
 	}
 	

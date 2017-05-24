@@ -66,8 +66,6 @@ public class CrawlPage extends AbstractLoggingActor {
 			String baseUrl = msg.getBaseUrl();
 			HtmlPage html = restorePageFromFile(msg.getHtmlPath(), URI.create(baseUrl));
 			Map<String, List<String>> outLinks = getOutLinks(html, baseUrl, msg.getNavXPaths());
-			//ResolveLinksMsg question = new ResolveLinksMsg(outLinks);
-			//context().parent().tell(question, sender());
 			sender().tell(new ExtractedLinksMsg(outLinks), self());
 		} catch (Exception e) {
 			//TODO: improve exception handling
@@ -136,5 +134,14 @@ public class CrawlPage extends AbstractLoggingActor {
 	private List<String> getDataRecord(HtmlPage html, Collection<DataType> dataTypes) {		
 		List<String> record = dataTypes.stream().map(dt -> dt.extract(html)).collect(toList());
 		return record;
+	}
+	
+	public String transformURLQuery(String queryString) {
+		String subPath = "";
+		String[] query = queryString.split("&");
+		for (String param : query) {
+			subPath += param.replaceAll("=|%", "_");
+		}
+		return subPath;
 	}
 }

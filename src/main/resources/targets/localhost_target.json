@@ -1,0 +1,98 @@
+{
+	"graph": {
+		"label": "http://localhost:8081",
+		"nodes": [
+			{
+				"id": "home"
+			},
+			{
+				"id": "dir1"
+			},
+			{
+				"id": "dir2"
+			},
+			{
+				"id": "table"
+			},
+			{
+				"id": "about"
+			},
+			{
+				"id": "detail"
+			}
+		],
+		"edges": [{
+				"source": "home",
+				"relation": "menu",
+				"target": "dir1",
+				"label": "(//ul[@id='menu']/li/a)[1]"
+			},
+			{
+				"source": "home",
+				"relation": "menu",
+				"target": "dir2",
+				"label": "(//ul[@id='menu']/li/a)[2]"
+			},
+			{
+				"source": "home",
+				"relation": "menu",
+				"target": "table",
+				"label": "(//ul[@id='menu']/li/a)[3]"
+			},
+			{
+				"source": "home",
+				"relation": "menu",
+				"target": "about",
+				"label": "(//ul[@id='menu']/li/a)[4]"
+			},
+			{
+				"source": "dir2",
+				"relation": "list",
+				"target": "detail",
+				"label": "//div[@id='content']/ul/li/a"
+			},
+			{
+				"source": "dir1",
+				"relation": "singleton",
+				"target": "dir1",
+				"label": "//a[@id='page']"
+			},
+			{
+				"source": "dir1",
+				"relation": "list",
+				"target": "detail",
+				"label": "//div[@id='content']/ul/li/a"
+			},
+			{
+				"source": "detail",
+				"relation": "menu",
+				"target": "dir1",
+				"label": "(//div[@id='content']/div[@class]/ul/li/a)[1]"
+			},
+			{
+				"source": "detail",
+				"relation": "menu",
+				"target": "dir2",
+				"label": "(//div[@id='content']/div[@class]/ul/li/a)[2]"
+			},
+			{
+				"source": "detail",
+				"relation": "string",
+				"target": "detail",
+				"label": "//h1/text()"
+			},
+			{
+				"source": "table",
+				"relation": "string",
+				"target": "table",
+				"label": "//h1/text()"
+			},
+			{
+				"source": "about",
+				"relation": "string",
+				"target": "about",
+				"label": "//p/text()"
+			}
+		]
+	}
+}

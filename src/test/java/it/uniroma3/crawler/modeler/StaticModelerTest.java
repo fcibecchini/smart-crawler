@@ -8,11 +8,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Props;
 import akka.testkit.javadsl.TestKit;
-import it.uniroma3.crawler.messages.ModelMsg;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
@@ -24,16 +21,11 @@ public class StaticModelerTest {
 	public static void setup() {
 		String file = System.class.getResource("/targets/target_test.csv").getPath();
 		system = ActorSystem.create("ModelerTest");
-		new TestKit(system) {{
-			final ActorRef crawlModeler = system.actorOf(Props.create(CrawlModeler.class));
-			final ActorRef probe = getRef();
-				
-			SeedConfig conf = new SeedConfig(file, 0, false, 2000, 1000, 2);
-
-			crawlModeler.tell(new ModelMsg("http://www.proz.com", conf), probe);
-
-			root = expectMsgClass(duration("60 seconds"), PageClass.class);
-		}};
+		TestKit parent = new TestKit(system);
+		SeedConfig conf = new SeedConfig(file, 0, false, 2000, 1000, 2);
+		String site = "http://www.proz.com";
+		parent.childActorOf(CrawlModeler.props(site, conf));
+		root = parent.expectMsgClass(parent.duration("60 seconds"), PageClass.class);
 	}
 
 	@AfterClass
