@@ -60,7 +60,7 @@ public class CrawlController extends AbstractLoggingActor {
     		Props props = CrawlModeler.props(site, conf)
     				.withDeploy(new Deploy(new RemoteScope(addr)));
     		context().actorOf(props, "modeler_"+name);
-    		i = (i++) % n;
+    		i = (i+1) % n;
     	}
     }
     
