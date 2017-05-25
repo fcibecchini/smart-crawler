@@ -31,6 +31,10 @@ public class WebsiteModel {
 		this.modelClasses.clear();
 	}
 	
+	public boolean isEmpty() {
+		return this.modelClasses.isEmpty();
+	}
+	
 	public Set<CandidatePageClass> getModel() {
 		return modelClasses;
 	}

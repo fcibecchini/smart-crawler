@@ -41,6 +41,7 @@ import scala.concurrent.duration.Duration;
 
 public class DynamicModeler extends AbstractLoggingActor implements WebsiteModeler {
 	private final static String LOG = "src/main/resources/targets";
+	private final static int MAX = 3;
 	private CsvWriter csv;
 	
 	private Website website;
@@ -54,9 +55,9 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 	
 	private Queue<LinkCollection> queue; // queue of discovered Links Collections
 	private Set<LinkCollection> visitedColl; // A set of already visited link collections
-	private Map<String, HtmlPage> currentPages; // map{url -> HtmlPage} of currently fetched pages
-	private LinkCollection currentCollection; // current collection being fetched
-	private TreeSet<String> currentLinks; // current Links Set being fetched
+	private Map<String, HtmlPage> htmlPages; // map{url -> HtmlPage} of currently fetched pages
+	private LinkCollection collection; // current collection being fetched
+	private TreeSet<String> links; // current Links Set being fetched
 	private int max; // max URLs fetched per collection
 	private int counter; // current number of URLs fetched
 	
@@ -89,10 +90,10 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 		
 		model = new WebsiteModel();
 		visitedURLs = new HashSet<>();
-		max = 3;
+		max = MAX;
 		queue = new PriorityQueue<>();
 		visitedColl = new HashSet<>();
-		currentPages = new HashMap<>();
+		htmlPages = new HashMap<>();
 	}
 	
 	
@@ -114,26 +115,28 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 	}
 	
 	private void poll() {
-		currentCollection = queue.poll();
-		log().info("Parent Page: "+currentCollection.getParent()+", "+currentCollection.size()+" total links");
-		currentLinks = new TreeSet<>(currentCollection.getLinks());
+		collection = queue.poll();
+		log().info("Parent Page: "+collection.getParent()+", "+collection.size()+" total links");
+		links = new TreeSet<>(collection.getLinks());
 		self().tell(FETCH, self());
 	}
 	
 	private void fetch() {
-		if (!currentLinks.isEmpty() && counter < max) {
-			String url = currentLinks.pollFirst();
+		if (!links.isEmpty() && counter < max) {
+			String url = links.pollFirst();
 			String normURL = transformURL(url);
 			if (visitedURLs.contains(normURL) || normURL.isEmpty() || !isValidURL(website.getDomain(), normURL))
 				self().tell(FETCH, self()); // try next..
 			else {
 				try {
 					HtmlPage body = getPage(url, client);
-					currentPages.put(url, body);
+					htmlPages.put(url, body);
 					fetched++;
 					counter++;
 					log().info("Fetched: " + url);
-					scheduleNext();
+					context().system().scheduler().scheduleOnce(
+						Duration.create(wait, TimeUnit.MILLISECONDS), 
+						self(), FETCH, context().dispatcher(), self());
 				} catch (Exception e) {
 					log().warning("Failed fetching: " + url);
 					self().tell(FETCH, self());
@@ -142,26 +145,20 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 		} else {
 			/* restore default values */
 			counter = 0;
-			max = 3;
+			max = MAX;
 			self().tell(UPDATE, self());
 		}
 	}
 	
-	private void scheduleNext() {
-		context().system().scheduler().scheduleOnce(
-			Duration.create(wait, TimeUnit.MILLISECONDS), 
-			self(), FETCH, context().dispatcher(), self());
-	}
-	
 	private void update() {
-		Set<Page> newPages = makePages();
-		if (!newPages.isEmpty()) {
+		if (!htmlPages.isEmpty()) {
+			Set<Page> newPages = makePages();
 			List<CandidatePageClass> candidates = clusterPages(newPages);
 			// fetch all links if they are from different classes
-			if (candidates.size() > 1 && !currentLinks.isEmpty()) {
+			if (candidates.size() > 1 && !links.isEmpty()) {
 				log().info("MENU DETECTED: FETCHING ALL URLS IN LINK COLLECTION...");
-				queue.add(currentCollection);
-				max = currentCollection.size();
+				queue.add(collection);
+				max = collection.size();
 				fetched -= newPages.size(); // reset counter
 			}
 			else {
@@ -179,9 +176,15 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 	private void finalizeModel() {
 		log().info("FINALIZING MODEL...");
 		client.close();
-		PageClass entryClass = compute();
-		log().info("END");
-		context().parent().tell(entryClass, self());
+		if (!model.isEmpty()) {
+			PageClass root = compute();
+			log().info("END");
+			context().parent().tell(root, self());
+		}
+		else {
+			log().info("MODELING FAILED");
+			context().parent().tell(STOP, self());
+		}
 	}
 	
 	public PageClass compute() {
@@ -308,22 +311,21 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 	
 	private Set<Page> makePages() {
 		Set<Page> newPages = new HashSet<>();
-		for (String pageUrl : currentPages.keySet()) {
-			HtmlPage htmlPage = currentPages.get(pageUrl);
+		for (String pageUrl : htmlPages.keySet()) {
+			HtmlPage htmlPage = htmlPages.get(pageUrl);
 			Page page = makePage(htmlPage, pageUrl);
 			newPages.add(page);
 		}
-		currentPages.clear();
+		htmlPages.clear();
 		return newPages;
 	}
 	
 	private Page makePage(HtmlPage page, String pageUrl) {
 		Page p = new Page(pageUrl, model);
-		List<HtmlAnchor> links = page.getAnchors();
-		for (HtmlAnchor link : links) {
-			String href = link.getHrefAttribute();
-			String url = getAbsoluteURL(pageUrl, href);
-			p.updatePageSchema(getXPathTo(link), url);
+		for (HtmlAnchor link : page.getAnchors()) {
+			String xpath = getXPathTo(link);
+			String url = getAbsoluteURL(pageUrl, link.getHrefAttribute());
+			p.updatePageSchema(xpath, url);
 		}
 		return p;
 	}

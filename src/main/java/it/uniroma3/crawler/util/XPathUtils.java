@@ -2,11 +2,15 @@ package it.uniroma3.crawler.util;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
 
 import com.gargoylesoftware.htmlunit.html.*;
 
@@ -121,46 +125,96 @@ public class XPathUtils {
 		return StringEscapeUtils.escapeCsv(value.replaceAll("(\\s)+", " ")).trim();
 	}
 	
+	/**
+	 * Builds a XPath matching the specified {@link HtmlAnchor}, starting from a unique element
+	 * in the current DOM. Unique elements are {@link DomNode} with an "id" attribute
+	 * and the HTML root node.<br>
+	 * For the anchor node, the resulting XPath includes all its attributes names, 
+	 * or the id name and value only if present. <br>
+	 * For following nodes, it includes the first attribute name only if present.<br>
+	 * For instance, the following Anchor and DOM:
+	 * <pre>
+	 * {@code <a href="/detail1.html">}<br>
+	 * {@code
+	 * <html>
+	 * <body>
+	 *  <div id="main">
+	 *    <div id="site_content">
+	 *      <div id="content">
+	 *        <ul>
+	 *         <li><a href="/detail1.html">Detail page 1</a></li>
+	 *         <li><a href="/detail2.html">Detail page 2</a></li>
+	 *         <li><a href="/detail3.html">Detail page 3</a></li>
+	 *        </ul>
+	 *      </div>
+	 *    </div>
+	 *  </div>
+	 * </body>
+	 * </html>
+	 * }
+	 * </pre>
+	 * will produce: {@code //div[@id='content']/ul/li/a}
+	 * @param link the HTML anchor
+	 * @return a String XPath matching the anchor
+	 */
 	public static String getXPathTo(HtmlAnchor link) {
-		String xpath = "a";
-		String anchorQuery = "";
-		NamedNodeMap linkAttributes = link.getAttributes();
-		if (linkAttributes.getLength()>1) { // escape anchors with href only
-			for (int i=0; i<=linkAttributes.getLength()-1; i++) {
-				org.w3c.dom.Node lattr = linkAttributes.item(i);
-				String lAttrName = lattr.getNodeName();
-				if (!lAttrName.equals("href") && !lAttrName.contains(":")) {
-					if (lAttrName.equals("id")) {
-						String lattrValue = lattr.getNodeValue();
-						return "//"+xpath+"[@"+lAttrName+"='"+lattrValue+"'"+"]";
-					}
-					else anchorQuery += "@"+lAttrName+" and ";
-				}
-			}
-		}
-		if (!anchorQuery.isEmpty())
-			xpath += "["+anchorQuery.substring(0, anchorQuery.length()-5)+"]";
+		String anchor = anchor(link);
+		if (anchor.startsWith("//")) 
+			return anchor;
 		
-		DomNode current=link.getParentNode();
+		ArrayDeque<String> stack = new ArrayDeque<>();
+		stack.push(anchor);
+		DomNode node = link.getParentNode();
 		boolean stop = false;
-		while (current.getNodeName()!="#document" && !stop) {
-			String currentQuery = current.getNodeName();
-			NamedNodeMap attributes = current.getAttributes();
-			if (attributes.getLength()>0 && !currentQuery.equals("html")) {
-				org.w3c.dom.Node attr = attributes.item(0);
-				String attrName = attr.getNodeName();
-				if (attrName.equals("id")) {
+		while (node.getNodeName()!="#document" && !stop) {
+			StringBuilder query = new StringBuilder(node.getNodeName());
+			NamedNodeMap attrs = node.getAttributes();
+			if (attrs.getLength()>0 && !query.equals("html")) {
+				Node attr = attrs.item(0);
+				String name = attr.getNodeName();
+				if (name.equals("id")) {
 					stop = true;
-					String attrValue = attr.getNodeValue();
-					currentQuery += "[@"+attrName+"='"+attrValue+"'"+"]";
+					query.append("[@"+name+"='"+attr.getNodeValue()+"'"+"]");
 				}
-				else currentQuery += "[@"+attrName+"]";
+				else 
+					query.append("[@"+name+"]");
 			}
-			xpath = currentQuery+"/"+xpath;
-			current = current.getParentNode();
+			stack.push(query.toString());
+			node = node.getParentNode();
 		}
-		xpath = (stop) ? "//"+xpath : "/"+xpath;
-		return xpath;
-	}	
+		
+		StringBuilder xpath = new StringBuilder("//");
+		while (!stack.isEmpty()) {
+			xpath.append(stack.pop());
+			if (!stack.isEmpty())
+				xpath.append("/");
+		}
+		return xpath.toString();
+	}
+	
+	private static String anchor(HtmlAnchor link) {
+		NamedNodeMap attrs = link.getAttributes();
+		int n = attrs.getLength();
+		if (n<=1) return "a";
+		
+		Queue<String> query = new LinkedList<>();
+		for (int i=0; i<=n-1; i++) {
+			Node attr = attrs.item(i);
+			String name = attr.getNodeName();
+			if (name.equals("id"))
+				return "//a[@"+name+"='"+attr.getNodeValue()+"']";
+			else if (!name.equals("href") && !name.contains(":"))
+				query.add("@"+name);
+		}
+		if (query.isEmpty()) return "a";
+		
+		StringBuilder anchor = new StringBuilder("a[");
+		while (!query.isEmpty()) {
+			anchor.append(query.poll());
+			if (!query.isEmpty())
+				anchor.append(" and ");
+		}
+		return anchor+"]";
+	}
 	
 }

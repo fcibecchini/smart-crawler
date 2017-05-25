@@ -70,7 +70,7 @@ public class CrawlRepository extends AbstractActor {
 	}
 	
 	private Address getAddress(int id) {
-		Config conf = ConfigFactory.load("nodes").getConfig("repository"+id);
+		Config conf = ConfigFactory.load("nodes").getConfig("nodes.repository"+id);
 		String host = conf.getString("host");
 		int port = conf.getInt("port");
 		String protocol = conf.getString("protocol");

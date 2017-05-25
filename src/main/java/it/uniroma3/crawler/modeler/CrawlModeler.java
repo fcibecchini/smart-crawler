@@ -43,6 +43,7 @@ public class CrawlModeler extends AbstractLoggingActor {
 	public Receive createReceive() {
 		return receiveBuilder()
 		.match(PageClass.class, rootClass -> context().parent().tell(rootClass, self()))
+		.matchEquals(STOP, s -> context().stop(self()))
 		.build();
 	}
     
