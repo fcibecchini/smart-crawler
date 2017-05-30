@@ -1,18 +1,36 @@
 package it.uniroma3.crawler.model;
 
 import java.util.Objects;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
+import org.neo4j.ogm.annotation.Index;
+import org.neo4j.ogm.annotation.NodeEntity;
+import org.neo4j.ogm.annotation.Relationship;
+
+@NodeEntity
 public class Website implements Comparable<Website>{
-	private String domain;
-	private int maxFetchTries;
-	private int randomPause;
-	private boolean javascript;
+	private Long id;
+	@Index(unique=true, primary=true) private String domain;
 	
-	public Website(String domain, int maxFetchTries, int pause, boolean js) {
+	@Relationship(type="MODEL_LINK", direction=Relationship.OUTGOING)
+	private SortedSet<ModelLink> models;
+	
+	public Website() {
+		this.models = new TreeSet<>();
+	}
+	
+	public Website(String domain) {
+		this();
 		this.domain = domain;
-		this.maxFetchTries = maxFetchTries;
-		this.randomPause = pause;
-		this.javascript = js;
+	}
+	
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
 	}
 
 	public String getDomain() {
@@ -23,28 +41,20 @@ public class Website implements Comparable<Website>{
 		this.domain = domain;
 	}
 
-	public int getMaxFetchTries() {
-		return maxFetchTries;
-	}
-
-	public void setMaxFetchTries(int maxFailures) {
-		this.maxFetchTries = maxFailures;
+	public void setModels(SortedSet<ModelLink> models) {
+		this.models = models;
 	}
 	
-	public int getPause() {
-		return randomPause;
+	public boolean addModel(PageClass root, long timestamp) {
+		return models.add(new ModelLink(this,root,timestamp));
 	}
-
-	public void sePause(int pause) {
-		this.randomPause = pause;
+	
+	public PageClass getNewestModel() {
+		return models.last().getRoot();
 	}
-
-	public boolean isJavascript() {
-		return javascript;
-	}
-
-	public void setJavascript(boolean javascript) {
-		this.javascript = javascript;
+	
+	public int size() {
+		return models.size();
 	}
 
 	@Override

@@ -4,33 +4,29 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
+import java.util.Set;
+import static java.util.stream.Collectors.toSet;
 
-import it.uniroma3.crawler.model.CandidatePageClass;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.model.Website;
-import it.uniroma3.crawler.model.WebsiteModel;
+import it.uniroma3.crawler.modeler.model.CandidatePageClass;
+import it.uniroma3.crawler.modeler.model.WebsiteModel;
+import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 public class ModelFinalizer {
-	private WebsiteModel model;
-	private Website website;
-	private TreeSet<PageClass> pClasses;
-	private int wait;
+	private WebsiteModel model;	
+	private Set<PageClass> classes;
 	
-	public ModelFinalizer(WebsiteModel model, Website website, int wait) {
+	public ModelFinalizer(WebsiteModel model, SeedConfig sc) {
 		this.model = model;
-		this.website = website;
-		this.wait = wait;
+		this.classes = model.getModel().stream()
+				.map(c -> new PageClass(c.getName(),sc)).collect(toSet());
 	}
 	
-	public TreeSet<PageClass> makePageClasses() {
-		this.pClasses = initPageClasses();
-		
+	public PageClass getRoot() {
 		for (CandidatePageClass candidate : model.getModel())					
 			for (String xpath : candidate.getClassSchema()) 
-				linksOfClass(candidate, xpath);			
-
-		return pClasses;
+				linksOfClass(candidate, xpath);
+		return getPageClass("class1");
 	}
 
 	private void linksOfClass(CandidatePageClass cand, String xpath) {
@@ -40,7 +36,8 @@ public class ModelFinalizer {
 		Map<String, CandidatePageClass> url2class = new HashMap<>();
 		urls.forEach(u -> url2class.put(u, model.getClassOfURL(u)));
 		
-		long classes = url2class.values().stream().filter(cc->cc!=null).distinct().count();
+		long classes = url2class.values().stream()
+				.filter(cc->cc!=null).distinct().count();
 		
 		if (classes>1) 
 			addMenuXPaths(xpath, src, urls, url2class);
@@ -71,10 +68,6 @@ public class ModelFinalizer {
 				}
 			}
 		}
-	}	
-	
-	private PageClass getPageClass(String name) {
-		return pClasses.stream().filter(item -> item.getName().equals(name)).findAny().orElse(null);
 	}
 	
 	private List<Integer> indexesOf(List<String> urls, String url) {
@@ -87,17 +80,8 @@ public class ModelFinalizer {
 		return indexes;
 	}
 	
-	private TreeSet<PageClass> initPageClasses() {
-		TreeSet<PageClass> pClasses = new TreeSet<>(
-				(p1,p2) -> {
-					int r1 = new Integer(p1.getName().replace("class", ""));
-					int r2 = new Integer(p2.getName().replace("class", ""));
-					return r1-r2;
-				});
-		model.getModel().forEach(cand -> {
-			PageClass pc = new PageClass(cand.getName(),website,wait);
-			pClasses.add(pc);});
-		return pClasses;
+	private PageClass getPageClass(String name) {
+		return classes.stream().filter(item -> item.getName().equals(name)).findAny().orElse(null);
 	}
 
 }

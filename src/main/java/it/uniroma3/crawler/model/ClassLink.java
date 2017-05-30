@@ -1,35 +1,75 @@
 package it.uniroma3.crawler.model;
 
-public class ClassLink {
-		
-	public final static int SINGLETON = 1;
-	public final static int LIST = 2;
-	public final static int MENU = 3;
-	
-	private String xpath;
-	private int type;
-	private PageClass destination;
+import org.neo4j.ogm.annotation.EndNode;
+import org.neo4j.ogm.annotation.RelationshipEntity;
+import org.neo4j.ogm.annotation.StartNode;
 
-	public ClassLink(String xpath, PageClass destination) {
+@RelationshipEntity(type="CLASS_LINK")
+public class ClassLink {
+	private Long id;
+	private String xpath;
+	private String type;
+	@StartNode private PageClass source;
+	@EndNode private PageClass destination;
+	
+	public ClassLink() {}
+
+	public ClassLink(PageClass source, String xpath, PageClass destination) {
+		this.source = source;
 		this.xpath = xpath;
 		this.destination = destination;
 	}
 	
-	public ClassLink(String xpath, int type, PageClass destination) {
-		this(xpath, destination);
-		this.type = type;
+	public Long getId() {
+		return id;
+	}
+	
+	public void setId(Long id) {
+		this.id = id;
 	}
 	
 	public String getXPath() {
 		return xpath;
 	}
 	
-	public void setType(int type) {
+	public void setXpath(String xpath) {
+		this.xpath = xpath;
+	}
+
+	public void setType(String type) {
 		this.type = type;
 	}
+
+	public void setSource(PageClass source) {
+		this.source = source;
+	}
+
+	public void setTypeMenu() {
+		this.type = "menu";
+	}
 	
-	public int getType() {
+	public void setTypeList() {
+		this.type = "list";
+	}
+	
+	public void setTypeSingleton() {
+		this.type = "singleton";
+	}
+	
+	public String getType() {
 		return this.type;
+	}
+	
+	public boolean isMenu() {
+		return type.equals("menu");
+	}
+	
+	public boolean isList() {
+		return type.equals("list");
+	}
+	
+	public boolean isSingleton() {
+		return type.equals("singleton");
 	}
 
 	public PageClass getDestination() {

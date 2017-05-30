@@ -14,11 +14,11 @@ import it.uniroma3.crawler.model.UrlDataType;
 
 public class PageClassTest {
 	private PageClass page;
-	private Website website;
+	private String website;
 
 	@Before
 	public void setUp() throws Exception {
-		this.website = new Website("http://www.proz.com",1,0,false);
+		this.website = "http://www.proz.com";
 		this.page = new PageClass("source",website);
 	}
 	

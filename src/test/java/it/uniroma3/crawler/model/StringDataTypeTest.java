@@ -26,16 +26,14 @@ public class StringDataTypeTest {
 	@Test
 	public void testExtract() {
 		DataType stringType = new StringDataType(); 
-		stringType.setXPath("//h1/text()");
-		String string = stringType.extract(page);
+		String string = stringType.extract(page,"//h1/text()");
 		assertEquals("Detail page 1", string);
 	}
 	
 	@Test
 	public void testExtract_notFound() {
 		DataType stringType = new StringDataType(); 
-		stringType.setXPath("//h1/a");
-		String string = stringType.extract(page);
+		String string = stringType.extract(page, "ul/ul/li/a/text()");
 		assertEquals("", string);
 	}
 

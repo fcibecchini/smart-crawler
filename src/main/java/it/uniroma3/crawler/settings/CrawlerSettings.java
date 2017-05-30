@@ -2,57 +2,68 @@ package it.uniroma3.crawler.settings;
 
 import akka.actor.Extension;
 
-import java.util.Map;
-import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toList;
+
+import java.util.List;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
 
 public class CrawlerSettings implements Extension {
-	public final Map<String,SeedConfig> seeds;
+	public final List<SeedConfig> seeds;
 	public final int fetchers;
 	public final int pages;
 	public final int frontierheap;
-	public final boolean modelOnly;
 	
 	public static class SeedConfig {
-		public final String file;
-		public final int pages;
-		public final boolean javascript;
+		public final String site,file;
+		public final int modelPages;
+		public final boolean javascript,crawl;
 		public final int wait;
 		public final int randompause;
 		public final int maxfailures;
-		
-		public SeedConfig(String file, int pages, boolean js, int wait,
-				int pause, int maxfailures) {
+				
+		public SeedConfig(String site, String file, int pages, 
+				boolean js, int wait, int pause, int maxfailures, 
+				boolean crawl) {
+			this.site = site;
 			this.file = file;
-			this.pages = pages;
+			this.modelPages = pages;
 			this.javascript = js;
 			this.wait = wait;
 			this.randompause = pause;
 			this.maxfailures = maxfailures;
+			this.crawl = crawl;
 		}
 	}
 
 	public CrawlerSettings(Config config) {
 		ConfigObject sites = config.getObject("crawler.modeler");
-		
-		seeds = sites.keySet().stream().collect(toMap(s->s, s -> seedConfig(s,config)));
+		seeds = sites.keySet().stream().map(s -> conf(s,config)).collect(toList());
 		fetchers = config.getInt("crawler.crawling.fetchers");
 		pages = config.getInt("crawler.crawling.pages");
 		frontierheap = config.getInt("crawler.crawling.frontierheap");
-		modelOnly = config.getBoolean("crawler.modelonly");
 	}
 	
-	private SeedConfig seedConfig(String site, Config config) {
+	private SeedConfig conf(String site, Config conf) {
 		String key = site.replaceAll("://|.", "\"$0\"");
-		String file = config.getString("crawler.modeler."+key+".file");
-		int pages = config.getInt("crawler.modeler."+key+".pages");
-		boolean js = config.getBoolean("crawler.modeler."+key+".javascript");
-		int wait = config.getInt("crawler.modeler."+key+".wait");
-		int random = config.getInt("crawler.modeler."+key+".randompause");
-		int failures = config.getInt("crawler.modeler."+key+".maxfailures");
-		return new SeedConfig(file,pages,js,wait,random,failures);
+		String filep = "crawler.modeler."+key+"static.file";
+		String pagesp = "crawler.modeler."+key+"dynamic.pages";
+		String jsp = "crawler.modeler."+key+".javascript";
+		String waitp = "crawler.modeler."+key+".wait";
+		String randomp = "crawler.modeler."+key+".randompause";
+		String failuresp = "crawler.modeler."+key+".maxfailures";
+		String crawlp = "crawler.modeler."+key+".crawl";
+		
+		String file = (conf.hasPath(filep)) ? conf.getString(filep) : null;
+		int pages = (conf.hasPath(pagesp)) ? conf.getInt(pagesp) : 0;
+		boolean js = (conf.hasPath(jsp)) ? conf.getBoolean(jsp) : false;
+		int wait = (conf.hasPath(waitp)) ? conf.getInt(waitp) : 2000;
+		int random = (conf.hasPath(randomp)) ? conf.getInt(randomp) : 1000;
+		int failures = (conf.hasPath(failuresp)) ? conf.getInt(failuresp) : 1;
+		boolean crawl = (conf.hasPath(crawlp)) ? conf.getBoolean(crawlp) : false;
+		
+		return new SeedConfig(site,file,pages,js,wait,random,failures,crawl);
 	}
 
 }

@@ -64,7 +64,9 @@ public class CrawlFetcher extends AbstractLoggingActor {
 		ActorSelection repository = context().actorSelection(REPOSITORY);
 	
 		CompletableFuture<Object> future = 
-				ask(repository, new FetchMsg(url,id,js), 4000).toCompletableFuture();
+				ask(repository, 
+					new FetchMsg(url,curl.getPageClass().getName(),curl.getDomain(),id,js)
+					, 4000).toCompletableFuture();
 		CompletableFuture<ResultMsg> result = future.thenApply(v -> {
 			FetchedMsg msg = (FetchedMsg) future.join();
 			return new ResultMsg(curl, msg.getResponse());

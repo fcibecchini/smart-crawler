@@ -1,53 +1,104 @@
 package it.uniroma3.crawler.model;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
-import java.util.stream.Collectors;
 
+import org.neo4j.ogm.annotation.NodeEntity;
+import org.neo4j.ogm.annotation.Relationship;
+import org.neo4j.ogm.annotation.Transient;
+
+import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
+
+import static java.util.stream.Collectors.toSet;
+
+import static java.util.stream.Collectors.toList;
+
+@NodeEntity
 public class PageClass {
+	private Long id;
+	
 	private String name;
-	private Website website;
+	private String website;
 	private int depth;
-	private int waitTime;
 	
-	private Collection<ClassLink> links;
-	private Collection<DataType> dataTypes;
+	@Transient private int waitTime;
+	@Transient private int randomPause;
+	@Transient private int maxFetchTries;
+	@Transient private boolean javascript;
 	
-	public PageClass(String name, Website website, int waitTime) {
-		this(name,website);
-		this.waitTime = waitTime;
+	@Relationship(type="CLASS_LINK", direction=Relationship.OUTGOING)
+	private List<ClassLink> links;
+	
+	@Relationship(type="DATA_LINK", direction=Relationship.OUTGOING)
+	private List<DataLink> dataLinks;
+	
+	public PageClass() {
+		this.links = new ArrayList<>();
+		this.dataLinks = new ArrayList<>();
 	}
 	
-	public PageClass(String name, Website website) {
+	public PageClass(String name, SeedConfig conf) {
+		this(name, conf.site);
+		this.waitTime = conf.wait;
+		this.randomPause = conf.randompause;
+		this.maxFetchTries = conf.maxfailures;
+		this.javascript = conf.javascript;
+	}
+	
+	public PageClass(String name, String website) {
+		this();
 		this.name = name;
 		this.website = website;
-		this.links = new ArrayList<>();
-		this.dataTypes = new ArrayList<>();
 	}
-		
-	public Collection<DataType> getDataTypes() {
-		return dataTypes;
-	}
+	
+    public Long getId() {
+        return id;
+    }
 
 	public String getName() {
 		return this.name;
 	}
 	
-	public Website getWebsite() {
+	public String getWebsite() {
 		return website;
 	}
 	
 	public String getDomain() {
-		return website.getDomain();
+		return website;
 	}
 
-	public void setWebsite(Website website) {
+	public void setMaxFetchTries(int maxFetchTries) {
+		this.maxFetchTries = maxFetchTries;
+	}
+
+	public void setRandomPause(int randomPause) {
+		this.randomPause = randomPause;
+	}
+
+	public void setJavascript(boolean javascript) {
+		this.javascript = javascript;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setLinks(List<ClassLink> links) {
+		this.links = links;
+	}
+
+	public void setDataLinks(List<DataLink> dataLinks) {
+		this.dataLinks = dataLinks;
+	}
+
+	public void setWebsite(String website) {
 		this.website = website;
 	}
 
@@ -66,121 +117,154 @@ public class PageClass {
 	public int getDepth() {
 		return this.depth;
 	}
-	
+
 	public boolean useJavaScript() {
-		return website.isJavascript();
+		return javascript;
 	}
 	
 	public int maxTries() {
-		return website.getMaxFetchTries();
+		return maxFetchTries;
 	}
 	
 	public int getPause() {
-		return website.getPause();
+		return randomPause;
 	}
 	
 	public Set<PageClass> classLinks() {
-		return links.stream().map(l -> l.getDestination()).collect(Collectors.toSet());
+		return links.stream().map(ClassLink::getDestination).collect(toSet());
 	}
 	
 	public PageClass getDescendant(String name) {
 		Queue<PageClass> queue = new LinkedList<>();
 		Set<PageClass> visited = new HashSet<>();
-		visited.add(this);
-		queue.add(this);
 		
 		PageClass current = null;
+		queue.add(this);
 		while ((current = queue.poll()) != null) {
 			if (current.getName().equals(name))
 				return current;
 			current.classLinks().stream()
 			.filter(pc -> !visited.contains(pc))
-			.forEach(pc -> {visited.add(pc); queue.add(pc);});
+			.forEach(queue::add);
+			visited.add(current);
 		}
 		return null;
+	}
+	
+	public void setHierarchy() {
+		Queue<PageClass> queue = new LinkedList<>();
+		Set<String> visited = new HashSet<>();
+		visited.add(this.getName());
+		queue.add(this);
+		
+		PageClass current = null;
+		while ((current = queue.poll()) != null) {
+			int depth = current.getDepth();
+			
+			current.classLinks().stream()
+			.filter(pc -> !visited.contains(pc.getName()))
+			.forEach(pc -> {
+				visited.add(pc.getName()); 
+				queue.add(pc); 
+				pc.setDepth(depth+1);});
+		}
 	}
 	
 	public PageClass getDestinationByXPath(String xpath) {
 		if (!links.isEmpty())
 			return links.stream()
 				.filter(l -> l.getXPath().equals(xpath))
-				.map(l -> l.getDestination())
+				.map(ClassLink::getDestination)
 				.findAny().orElse(null);
 		return null;
 	}
 	
 	public DataType getDataTypeByXPath(String xpath) {
-		if (!dataTypes.isEmpty())
-			return this.dataTypes.stream()
-				.filter(d -> d.getXPath().equals(xpath))
+		if (!dataLinks.isEmpty())
+			return this.dataLinks.stream()
+				.filter(link -> link.getXPath().equals(xpath))
+				.map(DataLink::getDataType)
 				.findAny().orElse(null);
 		return null;
 	}
 	
+	public Map<String, DataType> xPathToData() {
+		Map<String, DataType> map = new HashMap<>();
+		dataLinks.stream().forEach(l -> map.put(l.getXPath(), l.getDataType()));
+		return map;
+	}
+	
 	public List<String> getNavigationXPaths() {
-		return this.links.stream().map(l -> l.getXPath()).collect(Collectors.toList());
+		return this.links.stream().map(l -> l.getXPath()).collect(toList());
 	}
 	
 	public List<String> getMenuXPaths() {
 		return this.links.stream()
-				.filter(l -> l.getType()==ClassLink.MENU)
-				.map(l -> l.getXPath())
-				.collect(Collectors.toList());
+				.filter(ClassLink::isMenu)
+				.map(ClassLink::getXPath).collect(toList());
 	}
 	
 	public List<String> getListXPaths() {
 		return this.links.stream()
-				.filter(l -> l.getType()==ClassLink.LIST)
-				.map(l -> l.getXPath())
-				.collect(Collectors.toList());
+				.filter(ClassLink::isList)
+				.map(ClassLink::getXPath).collect(toList());
 	}
 	
 	public List<String> getSingletonXPaths() {
 		return this.links.stream()
-				.filter(l -> l.getType()==ClassLink.SINGLETON)
-				.map(l -> l.getXPath())
-				.collect(Collectors.toList());
+				.filter(ClassLink::isSingleton)
+				.map(ClassLink::getXPath).collect(toList());
 	}
 	
 	public List<String> getDataXPaths() {
-		return this.dataTypes.stream().map(dt -> dt.getXPath()).collect(Collectors.toList());
+		return this.dataLinks.stream().map(DataLink::getXPath).collect(toList());
 	}
 	
 	public boolean addPageClassLink(String xpath, PageClass dest) {
-		ClassLink link = new ClassLink(xpath, dest);
+		ClassLink link = new ClassLink(this, xpath, dest);
 		return this.links.add(link);
 	}
 	
 	public boolean addMenuLink(String xpath, PageClass dest) {
-		ClassLink link = new ClassLink(xpath, ClassLink.MENU, dest);
-		return this.links.add(link);
+		ClassLink link = new ClassLink(this, xpath, dest);
+		link.setTypeMenu();
+		return links.add(link);
 	}
 	
 	public boolean addListLink(String xpath, PageClass dest) {
-		ClassLink link = new ClassLink(xpath, ClassLink.LIST, dest);
-		return this.links.add(link);
+		ClassLink link = new ClassLink(this, xpath, dest);
+		link.setTypeList();
+		return links.add(link);
 	}
 	
 	public boolean addSingletonLink(String xpath, PageClass dest) {
-		ClassLink link = new ClassLink(xpath, ClassLink.SINGLETON, dest);
-		return this.links.add(link);
+		ClassLink link = new ClassLink(this, xpath, dest);
+		link.setTypeSingleton();
+		return links.add(link);
+	}
+	
+	public boolean addData(String xpath, String type, String fieldName) {
+		DataType data = makeDataType(xpath, type);
+		if (data==null) return false;
+		data.setName(fieldName);
+		return dataLinks.add(new DataLink(this, xpath, data));
 	}
 	
 	public boolean addData(String xpath, String type) {
+		DataType data = makeDataType(xpath, type);
+		if (data==null) return false;
+		return dataLinks.add(new DataLink(this, xpath, data));
+	}
+	
+	private DataType makeDataType(String xpath, String type) {
 		String name = type.substring(0, 1).toUpperCase()+type.substring(1);
+		String className = "it.uniroma3.crawler.model."+name+"DataType";
 		try {
-			DataType dataType = (DataType) Class.forName("it.uniroma3.crawler.model."+name+"DataType").newInstance();
-			dataType.setXPath(xpath);
-			return dataTypes.add(dataType);
-		} catch (InstantiationException e) {
-			System.err.println("Data Type instantiation failed");
-			return false;
-		} catch (IllegalAccessException e) {
-			System.err.println("Data Type illegal access");
-			return false;
-		} catch (ClassNotFoundException e) {
-			System.err.println("Data Type not found "+type+" "+xpath);
-			return false;
+			DataType dataType = (DataType) Class.forName(className).newInstance();
+			return dataType;
+		} catch (Exception e) {
+			System.err.println(e.getMessage());
+			return null;
 		}
 	}
 	
@@ -189,30 +273,30 @@ public class PageClass {
 	}
 	
 	public boolean isDataPage() {
-		return !this.dataTypes.isEmpty();
+		return !this.dataLinks.isEmpty();
 	}
 	
 	public int compareTo(PageClass pc2) {
-		int cmpdepth = this.getDepth() - pc2.getDepth();
+		int cmpdepth = depth - pc2.getDepth();
 		if (cmpdepth!=0) return cmpdepth;
-		int cmpws = this.getWebsite().compareTo(pc2.getWebsite());
-		if (cmpws!=0) return cmpws;
-		return this.getName().compareTo(pc2.getName());
+		int cmpname = name.compareTo(pc2.getName());
+		if (cmpname!=0) return cmpname;
+		return website.compareTo(pc2.getWebsite());
 	}
 	
 	public String toString() {
-		return name+", "+getDomain();
+		return name;
 	}
 	
 	public int hashCode() {
-		return name.hashCode() + website.hashCode() + depth;
+		return Objects.hash(name, depth, website);
 	}
 
 	public boolean equals(Object obj) {
 		PageClass other = (PageClass) obj;
 		return Objects.equals(name, other.getName())
-			&& Objects.equals(website, other.getWebsite())
-			&& depth==other.getDepth();
+			&& depth==other.getDepth()
+			&& website.equals(other.getWebsite());
 	}
 
 }

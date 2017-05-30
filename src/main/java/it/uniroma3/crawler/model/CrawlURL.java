@@ -12,7 +12,6 @@ import java.util.Set;
 public class CrawlURL implements Comparable<CrawlURL> {
 	private URI url;
 	private PageClass pageClass;
-	private String filePath;
 	private Map<String, String> outLinks;
 	private String[] record;
 	
@@ -40,14 +39,6 @@ public class CrawlURL implements Comparable<CrawlURL> {
 	
 	public PageClass getPageClass() {
 		return this.pageClass;
-	}
-	
-	public String getFilePath() {
-		return filePath;
-	}
-
-	public void setFilePath(String filePath) {
-		this.filePath = filePath;
 	}
 
 	public void addOutLink(String link, String pClass) {

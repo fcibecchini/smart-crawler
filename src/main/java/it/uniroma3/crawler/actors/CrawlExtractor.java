@@ -4,6 +4,7 @@ import static akka.pattern.PatternsCS.ask;
 import static akka.pattern.PatternsCS.pipe;
 import static java.util.concurrent.CompletableFuture.allOf;
 import static java.util.concurrent.CompletableFuture.completedFuture;
+
 import static it.uniroma3.crawler.util.Commands.REPOSITORY;
 
 import static it.uniroma3.crawler.factories.CrawlURLFactory.copy;
@@ -19,7 +20,6 @@ import akka.actor.Props;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.util.FileUtils;
 
 public class CrawlExtractor extends AbstractLoggingActor {
 	private final int id;
@@ -67,30 +67,21 @@ public class CrawlExtractor extends AbstractLoggingActor {
 		PageClass src = curl.getPageClass();
 
 		String url = curl.getStringUrl();
-		String htmlPath = curl.getFilePath();
-		String mirror = FileUtils.getMirror("html", src.getDomain());
 
 		ActorSelection repository = context().actorSelection(REPOSITORY);
 		CompletableFuture<Object> links, data;
 
 		if (!src.isEndPage())
 			links = ask(repository,
-					new ExtractLinksMsg(url, 
-							htmlPath, 
-							src.getDomain(), 
-							mirror, 
-							src.getNavigationXPaths()), 4000)
-							.toCompletableFuture();
+					new ExtractLinksMsg(url, src.getNavigationXPaths())
+					, 4000).toCompletableFuture();
 		else
 			links = completedFuture(new ExtractedLinksMsg());
 
 		if (src.isDataPage())
 			data = ask(repository, 
-					new ExtractDataMsg(url, 
-					htmlPath, 
-					src.getDomain(), 
-					src.getDataTypes()), 4000)
-					.toCompletableFuture();
+					new ExtractDataMsg(url, src.xPathToData())
+					, 4000).toCompletableFuture();
 		else
 			data = completedFuture(new ExtractedDataMsg());
 
@@ -106,9 +97,7 @@ public class CrawlExtractor extends AbstractLoggingActor {
 	private void forward(ResultMsg msg) {
 		CrawlURL curl = msg.getCurl();
 		CrawlURL copy = copy(curl);
-		
-		copy.setFilePath(curl.getFilePath());
-		
+				
 		Map<String, List<String>> links = msg.getLinks();
 		PageClass src = curl.getPageClass();
 		for (String xPath : links.keySet()) {

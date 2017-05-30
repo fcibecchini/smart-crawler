@@ -2,57 +2,63 @@ package it.uniroma3.crawler.modeler;
 
 import static it.uniroma3.crawler.util.Commands.*;
 
-import akka.actor.AbstractLoggingActor;
+import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
+import akka.actor.Address;
+import akka.actor.AddressFromURIString;
+import akka.actor.Deploy;
 import akka.actor.Props;
-import akka.japi.Creator;
+import akka.remote.RemoteScope;
+import it.uniroma3.crawler.messages.ModelMsg;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.model.Website;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
-import it.uniroma3.crawler.util.HtmlUtils;
 
-public class CrawlModeler extends AbstractLoggingActor {
-	
-	static class InnerProps implements Creator<CrawlModeler> {
-		private static final long serialVersionUID = 1L;
-		private String site;
-		private SeedConfig conf;
-		
-		public InnerProps(String site, SeedConfig conf) {
-			this.site = site;
-			this.conf = conf;
-		}
-
-		@Override
-		public CrawlModeler create() throws Exception {
-			return new CrawlModeler(site,conf);
-		}	
-	}
-		
-	public static Props props(String site, SeedConfig conf) {
-		return Props.create(CrawlModeler.class, new InnerProps(site, conf));
-	}
-	
-	public CrawlModeler(String site, SeedConfig conf) {
-		ActorRef modeler = chooseModeler(site,conf);
-		context().watch(modeler);
-		modeler.tell(START, self());
-	}
+public class CrawlModeler extends AbstractActor {
+	private boolean crawl;
 
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-		.match(PageClass.class, rootClass -> context().parent().tell(rootClass, self()))
+		.match(ModelMsg.class, this::start)
+		.match(PageClass.class, this::sendAndSave)
 		.matchEquals(STOP, s -> context().stop(self()))
 		.build();
 	}
+	
+	private void start(ModelMsg msg) {
+		SeedConfig conf = msg.getConf();
+		String addr = msg.getAddress();
+		crawl = conf.crawl;
+		if (conf.modelPages>0) {
+			ActorRef dynamic = dynamicModeler(conf, addr);
+			context().watch(dynamic);
+			dynamic.tell(conf, self());
+		}
+		else {
+			ActorRef service = 
+					context().actorOf(Props.create(ModelerService.class),"service");
+			context().watch(service);
+			service.tell(conf, self());
+		}
+	}
+	
+	private void sendAndSave(PageClass root) {
+		if (crawl) context().parent().tell(root, self());
+		if (sender().path().name().equals("dynamic")) {
+			ActorRef service = 
+					context().actorOf(Props.create(ModelerService.class),"service");
+			context().watch(service);
+			service.tell(root, self());
+		}
+	}
     
-    private ActorRef chooseModeler(String site, SeedConfig sc) {
-    	Website website = new Website(HtmlUtils.transformURL(site), sc.maxfailures, sc.randompause, sc.javascript);
-    	if (!sc.file.equals("null"))
-    		return context().actorOf(StaticModeler.props(website, sc.wait, sc.file), "static");
-    	else 
-    		return context().actorOf(DynamicModeler.props(website, sc.wait, sc.pages), "dynamic");
+    private ActorRef dynamicModeler(SeedConfig sc, String addr) {
+    	Props p = Props.create(DynamicModeler.class);
+    	if (!addr.isEmpty()) {
+    		Address a = AddressFromURIString.parse(addr);
+    		p = p.withDeploy(new Deploy(new RemoteScope(a)));
+    	}
+    	return context().actorOf(p, "dynamic");
     }
     
 }

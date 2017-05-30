@@ -12,7 +12,6 @@ import com.csvreader.CsvReader;
 
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.model.Website;
 
 import static it.uniroma3.crawler.factories.CrawlURLFactory.getCrawlUrl;
 
@@ -24,7 +23,7 @@ public class CrawlQueueTest {
 	@Before
 	public void setUp() {
 		storage = "src/main/resources/storage/queue_localhost.csv";
-		Website website = new Website("http://localhost",0,0,false);
+		String website = "http://localhost";
 		pclass = new PageClass("class1",website);
 		pclass2 = new PageClass("class2",website);
 		pclass3 = new PageClass("class3",website);

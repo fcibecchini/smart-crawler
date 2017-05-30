@@ -2,25 +2,27 @@ package it.uniroma3.crawler.modeler;
 
 import static org.junit.Assert.*;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Props;
 import akka.testkit.javadsl.TestKit;
+import it.uniroma3.crawler.messages.ModelMsg;
 import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.persistence.PageClassService;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 public class DynamicModelerTest {
 	static ActorSystem system;
+	private static String site;
 
 	@BeforeClass
 	public static void setup() {
+		site = "http://localhost:8081";		
 		system = ActorSystem.create("ModelerTest");
 	}
 
@@ -31,17 +33,18 @@ public class DynamicModelerTest {
 	}
 	
 	@After
-	public void tearDown() throws IOException {
-		Files.delete(Paths.get("src/main/resources/targets/localhost:8081_target.csv"));
+	public void tearDown()  {
+//		PageClassService serv = new PageClassService();
+//		serv.deleteModel(site, 1);
 	}
-	 
+	
 	@Test
 	public void testDynamicModeler_localhost() {
 		TestKit parent = new TestKit(system);
-		SeedConfig conf = new SeedConfig("null", 10, false, 0, 0, 1);
-		String site = "http://localhost:8081";
-		parent.childActorOf(CrawlModeler.props(site, conf));
-
+		SeedConfig conf = new SeedConfig(site,null,10,false,0,0,1,true);
+		ActorRef modeler = parent.childActorOf(Props.create(CrawlModeler.class));
+		modeler.tell(new ModelMsg(conf), parent.getRef());
+		
 		PageClass home = parent.expectMsgClass(parent.duration("60 seconds"), PageClass.class);
 		
 		String toDirectory = "(//ul[@id='menu']/li/a)[1]";

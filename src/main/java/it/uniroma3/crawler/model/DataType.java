@@ -1,22 +1,38 @@
 package it.uniroma3.crawler.model;
 
-import java.io.Serializable;
+import org.neo4j.ogm.annotation.NodeEntity;
 
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+
+@NodeEntity
 public abstract class DataType {
-		
-	private String xpath;
+	private Long id;
+	private String name;
 	
-	public String getXPath() {
-		return this.xpath;
-	}
-
-	public void setXPath(String xpath) {
-		this.xpath = xpath;
+	public DataType() {}
+	
+	public Long getId() {
+		return id;
 	}
 	
-    /* Extract the expected value with this DataType XPath
-     * An HtmlPage should be expected as the input parameter 
-     * */
-	public abstract String extract(Object object);
+	public void setId(Long id) {
+		this.id = id;
+	}
+	
+	public String getName() {
+		return this.name;
+	}
+	
+	public void setName(String name) {
+		this.name = name;
+	}
+	
+	/**
+	 * Extracts the expected value type with the specified XPath
+	 * @param page the {@link HtmlPage} 
+	 * @param xpath
+	 * @return the String record
+	 */
+	public abstract String extract(HtmlPage page, String xpath);
 	
 }

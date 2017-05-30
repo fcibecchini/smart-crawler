@@ -26,8 +26,7 @@ public class ImgDataTypeTest {
 	@Test
 	public void testExtract() {
 		DataType imgType = new ImgDataType(); 
-		imgType.setXPath("//img[@alt='logo']");
-		String logo = imgType.extract(page);
+		String logo = imgType.extract(page,"//img[@alt='logo']");
 		assertEquals("fake.jpg", logo);
 	}
 

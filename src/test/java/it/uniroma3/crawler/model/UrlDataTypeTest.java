@@ -26,8 +26,7 @@ public class UrlDataTypeTest {
 	@Test
 	public void testExtract() {
 		DataType urlType = new UrlDataType(); 
-		urlType.setXPath("//div[@id='link']/a");
-		String website = urlType.extract(page);
+		String website = urlType.extract(page, "//div[@id='link']/a");
 		assertEquals("http://www.external-link.test", website);
 	}
 

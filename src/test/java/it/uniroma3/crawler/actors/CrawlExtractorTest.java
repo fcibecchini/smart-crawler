@@ -22,15 +22,13 @@ import it.uniroma3.crawler.actors.CrawlExtractor;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.modeler.StaticModeler;
-import it.uniroma3.crawler.modeler.WebsiteModeler;
+import it.uniroma3.crawler.modeler.ModelerService;
 import it.uniroma3.crawler.util.HtmlUtils;
 
 public class CrawlExtractorTest {
 	private static ActorSystem system;
 	private static WebClient client;
 	private static CrawlController controller;
-	private static WebsiteModeler modeler;
 	private File curlFile;
 
 	/*

@@ -1,4 +1,4 @@
-package it.uniroma3.crawler.model;
+package it.uniroma3.crawler.modeler.model;
 
 import java.util.Set;
 

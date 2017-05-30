@@ -1,23 +1,27 @@
 package it.uniroma3.crawler.actors;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Address;
+import akka.actor.AddressFromURIString;
 import akka.actor.Deploy;
 import akka.actor.Props;
 import akka.remote.RemoteScope;
 import it.uniroma3.crawler.messages.*;
+import it.uniroma3.crawler.settings.AddressSettings;
+
+import static it.uniroma3.crawler.util.Commands.SAVE;
+
 import scala.Option;
 
 public class CrawlRepository extends AbstractActor {
 	private final ActorRef csvCache;
+	private final String[] nodes;
 	
 	public CrawlRepository() {
 		this.csvCache = context().actorOf(Props.create(CrawlUrlClass.class), "csvcache");
 		context().watch(csvCache);
+		this.nodes = AddressSettings.SettingsProvider.get(context().system()).nodes;
 	}
 	
 	@Override
@@ -26,7 +30,7 @@ public class CrawlRepository extends AbstractActor {
 		.match(FetchMsg.class, msg -> 
 			findOrCreate(msg.getUrl(), msg.getId()).forward(msg, context()))
 		.match(SaveMsg.class, msg -> 
-			find(msg.getUrl()).forward(msg, context()))
+			find(msg.getUrl()).tell(SAVE, sender()))
 		.match(ExtractLinksMsg.class, msg -> 
 			find(msg.getUrl()).forward(msg, context()))
 		.match(ExtractDataMsg.class, msg -> 
@@ -58,7 +62,7 @@ public class CrawlRepository extends AbstractActor {
 	
 	private ActorRef create(String url, int id) {	
 		String name = formatUrl(url);
-		Address addr = getAddress(id);
+		Address addr = AddressFromURIString.parse(nodes[id]);
 		Props props = Props.create(CrawlPage.class).withDeploy(new Deploy(new RemoteScope(addr)));
 		ActorRef child = context().actorOf(props, name);		
 		context().watch(child);
@@ -67,14 +71,5 @@ public class CrawlRepository extends AbstractActor {
 	
 	private String formatUrl(String id) {
 		return id.replaceAll("/", "_").replaceAll("\\?", "-");
-	}
-	
-	private Address getAddress(int id) {
-		Config conf = ConfigFactory.load("nodes").getConfig("nodes.repository"+id);
-		String host = conf.getString("host");
-		int port = conf.getInt("port");
-		String protocol = conf.getString("protocol");
-		String system = conf.getString("system");
-		return new Address(protocol, system, host, port);
 	}
 }

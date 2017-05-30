@@ -7,11 +7,6 @@ import static it.uniroma3.crawler.util.Commands.*;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -22,85 +17,52 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
-import com.csvreader.CsvWriter;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import akka.actor.AbstractLoggingActor;
-import akka.actor.Props;
-import akka.japi.Creator;
-import it.uniroma3.crawler.model.CandidatePageClass;
-import it.uniroma3.crawler.model.LinkCollection;
-import it.uniroma3.crawler.model.Page;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.model.Website;
-import it.uniroma3.crawler.model.WebsiteModel;
-import it.uniroma3.crawler.util.FileUtils;
+import it.uniroma3.crawler.modeler.model.CandidatePageClass;
+import it.uniroma3.crawler.modeler.model.LinkCollection;
+import it.uniroma3.crawler.modeler.model.Page;
+import it.uniroma3.crawler.modeler.model.WebsiteModel;
+import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 import scala.concurrent.duration.Duration;
 
-public class DynamicModeler extends AbstractLoggingActor implements WebsiteModeler {
-	private final static String LOG = "src/main/resources/targets";
+public class DynamicModeler extends AbstractLoggingActor {
 	private final static int MAX = 3;
-	private CsvWriter csv;
 	
-	private Website website;
+	private SeedConfig conf; // website configuration
+
 	private WebsiteModel model;
-	private int wait;
-	private int maxPages; // max number of pages used to infer the web site model
 	private WebClient client;
-	private Set<String> visitedURLs; // set of visited URLs for duplicate removal
-	private int fetched; // total number of fetched pages
-	private int classes; // total number of created classes
 	
 	private Queue<LinkCollection> queue; // queue of discovered Links Collections
+	private Set<String> visitedURLs; // set of visited URLs for duplicate removal
 	private Set<LinkCollection> visitedColl; // A set of already visited link collections
+	private int totalFetched; // total number of fetched pages
+	private int classes; // total number of classes created
+	
 	private Map<String, HtmlPage> htmlPages; // map{url -> HtmlPage} of currently fetched pages
 	private LinkCollection collection; // current collection being fetched
 	private TreeSet<String> links; // current Links Set being fetched
-	private int max; // max URLs fetched per collection
-	private int counter; // current number of URLs fetched
+	private int max; // max to-fetch URLs per collection
+	private int fetched; // current number of URLs fetched in collection
 	
-	static class InnerProps implements Creator<DynamicModeler> {
-		private static final long serialVersionUID = 1L;
-		private Website website;
-		private int wait, maxPages;
-		
-		public InnerProps(Website website, int wait, int maxPages) {
-			this.website = website;
-			this.wait = wait;
-			this.maxPages = maxPages;
-		}
-
-		@Override
-		public DynamicModeler create() throws Exception {
-			return new DynamicModeler(website, wait, maxPages);
-		}	
-	}
-	
-	public static Props props(Website website, int wait, int maxPages) {
-		return Props.create(DynamicModeler.class, new InnerProps(website,wait,maxPages));
-	}
-	
-	public DynamicModeler(Website website, int wait, int maxPages) {
-		this.website = website;
-		this.wait = wait;
-		this.maxPages = maxPages;
-		client = makeWebClient(website.isJavascript());
-		
+	public DynamicModeler() {
+		max = MAX;
 		model = new WebsiteModel();
 		visitedURLs = new HashSet<>();
-		max = MAX;
 		queue = new PriorityQueue<>();
 		visitedColl = new HashSet<>();
 		htmlPages = new HashMap<>();
 	}
 	
-	
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-		.matchEquals(START, msg -> start())
+		.match(SeedConfig.class, this::start)
 		.matchEquals(POLL, msg -> poll())
 		.matchEquals(FETCH, msg -> fetch())
 		.matchEquals(UPDATE, msg -> update())
@@ -108,9 +70,12 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 		.build();
 	}
 	
-	private void start() {
+	private void start(SeedConfig sc) {
+		conf = sc;
+		client = makeWebClient(sc.javascript);
+
 		// Feed queue with seed
-		queue.add(new LinkCollection(website.getDomain()));
+		queue.add(new LinkCollection(conf.site));
 		self().tell(POLL, self());
 	}
 	
@@ -122,20 +87,20 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 	}
 	
 	private void fetch() {
-		if (!links.isEmpty() && counter < max) {
+		if (!links.isEmpty() && fetched < max) {
 			String url = links.pollFirst();
-			String normURL = transformURL(url);
-			if (visitedURLs.contains(normURL) || normURL.isEmpty() || !isValidURL(website.getDomain(), normURL))
+			String u = transformURL(url);
+			if (visitedURLs.contains(u)||u.isEmpty()||!isValidURL(conf.site, u))
 				self().tell(FETCH, self()); // try next..
 			else {
 				try {
 					HtmlPage body = getPage(url, client);
 					htmlPages.put(url, body);
+					totalFetched++;
 					fetched++;
-					counter++;
 					log().info("Fetched: " + url);
 					context().system().scheduler().scheduleOnce(
-						Duration.create(wait, TimeUnit.MILLISECONDS), 
+						Duration.create(conf.wait, TimeUnit.MILLISECONDS), 
 						self(), FETCH, context().dispatcher(), self());
 				} catch (Exception e) {
 					log().warning("Failed fetching: " + url);
@@ -144,7 +109,7 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 			}
 		} else {
 			/* restore default values */
-			counter = 0;
+			fetched = 0;
 			max = MAX;
 			self().tell(UPDATE, self());
 		}
@@ -159,7 +124,7 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 				log().info("MENU DETECTED: FETCHING ALL URLS IN LINK COLLECTION...");
 				queue.add(collection);
 				max = collection.size();
-				fetched -= newPages.size(); // reset counter
+				totalFetched -= newPages.size(); // reset counter
 			}
 			else {
 				updateModel(candidates);
@@ -167,7 +132,7 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 				newPages.forEach(p -> visitedURLs.add(transformURL(p.getUrl())));
 			}
 		}
-		if (!queue.isEmpty() && fetched < maxPages)
+		if (!queue.isEmpty() && totalFetched < conf.modelPages)
 			self().tell(POLL, self());
 		else
 			self().tell(FINALIZE, self());
@@ -177,7 +142,9 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 		log().info("FINALIZING MODEL...");
 		client.close();
 		if (!model.isEmpty()) {
-			PageClass root = compute();
+			ModelFinalizer finalizer = new ModelFinalizer(model, conf);
+			PageClass root = finalizer.getRoot();
+			root.setHierarchy();
 			log().info("END");
 			context().parent().tell(root, self());
 		}
@@ -185,19 +152,6 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 			log().info("MODELING FAILED");
 			context().parent().tell(STOP, self());
 		}
-	}
-	
-	public PageClass compute() {
-		// Transform candidates into Page Classes and Class Links
-		ModelFinalizer finalizer = new ModelFinalizer(model, website, wait);
-		TreeSet<PageClass> pClasses = finalizer.makePageClasses();
-		
-		// Log and save model to filesystem
-		logModel(pClasses);
-		
-		PageClass root = pClasses.first();
-		setHierarchy(root);
-		return root;
 	}
 	
 	// Candidate class selection
@@ -262,47 +216,15 @@ public class DynamicModeler extends AbstractLoggingActor implements WebsiteModel
 		}
 	}
 	
-	private void logModel(Set<PageClass> pClasses) {
-		String target = LOG+"/"+FileUtils.normalizeURL(website.getDomain())+"_target.csv";
-		
-		try {
-			Path dirPath = Paths.get(LOG);
-			if (!Files.exists(dirPath)) Files.createDirectory(dirPath);
-
-			csv = new CsvWriter(new FileWriter(target),'\t');
-			pClasses.forEach(pc -> {
-				pc.getMenuXPaths().forEach(xp -> writeRow(pc,xp,"menu"));
-				pc.getListXPaths().forEach(xp -> writeRow(pc,xp,"list"));
-				pc.getSingletonXPaths().forEach(xp -> writeRow(pc,xp,"singleton"));});
-			csv.close();
-		} 
-		catch (IOException e) {
-			log().error("IOException :"+e.getMessage());
-		}
-	}
-	
-	private void writeRow(PageClass pc, String xp, String type) {
-		try {
-			csv.write(pc.getName());
-			csv.write("link");
-			csv.write(xp);
-			csv.write(pc.getDestinationByXPath(xp).getName());
-			csv.write(type);
-			csv.endRecord();
-		} catch (IOException e) {
-			throw new RuntimeException();
-		}
-	}
-	
 	private Set<LinkCollection> newLinks(Set<Page> pages) {
 		Set<LinkCollection> newLinks = new HashSet<>();
 		
 		for (Page p : pages) {
 			for (String xp : p.getSchema()) {
-				LinkCollection lCollection = new LinkCollection(p, xp, p.getUrlsByXPath(xp));
-				if (!visitedColl.contains(lCollection)) {
-					visitedColl.add(lCollection);
-					newLinks.add(lCollection);
+				LinkCollection lc = new LinkCollection(p, xp, p.getUrlsByXPath(xp));
+				if (!visitedColl.contains(lc)) {
+					visitedColl.add(lc);
+					newLinks.add(lc);
 				}
 			}
 		}
