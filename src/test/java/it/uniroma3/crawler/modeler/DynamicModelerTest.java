@@ -51,7 +51,7 @@ public class DynamicModelerTest {
 		String toNext = "//a[@id='page']";
 		PageClass directory1 = home.getDestinationByXPath(toDirectory);
 		
-		assertEquals("class1", home.getName());
+		assertEquals("1", home.getName());
 		assertEquals(0, home.getDepth());
 		assertTrue(home.getMenuXPaths().contains(toDirectory));
 

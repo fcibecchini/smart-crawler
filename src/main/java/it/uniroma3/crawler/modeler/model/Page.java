@@ -4,82 +4,127 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
 
-import static java.util.stream.Collectors.*;
+import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
+
+import static it.uniroma3.crawler.util.HtmlUtils.getAbsoluteURL;
+import static it.uniroma3.crawler.util.XPathUtils.getXPathTo;
+import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
+/**
+ * A Page is a web page represented as a subset of the XPaths-to-link in the corresponding 
+ * DOM tree representation, along with the referenced URLs themselves.
+ *
+ */
 public class Page {
 	private String url;
-	private Map<String, List<String>> xpath2Urls;
-	private WebsiteModel model;
+	private Map<String, List<String>> xpathToURLs;
 	
-	public Page(String url, WebsiteModel model) {
-		this.model = model;
+	/**
+	 * Constructs a new Page identified by the given URL and 
+	 * with a page schema inferred from the List of outgoing HtmlAnchors.<br>
+	 * @param url the URL of the page
+	 * @param anchors the outgoing {@link HtmlAnchor}s
+	 */
+	public Page(String url, List<HtmlAnchor> anchors) {
 		this.url = url;
-		this.xpath2Urls = new HashMap<>();
+		this.xpathToURLs = pageSchema(anchors);
 	}
 	
+	/**
+	 * Returns this web Page URL
+	 * @return the URL
+	 */
 	public String getUrl() {
 		return this.url;
 	}
 	
-	public void updatePageSchema(String xpath, String url) {
-		this.xpath2Urls.putIfAbsent(xpath, new ArrayList<>());
-		this.xpath2Urls.get(xpath).add(url);
+	/**
+	 * INTERNAL API: group outgoing URLs by XPaths-to-link 
+	 * to build the page schema.
+	 * @param anchors
+	 */
+	private Map<String, List<String>> pageSchema(List<HtmlAnchor> anchors) {
+		return anchors.stream()
+			.collect(groupingBy(a -> getXPathTo(a),
+				mapping(a->getAbsoluteURL(url, a.getHrefAttribute()), toList())));
 	}
 	
+	/**
+	 * Returns the <i>page schema</i> of this Page.<br>
+	 * A page schema is an abstraction of a page consisting of a set 
+	 * of DOM XPaths-to-link.<br> A page schema is computed simply from the 
+	 * page's DOM tree by considering  only the set of paths starting 
+	 * from the root (or from a tag with an ID value) and ending in link tags.
+	 * @return the page schema
+	 */
 	public Set<String> getSchema() {
-		return this.xpath2Urls.keySet().stream()
-				.sorted((x1,x2) -> 
-					xpath2Urls.get(x2).size() - xpath2Urls.get(x1).size())
-				.collect(toSet());
+		return xpathToURLs.keySet();
 	}
 	
-	public Set<String> getUrlsByXPath(String xpath) {
-		List<String> urls = this.xpath2Urls.get(xpath);
-		if (urls != null)
-			return urls.stream().collect(toSet());
-		return null;
+	/**
+	 * Returns the List of URLs referenced by the given XPath.
+	 * @param xpath
+	 * @return the URLs
+	 */
+	public List<String> getURLsByXPath(String xpath) {
+		List<String> urls = xpathToURLs.get(xpath);
+		return (urls!=null) ? urls : new ArrayList<>();
 	}
 	
-	public List<String> getUrlsListByXPath(String xpath) {
-		return this.xpath2Urls.get(xpath);
-	}
-	
-	public void removeXPathFromSchema(String xpath) {
-		this.xpath2Urls.remove(xpath);
-	}
-	
+	/**
+	 * Returns the index of the URL referenced by the given XPath.
+	 * @param xpath
+	 * @param url
+	 * @return the index of the URL
+	 */
 	public int getUrlIndex(String xpath, String url) {
-		return this.xpath2Urls.get(xpath).indexOf(url);
+		return getURLsByXPath(xpath).indexOf(url);
 	}
 	
+	/**
+	 * Returns a collection of unique outgoing URLs of this Page.
+	 * @return the outgoing URLs set
+	 */
 	public Set<String> getDiscoveredUrls() {
-		return this.xpath2Urls.keySet().stream()
-				.map(k -> xpath2Urls.get(k))
+		return xpathToURLs.values().stream()
 				.flatMap(List::stream)
 				.distinct().collect(toSet());
 	}
 	
-	public Set<String> newXPaths(CandidatePageClass c) {
-		return getSchema().stream()
-				.filter(xp -> !c.getClassSchema().contains(xp))
-				.collect(toSet());
+	/**
+	 * Returns the total number of outgoing URLs of this Page.
+	 * @return the number of outgoing URLs
+	 */
+	public long urlsSize() {
+		return xpathToURLs.values().stream()
+				.flatMap(List::stream)
+				.distinct().count();
 	}
 	
-	public CandidatePageClass getCurrentCluster() {
-		return model.getClassOfURL(getUrl());
+	/**
+	 * Returns the cardinality of the difference between this Page schema
+	 * and the specified {@link CandidatePageClass} schema.
+	 * @param candidate
+	 * @return the cardinality of the difference between the two schemas
+	 */
+	public long schemaDifferenceSize(CandidatePageClass candidate) {
+		return getSchema().stream()
+				.filter(xp -> !candidate.getClassSchema().contains(xp))
+				.count();
 	}
 	
 	public String toString() {
-		return this.url;
+		return url;
 	}
 
 	public int hashCode() {
-		final int prime = 31;
-		return prime + url.hashCode();
+		return url.hashCode();
 	}
 
 	public boolean equals(Object obj) {

@@ -18,19 +18,20 @@ public class ModelFinalizer {
 	
 	public ModelFinalizer(WebsiteModel model, SeedConfig sc) {
 		this.model = model;
-		this.classes = model.getModel().stream()
-				.map(c -> new PageClass(c.getName(),sc)).collect(toSet());
+		this.classes = model.getClasses().stream()
+				.map(c -> new PageClass(String.valueOf(c.getId()),sc))
+				.collect(toSet());
 	}
 	
 	public PageClass getRoot() {
-		for (CandidatePageClass candidate : model.getModel())					
+		for (CandidatePageClass candidate : model.getClasses())					
 			for (String xpath : candidate.getClassSchema()) 
 				linksOfClass(candidate, xpath);
-		return getPageClass("class1");
+		return getPageClass(1);
 	}
 
 	private void linksOfClass(CandidatePageClass cand, String xpath) {
-		PageClass src = getPageClass(cand.getName());
+		PageClass src = getPageClass(cand.getId());
 		List<String> urls = cand.getOrderedUrlsFromXPath(xpath);
 		
 		Map<String, CandidatePageClass> url2class = new HashMap<>();
@@ -49,7 +50,7 @@ public class ModelFinalizer {
 		CandidatePageClass cpcDest = url2class.values().stream()
 				.filter(v -> v!=null).findAny().orElse(null);
 		if (cpcDest != null) {
-			PageClass dest = getPageClass(cpcDest.getName());
+			PageClass dest = getPageClass(cpcDest.getId());
 			if (urls.size()>1) 
 				src.addListLink(xpath, dest);
 			else 
@@ -61,7 +62,7 @@ public class ModelFinalizer {
 		for (String url : url2class.keySet()) {
 			CandidatePageClass cpcDest = url2class.get(url);
 			if (cpcDest != null) {
-				PageClass dest = getPageClass(cpcDest.getName());
+				PageClass dest = getPageClass(cpcDest.getId());
 				for (int index : indexesOf(urls, url)) {
 					String newXPath = "(" + xpath + ")[" + (index+1) + "]";
 					src.addMenuLink(newXPath, dest);
@@ -80,7 +81,8 @@ public class ModelFinalizer {
 		return indexes;
 	}
 	
-	private PageClass getPageClass(String name) {
+	private PageClass getPageClass(int id) {
+		String name = String.valueOf(id);
 		return classes.stream().filter(item -> item.getName().equals(name)).findAny().orElse(null);
 	}
 
