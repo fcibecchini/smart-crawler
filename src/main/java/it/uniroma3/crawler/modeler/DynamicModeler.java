@@ -34,24 +34,25 @@ public class DynamicModeler extends AbstractLoggingActor {
 	/**
 	 * Model of this website
 	 */
-	private final WebsiteModel model;
+	private final WebsiteModel model = new WebsiteModel();
 	
 	private WebClient client;
 	
 	/**
 	 * the queue of discovered Link Collections
 	 */
-	private Queue<LinkCollection> queue;
+	private Queue<LinkCollection> queue =
+			new PriorityQueue<>((l1,l2) -> l1.densestFirst(l2,model));
 	
 	/**
 	 * set of visited URLs for duplicate detection
 	 */
-	private Set<String> visitedURLs; 
+	private Set<String> visitedURLs = new HashSet<>(); 
 	
 	/**
 	 * set of already visited LinkCollection for duplicate detection
 	 */
-	private Set<LinkCollection> visitedColl;
+	private Set<LinkCollection> visitedColl = new HashSet<>();
 	
 	/**
 	 * total number of fetched URLs
@@ -66,7 +67,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 	/**
 	 * current list of new pages from latest outgoing links
 	 */
-	private List<Page> newPages;
+	private List<Page> newPages = new ArrayList<>();
 	
 	/**
 	 * last polled LinkCollection
@@ -81,21 +82,12 @@ public class DynamicModeler extends AbstractLoggingActor {
 	/**
 	 * max number of links to fetch per {@link LinkCollection}
 	 */
-	private int max;
+	private int max = 3;
 	
 	/**
 	 * current number of links fetched in the current collection
 	 */
 	private int fetched;
-	
-	public DynamicModeler() {
-		max = 3;
-		model = new WebsiteModel();
-		queue = new PriorityQueue<>((l1,l2) -> l1.densestFirst(l2,model));
-		visitedColl = new HashSet<>();
-		visitedURLs = new HashSet<>();
-		newPages = new ArrayList<>();
-	}
 	
 	@Override
 	public Receive createReceive() {
