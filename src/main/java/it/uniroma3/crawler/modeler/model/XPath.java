@@ -1,5 +1,6 @@
 package it.uniroma3.crawler.modeler.model;
 
+import java.util.Objects;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -18,6 +19,7 @@ import com.gargoylesoftware.htmlunit.html.DomNode;
  *
  */
 public class XPath {
+	private final String defaultPath;
 	private String path;
 	private SortedSet<XPathTag> tags;
 	
@@ -55,9 +57,9 @@ public class XPath {
 	 * @param anchor the anchor node to create a Root-to-link path
 	 */
 	public XPath(DomNode anchor) {
-		path = "";
-		tags = new TreeSet<>();
 		build(anchor);
+		path = "";
+		defaultPath = get();
 	}
 	
 	/**
@@ -71,11 +73,21 @@ public class XPath {
 			path = build.toString().replaceFirst("///+", "//")
 					.replaceFirst("/$", "");
 		}
-		return path;
+		return new String(path);
 	}
 	
 	/**
-	 * Refines this XPath by adding a tag or attribute, so that the
+	 * Returns the default version of this XPath, as specified 
+	 * by the constructor {@link XPath#XPath(DomNode)}.
+	 * @return the default version of this XPath
+	 */
+	public String getDefault() {
+		return defaultPath;
+	}
+	
+	/**
+	 * Refines this XPath by adding a tag or attribute starting
+	 * from the last tag, so that the
 	 * resulting new version is expected to match a smaller collection of links.
 	 * A single invocation of this method will result in only one refinement of a
 	 * tag or attribute. If a refinement cannot be applied (i.e. this is 
@@ -103,17 +115,18 @@ public class XPath {
 	}
 	
 	/**
-	 * Produce a more general version of this XPath by removing a tag or attribute, 
-	 * so that the resulting new version is expected to match a larger
-	 * collection of links. A single invocation of this method will result 
+	 * Produce a more general version of this XPath by removing a tag or attribute
+	 * starting from the first tag, so that the resulting new version 
+	 * is expected to match a larger collection of links. 
+	 * A single invocation of this method will result 
 	 * in only one generalization of a tag or attribute. 
 	 * If a generalization cannot be applied (i.e. this is the most general XPath) 
 	 * an empty string is returned. 
 	 * <br>Possible refinements are:<br>
 	 * <ul>
-	 * <li>Remove a tag: <code>//div[@id="pager_string"]/font/a -> //div[@id="pager_string"]//a</code></li>
-	 * <li>Remove an attribute: <code>//div[@id="pager_string"]/font[@size]/a -> //div[@id="pager_string"]/font/a</code></li>
-	 * <li>Remove an attribute value: <code>//div[@id="pager_string"]//a-> //div[@id]//a</code></li>
+	 * <li>Remove an attribute value: <code>//div[@id="page"]/font/a-> //div[@id]/font/a</code></li>
+	 * <li>Remove an attribute: <code>//div[@id]/font/a -> //div/font/a</code></li>
+	 * <li>Remove a tag: <code>//div/font/a -> //font/a</code></li>
 	 * <ul>
 	 * 
 	 * @return the new version of the XPath, or an empty string if a refinement
@@ -122,7 +135,7 @@ public class XPath {
 	public String coarser() {
 		XPathTag tag = tags.stream()
 				.filter(XPathTag::canDecrement)
-				.reduce((__, t) -> t).orElse(null);
+				.findFirst().orElse(null);
 		if (tag!=null) {
 			tag.decrement();
 			path = "";
@@ -153,7 +166,12 @@ public class XPath {
 		return get();
 	}
 	
+	public void setVersion(String version) {
+		path = version;
+	}
+	
 	private void build(DomNode node) {
+		tags = new TreeSet<>();
 		int index=0;
 		boolean idFound = false;
 		while (node.getNodeName()!="#document") {
@@ -180,6 +198,23 @@ public class XPath {
 			node = node.getParentNode();
 			index++;
 		}
+	}
+	
+	@Override
+	public int hashCode() {
+		return defaultPath.hashCode();
+	}
+	
+	
+	/**
+	 * Two XPath are said to be equal if their 
+	 * <i>{@link XPath#getDefault()} paths</i> are equal.
+	 * 
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		XPath o = (XPath) obj;
+		return Objects.equals(defaultPath, o.getDefault());
 	}
 
 }

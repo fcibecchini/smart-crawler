@@ -1,5 +1,7 @@
 package it.uniroma3.crawler.modeler.model;
 
+import java.util.Objects;
+
 /**
  * An XPathAttribute represent a attribute of a {@link XPathTag} 
  * with name and value.
@@ -19,6 +21,14 @@ public class XPathAttribute {
 	public XPathAttribute(String attribute, String value) {
 		this.attribute = attribute;
 		this.value = value;
+	}
+	
+	public String getAttribute() {
+		return attribute;
+	}
+	
+	public String getValue() {
+		return value;
 	}
 	
 	/**
@@ -110,6 +120,18 @@ public class XPathAttribute {
 			if (flag>1) attr.append("=\""+value+"\"");
 		}
 		return attr.toString();
+	}
+	
+	@Override
+	public int hashCode() {
+		return Objects.hash(attribute,value);
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		XPathAttribute other = (XPathAttribute) obj;
+		return Objects.equals(attribute, other.getAttribute()) &&
+				Objects.equals(value, other.getValue());
 	}
 
 }

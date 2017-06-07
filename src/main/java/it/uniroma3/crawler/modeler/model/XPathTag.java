@@ -98,7 +98,7 @@ public class XPathTag implements Comparable<XPathTag> {
 	public void decrement() {
 		XPathAttribute at = attributes.stream()
 		.filter(XPathAttribute::canDecrement)
-		.findFirst().orElse(null);
+		.reduce((__,a) -> a).orElse(null);
 		if (at==null) use = false;
 		else at.decrement();
 	}
