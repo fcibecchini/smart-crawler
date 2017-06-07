@@ -305,18 +305,19 @@ public class DynamicModeler extends AbstractLoggingActor {
 	public void update() {
 		updateModel(candidates);
 		
-		if (saveLinks(collection)) {
-			queue.addAll(newLinks(newPages));
-			
-			if (!queue.isEmpty())
-				self().tell(POLL, self());
-			else
-				self().tell(FINALIZE, self());
+		if (setPageLinks(collection)) {
+			queue.addAll(getLinkCollections(newPages));
+			self().tell((queue.isEmpty()) ? FINALIZE: POLL, self());
 		}
 		else self().tell(XPATH_COARSER, self());
 	}
 	
-	private boolean saveLinks(LinkCollection collection) {
+	/*
+	 * Set the Page Links between the current collection Parent page
+	 * and the newPages links
+	 * Returns false if an XPath refinement is required
+	 */
+	private boolean setPageLinks(LinkCollection collection) {
 		boolean saved = true;
 		
 		Page parent = collection.getParent();
@@ -351,6 +352,10 @@ public class DynamicModeler extends AbstractLoggingActor {
 		return saved;
 	}
 	
+	/*
+	 * Changes the current LinkCollection XPath version
+	 * until it founds different links
+	 */
 	public void changeXPath(boolean finer) {		
 		Page parent = collection.getParent();
 		String parentUrl = parent.getUrl();
@@ -432,7 +437,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 	/*
 	 * Constructs new Link Collections from newPages
 	 */
-	private Set<LinkCollection> newLinks(List<Page> pages) {
+	private Set<LinkCollection> getLinkCollections(List<Page> pages) {
 		Set<LinkCollection> newLinks = new HashSet<>();
 		for (Page p : pages) {
 			for (XPath xp : p.getXPaths()) {
