@@ -1,7 +1,7 @@
 package it.uniroma3.crawler.actors;
 
 import static it.uniroma3.crawler.util.HtmlUtils.*;
-import static it.uniroma3.crawler.util.XPathUtils.getAnchors;
+import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteInternalURLs;
 import static it.uniroma3.crawler.util.Commands.*;
 
 import static java.util.stream.Collectors.toMap;
@@ -148,11 +148,7 @@ public class CrawlPage extends AbstractLoggingActor {
 	private Map<String, List<String>> getOutLinks(HtmlPage html, String base, List<String> xPaths) {		
 		return xPaths.stream().distinct()
 		.collect(toMap(Function.identity(), 
-					   xp -> getAnchors(html, xp).stream()
-					  .map(a -> a.getHrefAttribute())
-					  .filter(l -> isValidURL(base, l))
-					  .map(l -> getAbsoluteURL(base, l))
-					  .collect(toList())));
+					   xp -> getAbsoluteInternalURLs(html,xp,base)));
 	}
 	
 	private List<String> getDataRecord(HtmlPage html, Map<String, DataType> dataTypes) {
