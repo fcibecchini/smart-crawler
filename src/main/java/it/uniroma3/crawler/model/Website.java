@@ -46,7 +46,8 @@ public class Website implements Comparable<Website>{
 	}
 	
 	public boolean addModel(PageClass root, long timestamp) {
-		return models.add(new ModelLink(this,root,timestamp));
+		int v = (!models.isEmpty()) ? models.last().getVersion()+1 : 1;
+		return models.add(new ModelLink(this,root,timestamp,v));
 	}
 	
 	public PageClass getNewestModel() {

@@ -243,6 +243,23 @@ public class PageClass {
 		return links.add(link);
 	}
 	
+	public boolean addLink(String xpath, PageClass dest, int type) {
+		ClassLink link = new ClassLink(this, xpath, dest);
+		if (type==1) 
+			link.setTypeList();
+		else if (type==2) 
+			link.setTypeMenu();
+		else 
+			link.setTypeSingleton();
+		return links.add(link);
+	}
+	
+	public ClassLink getLink(String xp) {
+		return links.stream()
+				.filter(l -> l.getXPath().equals(xp))
+				.findAny().orElse(null);
+	}
+	
 	public boolean addData(String xpath, String type, String fieldName) {
 		DataType data = makeDataType(xpath, type);
 		if (data==null) return false;
