@@ -47,8 +47,8 @@ public class CrawlerSettings implements Extension {
 	
 	private SeedConfig conf(String site, Config conf) {
 		String key = site.replaceAll("://|.", "\"$0\"");
-		String filep = "crawler.modeler."+key+"static.file";
-		String pagesp = "crawler.modeler."+key+"dynamic.pages";
+		String filep = "crawler.modeler."+key+".static.file";
+		String pagesp = "crawler.modeler."+key+".dynamic.pages";
 		String jsp = "crawler.modeler."+key+".javascript";
 		String waitp = "crawler.modeler."+key+".wait";
 		String randomp = "crawler.modeler."+key+".randompause";
