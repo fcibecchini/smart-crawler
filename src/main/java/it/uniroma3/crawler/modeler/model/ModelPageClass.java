@@ -2,39 +2,37 @@ package it.uniroma3.crawler.modeler.model;
 
 import java.util.Set;
 
-import static java.util.stream.Collectors.*;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * A CandidatePageClass is a collection of pages with the same <i>page class schema</i> 
+ * A ModelPageClass is a collection of pages with the same <i>page class schema</i> 
  * as the union of the individual page schemas, i.e.,
  * the union of the XPaths-to-link of the pages participating the collection.
  */
-public class CandidatePageClass implements Comparable<CandidatePageClass> {
+public class ModelPageClass implements Comparable<ModelPageClass> {
 	private int id;
 	private Set<Page> classPages;
 	private Set<String> classSchema;
 
 	/**
-	 * Constructs a new CandidatePageClass with the given id
+	 * Constructs a new ModelPageClass with the given id
 	 * @param id
 	 */
-	public CandidatePageClass(int id) {
+	public ModelPageClass(int id) {
 		this.id = id;
 		this.classPages = new HashSet<>();
 		this.classSchema = new HashSet<>();
 	}
 	
 	/**
-	 * Constructs a new CandidatePageClass with the given id
+	 * Constructs a new ModelPageClass with the given id
 	 * and a List of {@link Pages}
 	 * @param id identifier
 	 * @param pages List of Pages
 	 */
-	public CandidatePageClass(int id, List<Page> pages) {
+	public ModelPageClass(int id, List<Page> pages) {
 		this(id);
 		pages.forEach(this::addPageToClass);
 	}
@@ -43,12 +41,8 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 		return this.id;
 	}
 	
-	public void setId(int id) {
-		this.id = id;
-	}
-	
 	/**
-	 * Adds a {@link Page} to the current schema of this CandidatePageClass. <br>
+	 * Adds a {@link Page} to the current schema of this ModelPageClass. <br>
 	 * The page schema of this page is added to the page class schema.
 	 * @param p the Page to add
 	 */
@@ -70,39 +64,17 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 		return classSchema;
 	}
 	
-	public void setClassSchema(Set<String> schema) {
-		classSchema.addAll(schema);
-	}
-	
 	public Set<Page> getClassPages() {
 		return classPages;
 	}
 	
 	/**
-	 * Collapses the specified CandidatePageClass in the current one,
+	 * Collapses the specified ModelPageClass in the current one,
 	 * adding all its pages and page schemas.
-	 * @param candidate the CandidatePageClass to collapse
+	 * @param candidate the ModelPageClass to collapse
 	 */
-	public void collapse(CandidatePageClass candidate) {
+	public void collapse(ModelPageClass candidate) {
 		candidate.getClassPages().forEach(this::addPageToClass);
-	}
-	
-	/**
-	 * Returns true if this page class schema contains the specified XPath
-	 * @param xpath
-	 * @return true if this page class schema contains the XPath
-	 */
-	public boolean containsXPath(String xpath) {
-		return classSchema.contains(xpath);
-	}
-	
-	/**
-	 * Returns true if the given URL belongs to the page collection
-	 * @param url
-	 * @return true if the page collection contains the url
-	 */
-	public boolean containsPage(String url) {
-		return classPages.stream().anyMatch(p -> p.getUrl().equals(url));
 	}
 	
 	/**
@@ -116,7 +88,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	
 	/**
 	 * Returns the total number of outgoing URLs associated 
-	 * with this CandidatePageClass
+	 * with this ModelPageClass
 	 * @return the count of URLs in this candidate page class
 	 */
 	public long outgoingURLs() {
@@ -128,7 +100,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	
 	/**
 	 * Returns the cardinality of the intersection between the page schema 
-	 * of the given {@link Page} and the page class schema of this CandidatePageClass
+	 * of the given {@link Page} and the page class schema of this ModelPageClass
 	 * @param p the Page
 	 * @return the cardinality of the intersection
 	 */
@@ -140,7 +112,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	
 	/**
 	 * Returns the cardinality of the difference between the page class schema 
-	 * of this CandidatePageClass and the page schema of the given {@link Page} 
+	 * of this ModelPageClass and the page schema of the given {@link Page} 
 	 * @param p the Page
 	 * @return the XPaths difference
 	 */
@@ -151,32 +123,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	}
 	
 	/**
-	 * Returns a Set of outgoing URLs from the pages of this
-	 * CandidatePageClass matched by the given XPath
-	 * @param xpath
-	 * @return a Set of outgoing URLs matched by the XPath
-	 */
-	public Set<String> getUrlsDiscoveredFromXPath(String xpath) {
-		return classPages.stream()
-				.map(p -> p.getURLsByXPath(xpath))
-				.flatMap(List::stream).collect(toSet());
-	}
-	
-	/**
-	 * Returns a List of outgoing URLs matched by the given XPath
-	 * with the max number of URLs among all the Pages of this CandidatePageClass.
-	 * @param xpath
-	 * @return bigger List of outgoing URLs matched by the given XPath
-	 */
-	public List<String> getOrderedUrlsFromXPath(String xpath) {
-		return classPages.stream()
-				.map(p -> p.getURLsByXPath(xpath))
-				.max((l1,l2) -> l1.size() - l2.size())
-				.get();
-	}
-	
-	/**
-	 * Returns the total number of {@link Page}s in this CandidatePageClass
+	 * Returns the total number of {@link Page}s in this ModelPageClass
 	 * @return the number of pages
 	 */
 	public int size() {
@@ -185,7 +132,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	
 	/**
 	 * Returns the total number of XPaths in the page class schema of this
-	 * CandidatePageClass
+	 * ModelPageClass
 	 * @return the number of XPaths
 	 */
 	public int schemaSize() {
@@ -201,10 +148,10 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	 * Note that if Gi = Gj (identical schemas), then distance(Gi,Gj) = 0;<br>
 	 * conversely, if Gi ∩ Gj = empty (the schemas are disjoint), 
 	 * then distance(Gi,Gj) = 1
-	 * @param other the CandidatePageClass to be compared
-	 * @return the distance between this CandidatePageClass and the other
+	 * @param other the ModelPageClass to be compared
+	 * @return the distance between this ModelPageClass and the other
 	 */
-	public double distance(CandidatePageClass other) {
+	public double distance(ModelPageClass other) {
 		Set<String> union = new HashSet<>();
 		Set<String> diff1 = new HashSet<>();
 		Set<String> diff2 = new HashSet<>();
@@ -225,7 +172,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 		return (double) unionDiff.size() / (double) union.size();
 	}
 	
-	public int compareTo(CandidatePageClass other) {
+	public int compareTo(ModelPageClass other) {
 		return id - other.getId();
 	}
 	
@@ -238,7 +185,7 @@ public class CandidatePageClass implements Comparable<CandidatePageClass> {
 	}
 
 	public boolean equals(Object obj) {
-		CandidatePageClass other = (CandidatePageClass) obj;
+		ModelPageClass other = (ModelPageClass) obj;
 		return id==other.getId();
 	}
 	

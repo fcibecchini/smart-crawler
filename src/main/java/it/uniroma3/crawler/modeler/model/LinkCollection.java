@@ -13,12 +13,14 @@ import java.util.Objects;
  */
 public class LinkCollection {
 	private Page parent;
-	private String xpath;
+	private XPath xpath;
 	private List<String> links;
+	private short type;
+	private boolean isFinest, isCoarsest;
 	
 	/**
 	 * Constructs a new LinkCollection with the given group of link.
-	 * @param seed the web site homepage link
+	 * @param links the outgoing links
 	 */
 	public LinkCollection(List<String> links) {
 		this.links = Collections.unmodifiableList(links);
@@ -28,10 +30,11 @@ public class LinkCollection {
 	 * Constructs a new LinkCollection containing the 
 	 * outgoing links of the specified page related to the given XPath 
 	 * @param parent the parent {@link Page} which contains the outgoing links
-	 * @param xpath the XPath that references this link collection
+	 * @param xpath the {@link XPath} that references this link collection
+	 * @param urls the outgoing links
 	 */
-	public LinkCollection(Page parent, String xpath) {
-		this(parent.getURLsByXPath(xpath));
+	public LinkCollection(Page parent, XPath xpath, List<String> urls) {
+		this(urls);
 		this.xpath = xpath;
 		this.parent = parent;
 	}
@@ -53,9 +56,17 @@ public class LinkCollection {
 	
 	/**
 	 * 
-	 * @return the XPath referencing this collection
+	 * @return the current XPath version referencing this collection
 	 */
-	public String getXPath() {
+	public String getCurrentXPath() {
+		return xpath.get();
+	}
+	
+	/**
+	 * 
+	 * @return the XPath instance of this Link Collection
+	 */
+	public XPath getXPath() {
 		return xpath;
 	}
 	
@@ -67,6 +78,46 @@ public class LinkCollection {
 		return links.size();
 	}
 	
+	public void setList() {
+		type=1;
+	}
+	
+	public void setMenu() {
+		type=2;
+	}
+	
+	public void setSingleton() {
+		type=3;
+	}
+	
+	public boolean isList() {
+		return type==1;
+	}
+	
+	public boolean isMenu() {
+		return type==2;
+	}
+	
+	public boolean isSingleton() {
+		return type==3;
+	}
+	
+	public boolean isFinest() {
+		return isFinest;
+	}
+
+	public void setFinest() {
+		this.isFinest = true;
+	}
+
+	public boolean isCoarsest() {
+		return isCoarsest;
+	}
+
+	public void setCoarsest() {
+		this.isCoarsest = true;
+	}
+	
 	/**
 	 * Compares this LinkCollection with the specified LinkCollection for order 
 	 * with a <i>densest-first</i> strategy. 
@@ -76,20 +127,21 @@ public class LinkCollection {
 	 * A LinkCollection is less than another (has higher priority) 
 	 * if it has more instances relative to the total 
 	 * number of outgoing links for its cluster than the other.<br>
-	 * Note that link collections in singleton {@link CandidatePageClass} 
+	 * Note that link collections in singleton {@link ModelPageClass} 
 	 * are always less than the others (they are assigned top priority).
 	 * @param o the LinkCollection to compare
 	 * @param model the {@link WebsiteModel} of clustered pages to retrieve the current
 	 * page class of the page
 	 */
 	public int densestFirst(LinkCollection o, WebsiteModel model) {
-		int size1 = model.getClassOfPage(parent).size();
-		int size2 = model.getClassOfPage(o.getParent()).size();
-		if (size1==1 && size2>1) return -1;
-		if (size1>1 && size2==1) return 1;
-
-		double ratio1 = size() / model.getClassOfPage(parent).outgoingURLs();
-		double ratio2 = o.size() / model.getClassOfPage(o.getParent()).outgoingURLs();
+		ModelPageClass c1 = model.getClassOfPage(parent);
+		ModelPageClass c2 = model.getClassOfPage(o.getParent());
+		
+		if (c1.size()==1 && c2.size()>1) return -1;
+		if (c1.size()>1 && c2.size()==1) return 1;
+		
+		double ratio1 = (double) size() / (double) c1.outgoingURLs();
+		double ratio2 = (double) o.size() / (double) c2.outgoingURLs();
 		
 		if (ratio1 > ratio2) return -1;
 		if (ratio1 < ratio2) return 1;
@@ -98,16 +150,16 @@ public class LinkCollection {
 	
 	public String toString() {
 		String desc = (parent!=null) ? parent.getUrl() : "entryPoint";
-		return desc+" -> "+ links.toString();
+		return desc+" "+getCurrentXPath()+" -> "+ links.toString();
 	}
 	
 	public int hashCode() {
-		return Objects.hash(xpath, links);
+		return Objects.hash(getCurrentXPath(), links);
 	}
 
 	public boolean equals(Object obj) {
 		LinkCollection other = (LinkCollection) obj;
-		return Objects.equals(xpath, other.getXPath())
+		return Objects.equals(getCurrentXPath(), other.getCurrentXPath())
 			&& Objects.equals(links, other.getLinks());
 	}
 

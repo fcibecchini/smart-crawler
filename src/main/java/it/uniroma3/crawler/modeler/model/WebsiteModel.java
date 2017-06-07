@@ -4,7 +4,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * A WebsiteModel is a collection of clustered pages ({@link CandidatePageClass}) 
+ * A WebsiteModel is a collection of clustered pages ({@link ModelPageClass}) 
  * with a common page class schema.
  *
  */
@@ -14,7 +14,7 @@ public class WebsiteModel {
 	private static final double C_I = 0.8;
 	private static final double C_MISS = 1;
 
-	private Set<CandidatePageClass> modelClasses;
+	private Set<ModelPageClass> modelClasses;
 	private double cost;
 	
 	/**
@@ -33,11 +33,11 @@ public class WebsiteModel {
 		modelClasses.addAll(model.getClasses());
 	}
 	
-	public boolean addClass(CandidatePageClass candidate) {
+	public boolean addClass(ModelPageClass candidate) {
 		return this.modelClasses.add(candidate);
 	}
 	
-	public void removeClass(CandidatePageClass candidate) {
+	public void removeClass(ModelPageClass candidate) {
 		this.modelClasses.remove(candidate);
 	}
 	
@@ -59,7 +59,7 @@ public class WebsiteModel {
 		return this.modelClasses.isEmpty();
 	}
 	
-	public Set<CandidatePageClass> getClasses() {
+	public Set<ModelPageClass> getClasses() {
 		return modelClasses;
 	}
 	
@@ -68,21 +68,9 @@ public class WebsiteModel {
 	 * @param id
 	 * @return the CandidatePageClass identified by this id, otherwise null
 	 */
-	public CandidatePageClass getCandidateFromId(int id) {
+	public ModelPageClass getCandidateFromId(int id) {
 		return modelClasses.stream()
 				.filter(c -> c.getId()==id).findAny().orElse(null);
-	}
-	
-	/**
-	 * Returns a reference to the CandidatePageClass containing a {@link Page} 
-	 * identified with the given URL.
-	 * @param url the URL of the page
-	 * @return the CandidatePageClass of this model containing the URL, 
-	 * otherwise null
-	 */
-	public CandidatePageClass getClassOfURL(String url) {
-		return modelClasses.stream()
-				.filter(c -> c.containsPage(url)).findAny().orElse(null);
 	}
 	
 	/**
@@ -92,7 +80,7 @@ public class WebsiteModel {
 	 * @return the CandidatePageClass of this model containing the page, 
 	 * otherwise null
 	 */
-	public CandidatePageClass getClassOfPage(Page page) {
+	public ModelPageClass getClassOfPage(Page page) {
 		return modelClasses.stream()
 				.filter(c -> c.containsPage(page)).findAny().orElse(null);
 	}
@@ -115,12 +103,12 @@ public class WebsiteModel {
 	
 	private double calculateLength() {
 		int modelCost = 0;
-		for (CandidatePageClass c : modelClasses) {
+		for (ModelPageClass c : modelClasses) {
 			modelCost += C_XP * c.schemaSize();
 		}
 		
 		int dataCost = 0;
-		for (CandidatePageClass c : modelClasses) {
+		for (ModelPageClass c : modelClasses) {
 			for (Page p : c.getClassPages()) {
 				int pageCost = 0;
 				pageCost += C_U * p.urlsSize();
