@@ -21,6 +21,7 @@ public class NodesSettings implements Extension {
 			int port = node.getInt("port");
 			String system = node.getString("system");
 			addr[i] = "akka://"+system+"@"+host+":"+port;
+			i++;
 		}
 		return addr;
 	}

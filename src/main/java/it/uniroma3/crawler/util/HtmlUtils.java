@@ -12,6 +12,7 @@ import com.gargoylesoftware.htmlunit.StringWebResponse;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HTMLParser;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.google.common.net.InternetDomainName;
 
 public class HtmlUtils {
 	
@@ -70,13 +71,30 @@ public class HtmlUtils {
 		return newUrl;
 	}
 	
+	/**
+	 * Returns true if the given href is a valid internal URL with respect to
+	 * the given base url. 
+	 * @param base the base url
+	 * @param href the anchor href
+	 * @return true if the url is valid
+	 */
 	public static boolean isValidURL(String base, String href) {
+		if (href.startsWith("http")) {
+			try {
+				String domain1 = 
+				InternetDomainName.from(new URL(href).getHost()).topPrivateDomain().toString();
+				String domain2 = 
+				InternetDomainName.from(new URL(base).getHost()).topPrivateDomain().toString();
+				if (!domain1.equals(domain2)) 
+					return false;
+			} catch (MalformedURLException e) {
+				return false;
+			}
+		}
 		return !href.contains("javascript") 
 				&& !href.contains("crawler") 
 				&& !href.contains("@") 
-				&& !href.contains("#")
-				&& (!href.startsWith("http") 
-					|| href.startsWith(base));
+				&& !href.contains("#");
 	}
 
 }

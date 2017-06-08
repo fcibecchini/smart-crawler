@@ -158,30 +158,33 @@ public class DynamicModeler extends AbstractLoggingActor {
 	}
 	
 	public void poll() {
-		collection = queue.poll();
-		log().info("Parent Page: "+collection.getParent()+", "+collection.size()+" total links");
-		
-		int size = collection.size();
-		List<String> group = collection.getLinks();
-		links = new LinkedList<>();
-		if (size<=max)
-			links.addAll(group);
+		if (queue.isEmpty()) self().tell(FINALIZE, self());
 		else {
-			links.add(group.get(0));
-			links.add(group.get((size-1)/2));
-			links.add(group.get(size-1));
+			collection = queue.poll();
+			log().info("Parent Page: "+collection.getParent()+
+					", "+collection.size()+" total links");
+			
+			int size = collection.size();
+			List<String> group = collection.getLinks();
+			links = new LinkedList<>();
+			if (size<=max)
+				links.addAll(group);
+			else {
+				links.add(group.get(0));
+				links.add(group.get((size-1)/2));
+				links.add(group.get(size-1));
+			}
+			
+			if (pause) 
+				context().system().scheduler().scheduleOnce(
+						Duration.create(conf.wait, TimeUnit.MILLISECONDS), 
+						self(), FETCH, context().dispatcher(), self());
+			else self().tell(FETCH, self());		
+			
+			/* reset */
+			newPages.clear();
+			pause = false;
 		}
-		
-		if (pause) 
-			context().system().scheduler().scheduleOnce(
-					Duration.create(conf.wait, TimeUnit.MILLISECONDS), 
-					self(), FETCH, context().dispatcher(), self());
-		else self().tell(FETCH, self());		
-		
-		/* reset */
-		newPages.clear();
-		fetched = 0;
-		pause = false;
 	}
 	
 	public void fetch() {
@@ -210,13 +213,18 @@ public class DynamicModeler extends AbstractLoggingActor {
 					log().warning("Failed fetching: "+u+", "+e.getMessage());
 				}
 			}
+			else {
+				log().info("Rejected URL: "+u);
+			}
 			self().tell(FETCH, self());
 		}
-		else {
-			/* reset max */
+		else if (fetched>0) {
+			/* reset values */
 			max = 3;
+			fetched = 0;
 			self().tell(CLUSTER, self());
 		}
+		else self().tell(POLL, self());
 	}
 	
 	public void cluster() {
@@ -273,15 +281,14 @@ public class DynamicModeler extends AbstractLoggingActor {
 				}
 			}
 			else if (candidates.size()>=3) {
-				if (fetched<collection.size()) {
-					log().info("MENU: FETCHING ALL URLS IN LINK COLLECTION...");
+				if (collection.isMenu())
+					self().tell(UPDATE, self());
+				else {
+					collection.setMenu();
 					queue.add(collection);
 					max = collection.size();
 					self().tell(POLL, self());
-				}
-				else {
-					collection.setMenu();
-					self().tell(UPDATE, self());
+					log().info("MENU: FETCHING ALL URLS IN LINK COLLECTION...");
 				}
 			}
 		} 
@@ -308,7 +315,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 		
 		if (setPageLinks(collection)) {
 			queue.addAll(getLinkCollections(newPages));
-			self().tell((queue.isEmpty()) ? FINALIZE: POLL, self());
+			self().tell(POLL, self());
 		}
 		else self().tell(XPATH_COARSER, self());
 	}
