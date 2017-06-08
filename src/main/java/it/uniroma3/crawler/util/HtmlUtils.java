@@ -87,7 +87,7 @@ public class HtmlUtils {
 				InternetDomainName.from(new URL(base).getHost()).topPrivateDomain().toString();
 				if (!domain1.equals(domain2)) 
 					return false;
-			} catch (MalformedURLException e) {
+			} catch (Exception e) {
 				return false;
 			}
 		}

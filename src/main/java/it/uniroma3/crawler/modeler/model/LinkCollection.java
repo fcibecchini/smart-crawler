@@ -16,7 +16,7 @@ public class LinkCollection {
 	private XPath xpath;
 	private List<String> links;
 	private short type;
-	private boolean isFinest, isCoarsest;
+	private boolean isFinest, isCoarsest, fetchAll;
 	
 	/**
 	 * Constructs a new LinkCollection with the given group of link.
@@ -110,6 +110,22 @@ public class LinkCollection {
 		this.isCoarsest = true;
 	}
 	
+	/**
+	 * 
+	 * @return true if all the links in collection must be fetched
+	 */
+	public boolean fetchAll() {
+		return fetchAll;
+	}
+
+	/**
+	 * Set if this collection must be traversed completely
+	 * @param fetchAll
+	 */
+	public void setFetchAll(boolean fetchAll) {
+		this.fetchAll = fetchAll;
+	}
+
 	/**
 	 * Compares this LinkCollection with the specified LinkCollection for order 
 	 * with a <i>densest-first</i> strategy. 

@@ -160,7 +160,10 @@ public class DynamicModeler extends AbstractLoggingActor {
 	public void poll() {
 		if (queue.isEmpty()) self().tell(FINALIZE, self());
 		else {
-			collection = queue.poll();
+			if (collection!=null && collection.fetchAll()) 
+				collection.setFetchAll(false);
+			else 
+				collection = queue.poll();
 			log().info("Parent Page: "+collection.getParent()+
 					", "+collection.size()+" total links");
 			
@@ -214,7 +217,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 				}
 			}
 			else {
-				log().info("Rejected URL: "+u);
+				log().info("Rejected URL: "+url);
 			}
 			self().tell(FETCH, self());
 		}
@@ -284,8 +287,9 @@ public class DynamicModeler extends AbstractLoggingActor {
 				if (collection.isMenu())
 					self().tell(UPDATE, self());
 				else {
+					collection.setFetchAll(true);
 					collection.setMenu();
-					queue.add(collection);
+					//queue.add(collection);
 					max = collection.size();
 					self().tell(POLL, self());
 					log().info("MENU: FETCHING ALL URLS IN LINK COLLECTION...");
