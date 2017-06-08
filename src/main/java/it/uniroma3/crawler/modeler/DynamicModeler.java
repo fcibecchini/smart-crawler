@@ -369,6 +369,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 		String parentUrl = parent.getUrl();
 		XPath xp = collection.getXPath();
 		String version = xp.get();
+		boolean found = false;
 
 		try {
 			HtmlPage html;
@@ -386,7 +387,6 @@ public class DynamicModeler extends AbstractLoggingActor {
 						URI.create(parentUrl));
 
 			LinkCollection newCol = null;
-			boolean found = false;
 			while (!found && !((finer) ? xp.finer() : xp.coarser()).isEmpty()) {
 				List<String> urls = getAbsoluteURLs(html, xp.get(), parentUrl);
 				if (!urls.equals(collection.getLinks())) {
@@ -396,18 +396,18 @@ public class DynamicModeler extends AbstractLoggingActor {
 					found=true;
 				}
 			}
-			if (!found) {
-				collection.getXPath().setVersion(version);
-				if (finer) 
-					collection.setFinest();
-				else 
-					collection.setCoarsest();
-				queue.add(collection);
-			}
 
 		} catch (Exception e) {
-			queue.add(collection);
 			log().warning("Failed refinement of XPath: "+e.getMessage());
+		}
+		
+		if (!found) {
+			collection.getXPath().setVersion(version);
+			if (finer) 
+				collection.setFinest();
+			else 
+				collection.setCoarsest();
+			queue.add(collection);
 		}
 		
 		self().tell(POLL, self());
