@@ -12,7 +12,7 @@ import org.neo4j.ogm.annotation.Relationship;
 public class Website implements Comparable<Website>{
 	private Long id;
 	@Index(unique=true, primary=true) private String domain;
-	
+	private int lastVersion;
 	@Relationship(type="MODEL_LINK", direction=Relationship.OUTGOING)
 	private SortedSet<ModelLink> models;
 	
@@ -45,13 +45,25 @@ public class Website implements Comparable<Website>{
 		this.models = models;
 	}
 	
+	public void setLastVersion(int version) {
+		this.lastVersion = version;
+	}
+	
+	public int getLastVersion() {
+		return this.lastVersion;
+	}
+	
 	public boolean addModel(PageClass root, long timestamp) {
-		int v = (!models.isEmpty()) ? models.last().getVersion()+1 : 1;
-		return models.add(new ModelLink(this,root,timestamp,v));
+		root.setGraphVersion(++lastVersion);
+		return models.add(new ModelLink(this,root,timestamp,lastVersion));
 	}
 	
 	public PageClass getNewestModel() {
 		return models.last().getRoot();
+	}
+	
+	public ModelLink getLastLink() {
+		return models.last();
 	}
 	
 	public int size() {

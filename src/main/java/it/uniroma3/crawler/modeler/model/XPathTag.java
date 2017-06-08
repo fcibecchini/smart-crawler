@@ -28,6 +28,15 @@ public class XPathTag implements Comparable<XPathTag> {
 		this.use = true;
 	}
 	
+	public XPathTag(XPathTag xpathTag) {
+		this.name = xpathTag.getName();
+		this.index = xpathTag.getIndex();
+		this.attributes = new ArrayList<>();
+		xpathTag.getAttributes().forEach(a -> attributes.add(new XPathAttribute(a)));
+		this.use = xpathTag.used();
+		this.hasId = xpathTag.hasId();
+	}
+	
 	/**
 	 * 
 	 * @return the position of this tag in the path from anchor to root
@@ -42,6 +51,10 @@ public class XPathTag implements Comparable<XPathTag> {
 	 */
 	public String getName() {
 		return name;
+	}
+	
+	public List<XPathAttribute> getAttributes() {
+		return attributes;
 	}
 	
 	/**

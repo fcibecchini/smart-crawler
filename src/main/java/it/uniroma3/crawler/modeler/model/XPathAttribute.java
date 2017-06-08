@@ -23,12 +23,22 @@ public class XPathAttribute {
 		this.value = value;
 	}
 	
+	public XPathAttribute(XPathAttribute xpathAttribute) {
+		this.attribute = xpathAttribute.getAttribute();
+		this.value = xpathAttribute.getValue();
+		this.flag = xpathAttribute.getFlag();
+	}
+	
 	public String getAttribute() {
 		return attribute;
 	}
 	
 	public String getValue() {
 		return value;
+	}
+	
+	public short getFlag() {
+		return flag;
 	}
 	
 	/**

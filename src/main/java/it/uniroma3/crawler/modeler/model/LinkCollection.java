@@ -56,14 +56,6 @@ public class LinkCollection {
 	
 	/**
 	 * 
-	 * @return the current XPath version referencing this collection
-	 */
-	public String getCurrentXPath() {
-		return xpath.get();
-	}
-	
-	/**
-	 * 
 	 * @return the XPath instance of this Link Collection
 	 */
 	public XPath getXPath() {
@@ -150,16 +142,16 @@ public class LinkCollection {
 	
 	public String toString() {
 		String desc = (parent!=null) ? parent.getUrl() : "entryPoint";
-		return desc+" "+getCurrentXPath()+" -> "+ links.toString();
+		return desc+" "+xpath.get()+" -> "+ links.toString();
 	}
 	
 	public int hashCode() {
-		return Objects.hash(getCurrentXPath(), links);
+		return Objects.hash(xpath, links);
 	}
 
 	public boolean equals(Object obj) {
 		LinkCollection other = (LinkCollection) obj;
-		return Objects.equals(getCurrentXPath(), other.getCurrentXPath())
+		return Objects.equals(xpath, other.getXPath())
 			&& Objects.equals(links, other.getLinks());
 	}
 

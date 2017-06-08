@@ -5,6 +5,7 @@ import java.util.HashMap;
 import org.neo4j.ogm.session.Session;
 
 import it.uniroma3.crawler.factories.GraphSessionFactory;
+import it.uniroma3.crawler.model.ModelLink;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.model.Website;
 
@@ -12,15 +13,17 @@ public class PageClassService {
 	private Session session = GraphSessionFactory.getInstance().getSession();
 	
 	public void saveModel(PageClass pclass, String domain) {
-		Website site = session.load(Website.class, domain, -1);
+		Website site = session.load(Website.class, domain);
 		if (site==null) site = new Website(domain);
 		site.addModel(pclass, System.currentTimeMillis());
 		session.save(site);
 	}
 	
-	public PageClass getModel(String domain) {      
-		Website site = session.load(Website.class, domain, -1);
-        PageClass root = site.getNewestModel();
+	public PageClass getModel(String domain) {
+		//TODO ...
+		Website site = session.load(Website.class, domain);
+		ModelLink last = site.getLastLink();
+		PageClass root = session.load(PageClass.class, last.getRoot().getId(), -1);
         return root;
 	}
 	

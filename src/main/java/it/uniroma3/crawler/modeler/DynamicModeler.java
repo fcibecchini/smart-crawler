@@ -7,8 +7,10 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURLs;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -149,7 +151,6 @@ public class DynamicModeler extends AbstractLoggingActor {
 	public void start(SeedConfig sc) {
 		conf = sc;
 		client = makeWebClient(sc.javascript);
-		client.getOptions().setDownloadImages(false);
 
 		// Feed queue with seed
 		queue.add(new LinkCollection(Arrays.asList(conf.site)));
@@ -324,7 +325,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 		
 		// seed does not have a parent page
 		if (parent!=null) { 
-			String xpath = collection.getCurrentXPath();
+			String xpath = collection.getXPath().get();
 			if (collection.isList()) {
 				parent.addListLink(xpath, newPages.get(0));
 			}
@@ -361,30 +362,34 @@ public class DynamicModeler extends AbstractLoggingActor {
 		String parentUrl = parent.getUrl();
 		XPath xp = collection.getXPath();
 		String version = xp.get();
-				
+
 		try {
 			HtmlPage html;
 			if (parent.getTempFile()==null) {
 				html = getPage(parentUrl, client);
-				String path = FileUtils.getWriteDir("temp", conf.site)
-						+"/temp"+(++saved);
-				html.save(new File(path));
-				parent.setTempFile(path+".html");
+				String directory = FileUtils.getWriteDir("temp", conf.site);
+				String path = directory+"/temp"+(++saved)+".html";
+				Files.createDirectories(Paths.get(directory));
+				BufferedWriter writer = Files.newBufferedWriter(Paths.get(path), Charset.forName("UTF-8"));
+				writer.write(html.asXml());
+				writer.close();
+				parent.setTempFile(path);
 			} else
 				html = HtmlUtils.restorePageFromFile(parent.getTempFile(), 
 						URI.create(parentUrl));
-			
+
 			LinkCollection newCol = null;
-			while (!((finer) ? xp.finer() : xp.coarser()).isEmpty()) {
+			boolean found = false;
+			while (!found && !((finer) ? xp.finer() : xp.coarser()).isEmpty()) {
 				List<String> urls = getAbsoluteURLs(html, xp.get(), parentUrl);
 				if (!urls.equals(collection.getLinks())) {
-					newCol = new LinkCollection(parent,xp,urls);
+					newCol = new LinkCollection(parent, new XPath(xp), urls);
 					queue.add(newCol);
 					log().info("Refined XPath: "+xp.getDefault()+" -> "+xp.get());
-					break;
+					found=true;
 				}
 			}
-			if (newCol==null) {
+			if (!found) {
 				collection.getXPath().setVersion(version);
 				if (finer) 
 					collection.setFinest();
@@ -441,7 +446,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 		Set<LinkCollection> newLinks = new HashSet<>();
 		for (Page p : pages) {
 			for (XPath xp : p.getXPaths()) {
-				LinkCollection lc = new LinkCollection(p, xp, p.getURLsByXPath(xp));
+				LinkCollection lc = new LinkCollection(p, new XPath(xp), p.getURLsByXPath(xp));
 				if (visitedColl.add(lc))
 					newLinks.add(lc);
 			}

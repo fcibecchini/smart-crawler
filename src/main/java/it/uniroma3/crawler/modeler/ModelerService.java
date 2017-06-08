@@ -114,7 +114,7 @@ public class ModelerService extends AbstractLoggingActor {
 			current.setMaxFetchTries(conf.maxfailures);
 			current.setJavascript(conf.javascript);
 			
-			current.classLinks().stream()
+			current.classLinks()
 			.filter(pc -> !visited.contains(pc.getName()))
 			.forEach(queue::add);
 			visited.add(current.getName());

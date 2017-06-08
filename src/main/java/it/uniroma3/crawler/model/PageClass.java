@@ -9,14 +9,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.neo4j.ogm.annotation.NodeEntity;
 import org.neo4j.ogm.annotation.Relationship;
 import org.neo4j.ogm.annotation.Transient;
 
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
-
-import static java.util.stream.Collectors.toSet;
 
 import static java.util.stream.Collectors.toList;
 
@@ -27,6 +26,7 @@ public class PageClass {
 	private String name;
 	private String website;
 	private int depth;
+	private int version;
 	
 	@Transient private int waitTime;
 	@Transient private int randomPause;
@@ -117,6 +117,14 @@ public class PageClass {
 	public int getDepth() {
 		return this.depth;
 	}
+	
+	public void setVersion(int version) {
+		this.version = version;
+	}
+	
+	public int getVersion() {
+		return this.version;
+	}
 
 	public boolean useJavaScript() {
 		return javascript;
@@ -130,8 +138,8 @@ public class PageClass {
 		return randomPause;
 	}
 	
-	public Set<PageClass> classLinks() {
-		return links.stream().map(ClassLink::getDestination).collect(toSet());
+	public Stream<PageClass> classLinks() {
+		return links.stream().map(ClassLink::getDestination);
 	}
 	
 	public PageClass getDescendant(String name) {
@@ -143,7 +151,7 @@ public class PageClass {
 		while ((current = queue.poll()) != null) {
 			if (current.getName().equals(name))
 				return current;
-			current.classLinks().stream()
+			current.classLinks()
 			.filter(pc -> !visited.contains(pc))
 			.forEach(queue::add);
 			visited.add(current);
@@ -154,19 +162,34 @@ public class PageClass {
 	public void setHierarchy() {
 		Queue<PageClass> queue = new LinkedList<>();
 		Set<String> visited = new HashSet<>();
-		visited.add(this.getName());
+		visited.add(name);
 		queue.add(this);
 		
 		PageClass current = null;
 		while ((current = queue.poll()) != null) {
 			int depth = current.getDepth();
 			
-			current.classLinks().stream()
-			.filter(pc -> !visited.contains(pc.getName()))
+			current.classLinks()
+			.filter(pc -> visited.add(pc.getName()))
 			.forEach(pc -> {
-				visited.add(pc.getName()); 
 				queue.add(pc); 
-				pc.setDepth(depth+1);});
+				pc.setDepth(depth+1);
+			});
+		}
+	}
+	
+	public void setGraphVersion(int version) {
+		Queue<PageClass> queue = new LinkedList<>();
+		Set<String> visited = new HashSet<>();
+		visited.add(name);
+		queue.add(this);
+		
+		PageClass current = null;
+		while ((current = queue.poll()) != null) {
+			current.setVersion(version);
+			current.classLinks()
+			.filter(pc -> visited.add(pc.getName()))
+			.forEach(queue::add);
 		}
 	}
 	

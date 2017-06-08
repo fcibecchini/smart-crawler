@@ -63,6 +63,21 @@ public class XPath {
 	}
 	
 	/**
+	 * Creates a new XPath that is a copy of the given one.
+	 * @param xpath the XPath to copy
+	 */
+	public XPath(XPath xpath) {
+		path = xpath.get();
+		defaultPath = xpath.getDefault();
+		tags = new TreeSet<>();
+		xpath.getTags().forEach(t -> tags.add(new XPathTag(t)));
+	}
+	
+	public SortedSet<XPathTag> getTags() {
+		return tags;
+	}
+	
+	/**
 	 * Returns the current version of this XPath.
 	 * @return the current XPath
 	 */
