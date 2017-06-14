@@ -7,10 +7,6 @@ import static it.uniroma3.crawler.util.Commands.*;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toList;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -23,6 +19,7 @@ import akka.actor.ActorRef;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.DataType;
 import it.uniroma3.crawler.util.FileUtils;
+import it.uniroma3.crawler.util.HtmlUtils;
 
 public class CrawlPage extends AbstractLoggingActor {
 	private String url;
@@ -53,26 +50,25 @@ public class CrawlPage extends AbstractLoggingActor {
 	}
 	
 	private void save() {
-		String htmlPath = getFileUrlPath(html, FileUtils.getMirror("html", domain));
-		try {
-			savePageMirror(html, htmlPath);
-			setHtml(null);
-			setHtmlPath(htmlPath);
+		String directory = FileUtils.getPagesDirectory(domain);
+		String path = HtmlUtils.savePage(html, directory, true);
+		if (!path.isEmpty()) {
+			setHtmlPath(path);
 			sender().tell(SAVED, self());
-			context().parent()
-			.tell(new SaveCacheMsg(domain,url,pclass,htmlPath), 
-					ActorRef.noSender());
-		} catch (IOException e) {
+			context().parent().tell(new SaveCacheMsg(domain,url,pclass,path), 
+				ActorRef.noSender());
+		}
+		else {
 			//TODO: improve exception handling
 			sender().tell(ERROR, self());
-			setHtml(null);
-			log().warning("save: IOException while saving page: "+url+" "+e.getMessage());
+			log().warning("save: IOException while saving page: "+url);
 		}
+		setHtml(null);
 	}
 	
 	private void extract(ExtractLinksMsg msg) {
 		try {
-			HtmlPage html = restorePageFromFile(htmlPath, URI.create(domain));
+			HtmlPage html = restorePageFromFile(htmlPath, domain);
 			Map<String, List<String>> outLinks = getOutLinks(html, domain, msg.getNavXPaths());
 			sender().tell(new ExtractedLinksMsg(outLinks), self());
 		} catch (Exception e) {
@@ -85,7 +81,7 @@ public class CrawlPage extends AbstractLoggingActor {
 	
 	private void extract(ExtractDataMsg msg) {
 		try {
-			HtmlPage html = restorePageFromFile(htmlPath, URI.create(domain));
+			HtmlPage html = restorePageFromFile(htmlPath, domain);
 			List<String> record = getDataRecord(html, msg.getData());
 			sender().tell(new ExtractedDataMsg(record), self());
 		} catch (Exception e) {
@@ -128,23 +124,6 @@ public class CrawlPage extends AbstractLoggingActor {
 		return page;
 	}
 	
-	private void savePageMirror(HtmlPage html, String path) throws IOException {
-		File pathFile = new File(path);
-		html.save(pathFile);
-	}
-	
-	private String getFileUrlPath(HtmlPage html, String directory) {
-		URL url = html.getUrl();
-		String path = directory + url.getPath();
-		String query;
-		if ((query = url.getQuery()) != null)
-			path += transformURLQuery(query);
-		if (path.lastIndexOf("/") == path.length() - 1)
-			path += "index";
-		path += ".html";
-		return path;
-	}
-	
 	private Map<String, List<String>> getOutLinks(HtmlPage html, String base, List<String> xPaths) {		
 		return xPaths.stream().distinct()
 		.collect(toMap(Function.identity(), 
@@ -158,12 +137,4 @@ public class CrawlPage extends AbstractLoggingActor {
 		return record;
 	}
 	
-	public String transformURLQuery(String queryString) {
-		String subPath = "";
-		String[] query = queryString.split("&");
-		for (String param : query) {
-			subPath += param.replaceAll("=|%", "_");
-		}
-		return subPath;
-	}
 }
