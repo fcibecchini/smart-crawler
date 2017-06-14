@@ -1,10 +1,11 @@
 package it.uniroma3.crawler.util;
 
-import static it.uniroma3.crawler.util.HtmlUtils.getAbsoluteURL;
 import static it.uniroma3.crawler.util.HtmlUtils.isValidURL;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.*;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
@@ -85,7 +86,10 @@ public class XPathUtils {
 	 * @param url the URL to resolve the matching anchors
 	 * @return the List of absolute URLs matched by this XPath
 	 */
-	public static List<String> getAbsoluteInternalURLs(HtmlPage page, String xpath, String url) {
+	public static List<String> getAbsoluteInternalURLs(
+			HtmlPage page, 
+			String xpath, 
+			String url) {
 		return getAnchors(page, xpath).stream()
 				.map(HtmlAnchor::getHrefAttribute)
 				.filter(l -> isValidURL(url, l))
@@ -101,12 +105,24 @@ public class XPathUtils {
 	 * @param url the URL to resolve the matching anchors
 	 * @return the List of absolute URLs matched by this XPath
 	 */
-	public static List<String> getAbsoluteURLs(HtmlPage page, String xpath, String url) {
+	public static List<String> getAbsoluteURLs(
+			HtmlPage page, 
+			String xpath, 
+			String url) {
 		return getAnchors(page, xpath).stream()
 				.map(HtmlAnchor::getHrefAttribute)
 				.map(href -> getAbsoluteURL(url, href))
 				.collect(toList());
 	}
+	
+	private static String getAbsoluteURL(String base, String relative) {
+		try {
+			String url = new URL(new URL(base), relative).toString();
+			return (url.endsWith("/")) ? url.substring(0, url.length()-1) : url;
+		} catch (MalformedURLException e) {
+			return "";
+		}
+}
 	
 	/*
 	public static HtmlPage setInputValue(HtmlPage page, String xpath, String value) {
