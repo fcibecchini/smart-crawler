@@ -24,6 +24,7 @@ public class Page {
 	private String tempFile;
 	private Map<XPath, List<String>> xpathToURLs;
 	private List<PageLink> links;
+	private boolean loaded;
 	
 	/**
 	 * Constructs a new Page identified by the given URL and 
@@ -68,8 +69,8 @@ public class Page {
 	 * @param xp the xpath
 	 * @param dest one of the Pages in the list
 	 */
-	public void addListLink(String xp, Page dest) {
-		links.add(new PageLink(xp,dest,1));
+	public void addListLink(String xp, List<Page> destinations) {
+		links.add(new ListPageLink(xp,destinations));
 	}
 	
 	/**
@@ -78,8 +79,8 @@ public class Page {
 	 * @param xp the xpath
 	 * @param dest the destination Page as a menu item
 	 */
-	public void addMenuLink(String xp, Page dest) {
-		links.add(new PageLink(xp,dest,2));
+	public void addMenuLink(String xp, List<Page> destinations) {
+		links.add(new MenuPageLink(xp, destinations));
 	}
 	
 	/**
@@ -88,8 +89,8 @@ public class Page {
 	 * @param xp the xpath
 	 * @param dest the Singleton destination Page
 	 */
-	public void addSingleLink(String xp, Page dest) {
-		links.add(new PageLink(xp,dest,3));
+	public void addSingleLink(String xp, List<Page> destinations) {
+		links.add(new SinglePageLink(xp,destinations));	
 	}
 	
 	/**
@@ -98,6 +99,14 @@ public class Page {
 	 */
 	public List<PageLink> getLinks() {
 		return links;
+	}
+	
+	public void setLoaded() {
+		loaded = true;
+	}
+	
+	public boolean isLoaded() {
+		return loaded;
 	}
 
 	/*

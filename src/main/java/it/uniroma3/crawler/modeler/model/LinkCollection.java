@@ -12,7 +12,7 @@ import java.util.Objects;
  * A link collection may be singleton.
  */
 public class LinkCollection {
-	private Page parent;
+	private Page page;
 	private XPath xpath;
 	private List<String> links;
 	private short type;
@@ -36,7 +36,7 @@ public class LinkCollection {
 	public LinkCollection(Page parent, XPath xpath, List<String> urls) {
 		this(urls);
 		this.xpath = xpath;
-		this.parent = parent;
+		this.page = parent;
 	}
 	
 	/**
@@ -50,8 +50,8 @@ public class LinkCollection {
 	 * Returns the Parent Page of this Link Collection.
 	 * @return the parent page
 	 */
-	public Page getParent() {
-		return parent;
+	public Page getPage() {
+		return page;
 	}
 	
 	/**
@@ -142,8 +142,8 @@ public class LinkCollection {
 	 * page class of the page
 	 */
 	public int densestFirst(LinkCollection o, WebsiteModel model) {
-		ModelPageClass c1 = model.getClassOfPage(parent);
-		ModelPageClass c2 = model.getClassOfPage(o.getParent());
+		ModelPageClass c1 = model.getClassOfPage(page);
+		ModelPageClass c2 = model.getClassOfPage(o.getPage());
 		
 		if (c1.size()==1 && c2.size()>1) return -1;
 		if (c1.size()>1 && c2.size()==1) return 1;
@@ -157,17 +157,18 @@ public class LinkCollection {
 	}
 	
 	public String toString() {
-		String desc = (parent!=null) ? parent.getUrl() : "entryPoint";
+		String desc = (page!=null) ? page.getUrl() : "entryPoint";
 		return desc+" "+xpath.get()+" -> "+ links.toString();
 	}
 	
 	public int hashCode() {
-		return Objects.hash(xpath, links);
+		return Objects.hash(page, xpath, links);
 	}
 
 	public boolean equals(Object obj) {
 		LinkCollection other = (LinkCollection) obj;
-		return Objects.equals(xpath, other.getXPath())
+		return Objects.equals(page, other.getPage())
+			&& Objects.equals(xpath, other.getXPath())
 			&& Objects.equals(links, other.getLinks());
 	}
 

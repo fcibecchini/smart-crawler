@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.neo4j.ogm.annotation.NodeEntity;
@@ -243,44 +244,129 @@ public class PageClass {
 		return this.dataLinks.stream().map(DataLink::getXPath).collect(toList());
 	}
 	
+	/**
+	 * Adds a ClassLink to this PageClass, without any specified type.
+	 * @param xpath the XPath
+	 * @param dest the destination PageClass
+	 * @return true if the Link was added
+	 */
 	public boolean addPageClassLink(String xpath, PageClass dest) {
 		ClassLink link = new ClassLink(this, xpath, dest);
 		return this.links.add(link);
 	}
 	
+	/**
+	 * Adds a Menu item ClassLink to this PageClass.
+	 * @param xpath the XPath leading to the menu item
+	 * @param dest the destination PageClass
+	 * @return true if the Link was added
+	 */
 	public boolean addMenuLink(String xpath, PageClass dest) {
 		ClassLink link = new ClassLink(this, xpath, dest);
 		link.setTypeMenu();
 		return links.add(link);
 	}
 	
+	/**
+	 * Adds a Menu item ClassLink to this PageClass. 
+	 * Note that the specified XPath must link the whole menu, not just one item.
+	 * The index parameter specify the Menu item index which leads to the given destination
+	 * PageClass. 
+	 * @param xpath the XPath leading to the menu
+	 * @param index the menu item index
+	 * @param dest the destination PageClass
+	 * @return true if the Link was added
+	 */
+	public boolean addMenuLink(String xpath, int index, PageClass dest) {
+		ClassLink link = new ClassLink(this, xpath, dest, index);
+		link.setTypeMenu();
+		return links.add(link);
+	}
+	
+	/**
+	 * Adds a List ClassLink to this PageClass
+	 * @param xpath the XPath
+	 * @param dest the destination PageClass
+	 * @return true if the Link was added
+	 */
 	public boolean addListLink(String xpath, PageClass dest) {
 		ClassLink link = new ClassLink(this, xpath, dest);
 		link.setTypeList();
 		return links.add(link);
 	}
 	
+	/**
+	 * Adds a Singleton ClassLink to this PageClass
+	 * @param xpath the XPath
+	 * @param dest the destination PageClass
+	 * @return true if the Link was added
+	 */
 	public boolean addSingletonLink(String xpath, PageClass dest) {
 		ClassLink link = new ClassLink(this, xpath, dest);
 		link.setTypeSingleton();
 		return links.add(link);
 	}
 	
-	public boolean addLink(String xpath, PageClass dest, int type) {
-		ClassLink link = new ClassLink(this, xpath, dest);
-		if (type==1) 
-			link.setTypeList();
-		else if (type==2) 
-			link.setTypeMenu();
-		else 
-			link.setTypeSingleton();
-		return links.add(link);
+	/**
+	 * Returns true if this PageClass has a ClassLink of any type (Menu,List,Singleton) 
+	 * identified by the specified xpath.
+	 * @param xp the xpath
+	 * @return true if there is a ClassLink with this xpath
+	 */
+	public boolean hasLink(String xp) {
+		return links.stream().anyMatch(
+				l -> l.getXPath().equals(xp) || l.getMenuXPath().equals(xp));
 	}
 	
-	public ClassLink getLink(String xp) {
-		return links.stream()
-				.filter(l -> l.getXPath().equals(xp))
-				.findAny().orElse(null);
+	/**
+	 * Returns true if the specified XPath leads to a Menu.
+	 * @param xp the xpath
+	 * @return true if this xpath identifies a menu
+	 */
+	public boolean hasMenuLink(String xp) {
+		return links.stream().anyMatch(l -> l.getMenuXPath().equals(xp));
+	}
+	
+	/**
+	 * Returns true if this PageClass has a ClassLink of of type List 
+	 * identified by the specified xpath.
+	 * @param xp the xpath
+	 * @return true if there is a List ClassLink with this xpath
+	 */
+	public boolean hasListLink(String xp) {
+		return links.stream().filter(ClassLink::isList)
+				.anyMatch(l -> l.getXPath().equals(xp));
+	}
+	
+	/**
+	 * Returns true if this PageClass has a ClassLink of type Singleton
+	 * identified by the specified xpath.
+	 * @param xp the xpath
+	 * @return true if there is a Singleton ClassLink with this xpath
+	 */
+	public boolean hasSingleLink(String xp) {
+		return links.stream().filter(ClassLink::isSingleton)
+				.anyMatch(l -> l.getXPath().equals(xp));
+	}
+	
+	/**
+	 * Removes a single ClassLink identified by this XPath
+	 * @param xp the xpath
+	 */
+	public void removeLink(String xp) {
+		links.stream()
+			.filter(l -> l.getXPath().equals(xp))
+			.findAny().ifPresent(links::remove);
+	}
+	
+	/**
+	 * Removes all the ClassLinks leading to menu items identified by this XPath
+	 * @param xp the xpath leading to the menu
+	 */
+	public void removeMenuLink(String xp) {
+		List<ClassLink> toRemove = 
+			links.stream().filter(l -> l.getMenuXPath().equals(xp)).collect(Collectors.toList());
+		links.removeAll(toRemove);
 	}
 	
 	public boolean addData(String xpath, String type, String fieldName) {

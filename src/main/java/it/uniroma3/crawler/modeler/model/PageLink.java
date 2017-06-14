@@ -1,43 +1,38 @@
 package it.uniroma3.crawler.modeler.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import it.uniroma3.crawler.model.PageClass;
+
 /**
- * A PageLink is a link from one {@link Page} instance to another 
- * via an XPath version.<br> Links can point to Lists, Menu items or singletons.
+ * A PageLink is a link from one {@link Page} instance to an other (possible multiple) Page 
+ * via an XPath version.<br> Links can point to Lists, Menus or a Singleton.
  *
  */
-public class PageLink {
-	private String xp;
-	private Page dest;
-	private int type;
+public abstract class PageLink {
+	private String xpath;
+	private List<Page> destinations;
 	
-	public PageLink(String xp, Page dest, int type) {
-		this.xp = xp;
-		this.dest = dest;
-		this.type = type;
+	public PageLink(String xpath, List<Page> destinations) {
+		this.xpath = xpath;
+		this.destinations = new ArrayList<>(destinations);
 	}
 
 	public String getXpath() {
-		return xp;
+		return xpath;
 	}
 	
-	public int getType() {
-		return type;
-	}
-
-	public Page getDest() {
-		return dest;
-	}
-
-	public boolean isList() {
-		return type==1;
+	public List<Page> getDestinations() {
+		return destinations;
 	}
 	
-	public boolean isMenu() {
-		return type==2;
-	}
-	
-	public boolean isSingleton() {
-		return type==3;
-	}
+	/**
+	 * Links a source PageClass to a list of destination PageClass, according to
+	 * the nature of this PageLink and the nature of current PageClass links.
+	 * @param src the source PageClass
+	 * @param dests the List of destination PageClasses. Can be a singleton.
+	 */
+	public abstract void linkToPageClass(PageClass src, List<PageClass> dests);
 
 }

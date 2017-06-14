@@ -1,7 +1,15 @@
 package it.uniroma3.crawler.modeler.model;
 
-import java.util.Set;
+import java.util.Map;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toMap;
+
+import java.util.List;
+
+import it.uniroma3.crawler.model.PageClass;
+import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 /**
  * A WebsiteModel is a collection of clustered pages ({@link ModelPageClass}) 
@@ -14,7 +22,7 @@ public class WebsiteModel {
 	private static final double C_I = 0.8;
 	private static final double C_MISS = 1;
 
-	private Set<ModelPageClass> modelClasses;
+	private TreeSet<ModelPageClass> modelClasses;
 	private double cost;
 	
 	/**
@@ -59,14 +67,14 @@ public class WebsiteModel {
 		return this.modelClasses.isEmpty();
 	}
 	
-	public Set<ModelPageClass> getClasses() {
+	public TreeSet<ModelPageClass> getClasses() {
 		return modelClasses;
 	}
 	
 	/**
-	 * Returns the CandidatePageClass of this model with the given id
+	 * Returns the ModelPageClass of this model with the given id
 	 * @param id
-	 * @return the CandidatePageClass identified by this id, otherwise null
+	 * @return the ModelPageClass identified by this id, otherwise null
 	 */
 	public ModelPageClass getCandidateFromId(int id) {
 		return modelClasses.stream()
@@ -74,7 +82,7 @@ public class WebsiteModel {
 	}
 	
 	/**
-	 * Returns a reference to the CandidatePageClass containing the
+	 * Returns a reference to the ModelPageClass containing the
 	 * given {@link Page}.
 	 * @param page
 	 * @return the CandidatePageClass of this model containing the page, 
@@ -83,6 +91,33 @@ public class WebsiteModel {
 	public ModelPageClass getClassOfPage(Page page) {
 		return modelClasses.stream()
 				.filter(c -> c.containsPage(page)).findAny().orElse(null);
+	}
+	
+	/**
+	 * Turns this WebsiteModel into a {@link PageClass} graph ready for crawling and storage.
+	 * 
+	 * @param conf Configuration parameters for this website 
+	 * @return the root (homepage) PageClass of the navigation graph
+	 */
+	public PageClass toGraph(SeedConfig conf) {
+		Map<Integer, PageClass> pageClasses = 
+				modelClasses.stream().collect(toMap(
+				c -> c.getId(), 
+				c -> new PageClass(c.name(), conf)));
+		
+		for (ModelPageClass mpc : modelClasses) {
+			for (Page p : mpc.getClassPages()) {
+				PageClass src = pageClasses.get(getClassOfPage(p).getId());
+				for (PageLink link : p.getLinks()) {
+					List<PageClass> dests = 
+						link.getDestinations().stream()
+						.map(pdest -> pageClasses.get(getClassOfPage(pdest).getId()))
+						.collect(Collectors.toList());
+					link.linkToPageClass(src,dests);
+				}
+			}
+		}
+		return pageClasses.get(modelClasses.first().getId());
 	}
 	
 	/**
