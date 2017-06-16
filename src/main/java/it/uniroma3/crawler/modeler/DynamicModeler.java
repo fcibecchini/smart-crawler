@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -35,8 +34,6 @@ import it.uniroma3.crawler.util.HtmlUtils;
 import scala.concurrent.duration.Duration;
 
 public class DynamicModeler extends AbstractLoggingActor {
-	public static final short FETCH=2, POLL=3, CLUSTER=4, 
-			UPDATE=5, XPATH_FINER=6, XPATH_COARSER=7, FINALIZE=8;
 	
 	private SeedConfig conf; // website configuration
 
@@ -57,19 +54,9 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * map of visited pages
 	 */
 	private Map<String,Page> visitedURLs = new HashMap<>();
-	
+			
 	/**
-	 * set of already visited LinkCollection for duplicate detection
-	 */
-	private Set<LinkCollection> visitedColl = new HashSet<>();
-	
-	/**
-	 * total number of fetched URLs
-	 */
-	private int totalFetched;
-	
-	/**
-	 * current id of last created {@link CandidateClassPage}
+	 * current id of last created {@link ModelPageClass}
 	 */
 	private int id;
 	
@@ -89,7 +76,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 	private Queue<String> links;
 	
 	/**
-	 * current list of candidates clusters
+	 * current list of candidate clusters
 	 */
 	private List<ModelPageClass> candidates;
 	
@@ -105,29 +92,17 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 */
 	private int singletonCounter;
 	
-	/**
-	 * max number of links to fetch per {@link LinkCollection}
-	 */
-	private int max = 3;
-	
-	/**
-	 * current number of links fetched in the current collection
-	 */
-	private int fetched;
-		
-	private boolean pause;
-	
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
 		.match(SeedConfig.class, this::start)
-		.matchEquals(POLL, msg -> poll())
-		.matchEquals(FETCH, msg -> fetch())
-		.matchEquals(CLUSTER, msg -> cluster())
-		.matchEquals(XPATH_FINER, msg -> changeXPath(true))
-		.matchEquals(XPATH_COARSER, msg -> changeXPath(false))
-		.matchEquals(UPDATE, msg -> update())
-		.matchEquals(FINALIZE, msg -> finalizeModel())
+		.matchEquals("poll", msg -> poll())
+		.matchEquals("getLinks", msg -> getLinks())
+		.matchEquals("fetch", msg -> fetch())
+		.matchEquals("cluster", msg -> cluster())
+		.matchEquals("refine", msg -> changeXPath())
+		.matchEquals("update", msg -> update())
+		.matchEquals("finalize", msg -> finalizeModel())
 		.build();
 	}
 	
@@ -137,46 +112,33 @@ public class DynamicModeler extends AbstractLoggingActor {
 
 		// Feed queue with seed
 		queue.add(new LinkCollection(Arrays.asList(conf.site)));
-		self().tell(POLL, self());
+		self().tell("poll", self());
 	}
 	
 	public void poll() {
-		if (queue.isEmpty()) 
-			self().tell(FINALIZE, self());
-		else {
-			if (collection!=null && collection.fetchAll()) {
-				collection.setFetchAll(false);
-				max = collection.size();
-			}
-			else 
-				collection = queue.poll();
-			
-			int size = collection.size();
-			log().info("Parent Page: "+collection.getPage()+", "+size+" links");
-			List<String> group = collection.getLinks();
-			links = new LinkedList<>();
-			if (size<=max)
-				links.addAll(group);
-			else {
-				links.add(group.get(0));
-				links.add(group.get((size-1)/2));
-				links.add(group.get(size-1));
-			}
-			
-			if (pause) 
-				context().system().scheduler().scheduleOnce(
-						Duration.create(conf.wait, TimeUnit.MILLISECONDS), 
-						self(), FETCH, context().dispatcher(), self());
-			else self().tell(FETCH, self());		
-			
-			/* reset */
-			newPages.clear();
-			pause = false;
+		if (!queue.isEmpty()) {
+			collection = queue.poll();
+			getLinks();
 		}
+		else self().tell("finalize", self());
+	}
+	
+	public void getLinks() {
+		log().info("Parent Page: "+collection.getPage()+", "+collection.size()+" links");
+		links = collection.getLinksToFetch();
+		
+		if (newPages.stream().anyMatch(p -> !p.isLoaded())) // if some page was downloaded, wait
+			context().system().scheduler().scheduleOnce(
+					Duration.create(conf.wait, TimeUnit.MILLISECONDS), 
+					self(), "fetch", context().dispatcher(), self());
+		else self().tell("fetch", self());		
+		
+		/* reset pages */
+		newPages.clear();
 	}
 	
 	public void fetch() {
-		if (!links.isEmpty() && fetched < max) {
+		if (!links.isEmpty()) {
 			String url = links.poll();
 			if (isValidURL(conf.site, url)) {
 				try {
@@ -185,39 +147,63 @@ public class DynamicModeler extends AbstractLoggingActor {
 						log().info("Loaded: "+url);
 						page.setLoaded();
 					}
-					else if (totalFetched<conf.modelPages) {
+					else if (visitedURLs.size()<conf.modelPages) {
 						page = new Page(url, getPage(url, client));
-						visitedURLs.put(url,page);
-						pause = true;
-						totalFetched++;
+						visitedURLs.put(url, page);
 						log().info("Fetched: "+url);
 					}
 					else {
-						self().tell(FINALIZE, self());
+						self().tell("finalize", self());
 						return;
 					}
 					newPages.add(page);
-					fetched++;
 				} catch (Exception e) {
 					log().warning("Failed fetching: "+url+", "+e.getMessage());
 				}
 			}
 			else log().info("Rejected URL: "+url);
 			
-			self().tell(FETCH, self());
+			self().tell("fetch", self());
 		}
-		else if (fetched>0) {
-			/* reset values */
-			max = 3;
-			fetched = 0;
-			self().tell(CLUSTER, self());
-		}
-		else self().tell(POLL, self());
+		else if (!newPages.isEmpty())
+			self().tell("cluster", self());
+		else 
+			self().tell("poll", self());
 	}
 	
+	/*
+	 * Cluster newPages
+	 * Inspect the candidates and take actions on the base of:
+	 * - Number of newPages fetched
+	 * - Number of clusters created
+	 */
 	public void cluster() {
 		candidates = clusterPages(newPages);
-		inspect(candidates);
+		
+		String msg = "update";
+		if (newPages.size()==3 && candidates.size()==1)
+			collection.setList();
+		else if (newPages.size()==3 && candidates.size()==2) {
+			if (!collection.isFinest()) {
+				collection.setFiner(true);
+				msg = "refine";
+			}
+			else collection.setList();
+		}
+		else if (candidates.size()>=3 && !collection.isMenu()) {
+			collection.fetchAll();
+			collection.setMenu();
+			msg = "getLinks";
+			log().info("MENU: FETCHING ALL URLS IN LINK COLLECTION...");
+		}
+		else if (newPages.size()==2 && candidates.size()==1)
+			collection.setList();
+		else if (newPages.size()==2 && candidates.size()==2)
+			collection.setMenu();
+		else if (newPages.size()==1)
+			collection.setSingleton();
+		
+		self().tell(msg, self());
 	}
 	
 	/* 
@@ -227,7 +213,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 	private List<ModelPageClass> clusterPages(List<Page> pages) {
 		List<ModelPageClass> candidates =
 			pages.stream()
-			.collect(groupingBy(Page::getSchema)).values().stream()
+			.collect(groupingBy(Page::getDefaultSchema)).values().stream()
 			.map(groupedPages -> new ModelPageClass((++id),groupedPages))
 			.sorted((c1,c2) -> c2.size()-c1.size())
 			.collect(toList());
@@ -249,71 +235,19 @@ public class DynamicModeler extends AbstractLoggingActor {
 		return candidates;
 	}
 	
-	/*
-	 * Inspect the candidates and take actions on the base of:
-	 * - Number of newPages fetched
-	 * - Number of clusters created
-	 */
-	private void inspect(List<ModelPageClass> candidates) {
-		if (newPages.size()>=3) {
-			if (newPages.size()==3 && candidates.size()==1) {
-				collection.setList();
-				self().tell(UPDATE, self());
-			}
-			else if (newPages.size()==3 && candidates.size()==2) {
-				if (!collection.isFinest())
-					self().tell(XPATH_FINER, self());
-				else {
-					collection.setList();
-					self().tell(UPDATE, self());
-				}
-			}
-			else if (candidates.size()>=3) {
-				if (collection.isMenu())
-					self().tell(UPDATE, self());
-				else {
-					collection.setFetchAll(true);
-					collection.setMenu();
-					//queue.add(collection);
-					//max = collection.size();
-					self().tell(POLL, self());
-					log().info("MENU: FETCHING ALL URLS IN LINK COLLECTION...");
-				}
-			}
-		} 
-		else if (newPages.size()==2) {
-			if (candidates.size()==1) {
-				collection.setList();
-				self().tell(UPDATE, self());
-			}
-			else {
-				collection.setMenu();
-				self().tell(UPDATE, self());
-			}
-		} 
-		else if (newPages.size()==1) {
-			collection.setSingleton();
-			self().tell(UPDATE, self());
-		}
-		else // empty
-			self().tell(POLL, self());
-	}
-	
 	public void update() {
+		String msg = "poll";
+		
 		List<ModelPageClass> toRemove = new ArrayList<>();
 		for (ModelPageClass c : candidates) {
-			for (Page p : c.getClassPages()) {
+			for (Page p : c.getPages()) {
 				/* If there are already classified pages in candidates
 				 * we should skip the update phase for this cluster,
 				 * merging new fetched pages. */
-				if (p.isLoaded()) {
+				if (p.isClassified()) {
 					ModelPageClass mpc = model.getClassOfPage(p);
-					/* while we are sure that this page was already downloaded,
-					 * we must also check that it was classified */
-					if (mpc!=null) { 
-						mpc.collapse(c); // merge new fetched pages, if any
-						toRemove.add(c);
-					}
+					mpc.collapse(c); // merge new fetched pages, if any
+					toRemove.add(c);
 					break;
 				}
 			}
@@ -323,10 +257,15 @@ public class DynamicModeler extends AbstractLoggingActor {
 		updateModel(candidates);
 		
 		if (setPageLinks(collection)) {
-			queue.addAll(getLinkCollections(newPages));
-			self().tell(POLL, self());
+			newPages.stream()
+					.filter(p -> !p.classified())
+					.map(Page::getLinkCollections)
+					.flatMap(Set::stream)
+					.forEach(queue::add);
 		}
-		else self().tell(XPATH_COARSER, self());
+		else msg = "refine"; 
+			
+		self().tell(msg, self());
 	}
 	
 	/*
@@ -342,21 +281,19 @@ public class DynamicModeler extends AbstractLoggingActor {
 		// seed does not have a parent page
 		if (page!=null) { 
 			String xpath = collection.getXPath().get();
-			if (collection.isList()) {
+			if (collection.isList())
 				page.addListLink(xpath, newPages);
-			}
-			else if (collection.isMenu()) {
+			else if (collection.isMenu())
 				page.addMenuLink(xpath, newPages);
-			}
 			else if (collection.isSingleton()) {
-				int modelClassId = model.getClassOfPage(newPages.get(0)).getId();
-				if (modelClassId==lastSingletonId && singletonCounter==3
+				int classID = model.getClassOfPage(newPages.get(0)).getId();
+				if (classID==lastSingletonId && singletonCounter==3
 						&& !collection.isCoarsest()) {
 					singletonCounter = 0;
 					saved = false;
 				}
 				else {
-					if (modelClassId==lastSingletonId) 
+					if (classID==lastSingletonId) 
 						singletonCounter++;
 					page.addSingleLink(xpath, newPages);
 				}
@@ -369,11 +306,12 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * Changes the current LinkCollection XPath version
 	 * until it founds different links
 	 */
-	public void changeXPath(boolean finer) {		
+	public void changeXPath() {
+		boolean finer = collection.isFiner();
 		Page page = collection.getPage();
 		String url = page.getUrl();
 		XPath xp = collection.getXPath();
-		String version = xp.get();
+		XPath original = new XPath(xp);
 		boolean found = false;
 
 		try {
@@ -384,14 +322,12 @@ public class DynamicModeler extends AbstractLoggingActor {
 				String path = HtmlUtils.savePage(html,directory,false);
 				page.setTempFile(path);
 			} else
-				html = HtmlUtils.restorePageFromFile(page.getTempFile(), url);
-
-			LinkCollection newCol = null;
-			while (!found && !((finer) ? xp.finer() : xp.coarser()).isEmpty()) {
+				html = HtmlUtils.restorePageFromFile(page.getTempFile(), url);			
+			
+			while (!found && !(xp.refine(finer)).isEmpty()) {
 				List<String> links = getAbsoluteURLs(html, xp.get(), url);
 				if (!links.equals(collection.getLinks())) {
-					newCol = new LinkCollection(page, new XPath(xp), links);
-					queue.add(newCol);
+					collection.setLinks(links);
 					log().info("Refined XPath: "+xp.getDefault()+" -> "+xp.get());
 					found=true;
 				}
@@ -402,15 +338,14 @@ public class DynamicModeler extends AbstractLoggingActor {
 		}
 		
 		if (!found) {
-			collection.getXPath().setVersion(version);
-			if (finer) 
-				collection.setFinest();
+			collection.setXPath(original); // restore previous XPath
+			if (finer)
+				collection.setFinest(true);
 			else 
-				collection.setCoarsest();
-			queue.add(collection);
+				collection.setCoarsest(true);
 		}
 		
-		self().tell(POLL, self());
+		self().tell("getLinks", self());
 	}
 	
 	/*
@@ -444,22 +379,6 @@ public class DynamicModeler extends AbstractLoggingActor {
 				minimum = temp;
 		}
 		return minimum;
-	}
-	
-	/*
-	 * Constructs new Link Collections from newPages
-	 */
-	private Set<LinkCollection> getLinkCollections(List<Page> pages) {		
-		Set<LinkCollection> newLinks = new HashSet<>();
-		for (Page p : pages) {
-			for (XPath xp : p.getXPaths()) {
-				LinkCollection lc = 
-					new LinkCollection(p, new XPath(xp), p.getURLsByXPath(xp));
-				if (visitedColl.add(lc))
-					newLinks.add(lc);
-			}
-		}
-		return newLinks;
 	}
 	
 	public void finalizeModel() {

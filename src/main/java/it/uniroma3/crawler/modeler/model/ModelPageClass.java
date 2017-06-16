@@ -1,5 +1,6 @@
 package it.uniroma3.crawler.modeler.model;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
 import java.util.HashSet;
@@ -13,8 +14,8 @@ import java.util.Objects;
  */
 public class ModelPageClass implements Comparable<ModelPageClass> {
 	private int id;
-	private Set<Page> classPages;
-	private Set<String> classSchema;
+	private Set<Page> pages;
+	private Set<XPath> schema;
 
 	/**
 	 * Constructs a new ModelPageClass with the given id
@@ -22,8 +23,8 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 */
 	public ModelPageClass(int id) {
 		this.id = id;
-		this.classPages = new HashSet<>();
-		this.classSchema = new HashSet<>();
+		this.pages = new HashSet<>();
+		this.schema = new HashSet<>();
 	}
 	
 	/**
@@ -47,41 +48,34 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @param p the Page to add
 	 */
 	public void addPageToClass(Page p) {
-		p.getSchema().forEach(classSchema::add);
-		classPages.add(p);
+		if (pages.add(p))
+			schema.addAll(p.getSchema());
 	}
 	
 	/**
-	 * Adds an XPath to the page class schema.
-	 * @param xpath
-	 * @return true if this schema did not already contain the xpath
-	 */
-	public boolean addXPathToSchema(String xpath) {
-		return classSchema.add(xpath);
-	}
-	
-	public Set<String> getClassSchema() {
-		return classSchema;
-	}
-	
-	public Set<Page> getClassPages() {
-		return classPages;
-	}
-	
-	/**
-	 * Format a name for this ModelPageClass, consisting in the concatenation
-	 * of at most three Page local-URLs belonging to this class, 
-	 * plus the id of this class.
 	 * 
-	 * @return the class name as a three urls concatenation
+	 * @return the set of XPaths of this schema
+	 */
+	public Set<XPath> getSchema() {
+		return schema;
+	}
+	
+	public Set<Page> getPages() {
+		return pages;
+	}
+	
+	/**
+	 * Format a name for this ModelPageClass, consisting of the concatenation
+	 * of at most three Page local-URLs belonging to this class	 
+	 *  
+	 * @return the class name as a three URLs concatenation
 	 */
 	public String name() {
-		return classPages.stream().limit(3)
-		.map(p -> Paths.get(p.getUrl()))
-		.map(url -> { 
-			int max = url.getNameCount();
-			return url.subpath((max>2) ? 2 : 1, max).toString();
-		})
+		return pages.stream().limit(3)
+		.map(Page::getUrl)
+		.map(Paths::get)
+		.map(url -> url.subpath((url.getNameCount()>2) ? 2 : 1, url.getNameCount()))
+		.map(Path::toString)
 		.reduce((u1,u2) -> u1+","+u2).get();
 	}
 	
@@ -91,7 +85,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @param candidate the ModelPageClass to collapse
 	 */
 	public void collapse(ModelPageClass candidate) {
-		candidate.getClassPages().forEach(this::addPageToClass);
+		candidate.getPages().forEach(this::addPageToClass);
 	}
 	
 	/**
@@ -100,7 +94,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return true if the page collection contains the page
 	 */
 	public boolean containsPage(Page page) {
-		return classPages.contains(page);
+		return pages.contains(page);
 	}
 	
 	/**
@@ -109,7 +103,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return the count of URLs in this candidate page class
 	 */
 	public long outgoingURLs() {
-		return classPages.stream()
+		return pages.stream()
 				.map(Page::getDiscoveredUrls)
 				.flatMap(Set::stream)
 				.distinct().count();
@@ -122,9 +116,8 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return the cardinality of the intersection
 	 */
 	public long schemaIntersectionSize(Page p) {
-		return classSchema.stream()
-				.filter(xp -> p.getSchema().contains(xp))
-				.count();
+		Set<XPath> pageSchema = p.getSchema();
+		return schema.stream().filter(pageSchema::contains).count();
 	}
 	
 	/**
@@ -134,9 +127,8 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return the XPaths difference
 	 */
 	public long schemaDifferenceSize(Page p) {
-		return classSchema.stream()
-				.filter(xp -> !p.getSchema().contains(xp))
-				.count();
+		Set<XPath> pageSchema = p.getSchema();
+		return schema.stream().filter(xp -> !pageSchema.contains(xp)).count();
 	}
 	
 	/**
@@ -144,7 +136,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return the number of pages
 	 */
 	public int size() {
-		return classPages.size();
+		return pages.size();
 	}
 	
 	/**
@@ -153,7 +145,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return the number of XPaths
 	 */
 	public int schemaSize() {
-		return classSchema.size();
+		return schema.size();
 	}
 	
 	/**
@@ -169,19 +161,19 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return the distance between this ModelPageClass and the other
 	 */
 	public double distance(ModelPageClass other) {
-		Set<String> union = new HashSet<>();
-		Set<String> diff1 = new HashSet<>();
-		Set<String> diff2 = new HashSet<>();
-		Set<String> unionDiff = new HashSet<>();
+		Set<XPath> union = new HashSet<>();
+		Set<XPath> diff1 = new HashSet<>();
+		Set<XPath> diff2 = new HashSet<>();
+		Set<XPath> unionDiff = new HashSet<>();
 
-		union.addAll(classSchema);
-		union.addAll(other.getClassSchema());
+		union.addAll(getSchema());
+		union.addAll(other.getSchema());
 		
-		diff1.addAll(classSchema);
-		diff1.removeAll(other.getClassSchema());
+		diff1.addAll(getSchema());
+		diff1.removeAll(other.getSchema());
 				
-		diff2.addAll(other.getClassSchema());
-		diff2.removeAll(classSchema);
+		diff2.addAll(other.getSchema());
+		diff2.removeAll(getSchema());
 		
 		unionDiff.addAll(diff1);
 		unionDiff.addAll(diff2);
@@ -194,7 +186,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	}
 	
 	public String toString() {
-		return id+": "+classPages.toString();
+		return id+": "+pages.toString();
 	}
  
 	public int hashCode() {

@@ -106,7 +106,7 @@ public class WebsiteModel {
 				c -> new PageClass(c.name(), conf)));
 		
 		for (ModelPageClass mpc : modelClasses) {
-			for (Page p : mpc.getClassPages()) {
+			for (Page p : mpc.getPages()) {
 				PageClass src = pageClasses.get(getClassOfPage(p).getId());
 				for (PageLink link : p.getLinks()) {
 					List<PageClass> dests = 
@@ -144,7 +144,7 @@ public class WebsiteModel {
 		
 		int dataCost = 0;
 		for (ModelPageClass c : modelClasses) {
-			for (Page p : c.getClassPages()) {
+			for (Page p : c.getPages()) {
 				int pageCost = 0;
 				pageCost += C_U * p.urlsSize();
 				pageCost += C_I * c.schemaIntersectionSize(p);

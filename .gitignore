@@ -3,7 +3,4 @@
 .classpath
 /.settings/
 /html/
-/testsite/
 repository.csv
-start.sh
-stop.sh

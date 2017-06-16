@@ -1,8 +1,10 @@
 package it.uniroma3.crawler.modeler.model;
 
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Queue;
 
 /**
  * A LinkCollection is an immutable group of links with uniform layout and 
@@ -16,14 +18,16 @@ public class LinkCollection {
 	private XPath xpath;
 	private List<String> links;
 	private short type;
-	private boolean isFinest, isCoarsest, fetchAll;
+	private boolean isFinest, isCoarsest, finer;
+	private int maxFetches;
 	
 	/**
-	 * Constructs a new LinkCollection with the given group of link.
+	 * Constructs a new LinkCollection with the given group of links.
 	 * @param links the outgoing links
 	 */
 	public LinkCollection(List<String> links) {
 		this.links = Collections.unmodifiableList(links);
+		this.maxFetches = 3;
 	}
 	
 	/**
@@ -46,6 +50,10 @@ public class LinkCollection {
 		return links;
 	}
 	
+	public void setLinks(List<String> links) {
+		this.links = Collections.unmodifiableList(links);
+	}
+	
 	/**
 	 * Returns the Parent Page of this Link Collection.
 	 * @return the parent page
@@ -60,6 +68,14 @@ public class LinkCollection {
 	 */
 	public XPath getXPath() {
 		return xpath;
+	}
+	
+	/**
+	 * Set this LinkCollection xpath
+	 * @param xpath
+	 */
+	public void setXPath(XPath xpath) {
+		this.xpath = xpath;
 	}
 	
 	/**
@@ -98,32 +114,49 @@ public class LinkCollection {
 		return isFinest;
 	}
 
-	public void setFinest() {
-		this.isFinest = true;
+	public void setFinest(boolean finest) {
+		this.isFinest = finest;
 	}
 
 	public boolean isCoarsest() {
 		return isCoarsest;
 	}
 
-	public void setCoarsest() {
-		this.isCoarsest = true;
+	public void setCoarsest(boolean coarsest) {
+		this.isCoarsest = coarsest;
 	}
-	
-	/**
-	 * 
-	 * @return true if all the links in collection must be fetched
-	 */
-	public boolean fetchAll() {
-		return fetchAll;
+
+	public boolean isFiner() {
+		return finer;
+	}
+
+	public void setFiner(boolean finer) {
+		this.finer = finer;
 	}
 
 	/**
-	 * Set if this collection must be traversed completely
-	 * @param fetchAll
+	 * Set that this collection must be traversed completely
 	 */
-	public void setFetchAll(boolean fetchAll) {
-		this.fetchAll = fetchAll;
+	public void fetchAll() {
+		this.maxFetches = size();
+	}
+	
+	/**
+	 * Returns a subset of the links of this collection consisting of links that
+	 * must be fetched.
+	 * @return the subset links group to fetch
+	 */
+	public Queue<String> getLinksToFetch() {
+		Queue<String> linksToFetch = new LinkedList<>();
+		int size = size();
+		if (size<=maxFetches)
+			linksToFetch.addAll(links);
+		else {
+			linksToFetch.add(links.get(0));
+			linksToFetch.add(links.get((size-1)/2));
+			linksToFetch.add(links.get(size-1));
+		}
+		return linksToFetch;
 	}
 
 	/**

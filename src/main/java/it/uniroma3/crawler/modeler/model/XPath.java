@@ -159,6 +159,15 @@ public class XPath {
 		return "";
 	}
 	
+	/**
+	 * Performs a refinement of this XPath. 
+	 * @param finer
+	 * @return {@link XPath#finer} if finer is true, {@link XPath#coarser} otherwise
+	 */
+	public String refine(boolean finer) {
+		return (finer) ? finer() : coarser();
+	}
+	
 	
 	/**
 	 * Returns the most accurate XPath applicable.
@@ -179,10 +188,6 @@ public class XPath {
 		tags.forEach(XPathTag::omit);
 		path = "";
 		return get();
-	}
-	
-	public void setVersion(String version) {
-		path = version;
 	}
 	
 	private void build(DomNode node) {
@@ -217,19 +222,19 @@ public class XPath {
 	
 	@Override
 	public int hashCode() {
-		return defaultPath.hashCode();
+		return get().hashCode();
 	}
 	
 	
 	/**
-	 * Two XPath are said to be equal if their 
-	 * <i>{@link XPath#getDefault()} paths</i> are equal.
+	 * Two XPaths are said to be equal if their 
+	 * <i>current version</i> are equal.
 	 * 
 	 */
 	@Override
 	public boolean equals(Object obj) {
 		XPath o = (XPath) obj;
-		return Objects.equals(defaultPath, o.getDefault());
+		return Objects.equals(get(), o.get());
 	}
 
 }

@@ -1,7 +1,6 @@
 package it.uniroma3.crawler.modeler.model;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -12,7 +11,6 @@ import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURLs;
 import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 /**
  * A Page is a web page represented as a subset of the XPaths-to-link in the corresponding 
@@ -22,9 +20,9 @@ import java.util.HashMap;
 public class Page {
 	private String url;
 	private String tempFile;
-	private Map<XPath, List<String>> xpathToURLs;
+	private Set<LinkCollection> linkCollections;
 	private List<PageLink> links;
-	private boolean loaded;
+	private boolean loaded, classified;
 	
 	/**
 	 * Constructs a new Page identified by the given URL and 
@@ -34,8 +32,7 @@ public class Page {
 	 */
 	public Page(String url, HtmlPage html) {
 		this.url = url;
-		this.xpathToURLs = new HashMap<>();
-		pageSchema(html);
+		this.linkCollections = pageSchema(html);
 		this.links = new ArrayList<>();
 	}
 	
@@ -109,54 +106,65 @@ public class Page {
 		return loaded;
 	}
 
+	/**
+	 * Test and <b>Set</b> if a page was classified in the model.
+	 * @return true if this page was classified in the model, false otherwise
+	 */
+	public boolean classified() {
+		boolean cl = classified;
+		if (!cl) classified = true;
+		return cl;
+	}
+	
+	/**
+	 * @return true if this page was classified in the model, false otherwise
+	 */
+	public boolean isClassified() {
+		return classified;
+	}
+
 	/*
 	 * INTERNAL API 
-	 * Groups outgoing URLs by XPaths-to-link to build the page schema. 
-	 * Grouping is defined over the XPath.getDefault() version of the XPaths.
-	 * 
+	 * Groups outgoing URLs by XPaths-to-link to build the page schema.
 	 */
-	private void pageSchema(HtmlPage html) {
-		html.getAnchors().stream().map(XPath::new).distinct()
-			.forEach(xp ->
-				xpathToURLs.put(xp, getAbsoluteURLs(html, xp.getDefault(), url)));
+	private Set<LinkCollection> pageSchema(HtmlPage html) {
+		return html.getAnchors().stream()
+			.map(XPath::new)
+			.distinct()
+			.map(xp -> new LinkCollection(this,xp,getAbsoluteURLs(html,xp.getDefault(),url)))
+			.collect(toSet());
 	}
 	
 	/**
 	 * Returns the <i>page schema</i> of this Page.<br>
 	 * A page schema is an abstraction of a page consisting of a set 
-	 * of DOM XPaths-to-link.<br> A page schema is computed simply from the 
+	 * of DOM {@link XPath}s.<br> A page schema is computed simply from the 
 	 * page's DOM tree by considering  only the set of paths starting 
 	 * from the root (or from a tag with an ID value) and ending in link tags.<br>
-	 * The precise, static version of the XPaths used for the page class
-	 * schema definition is the one defined by {@link XPath#getDefault()}.
+	 * Schema could change over time due to XPaths granularity updates.
 	 * @return the page schema
 	 */
-	public Set<String> getSchema() {
-		return xpathToURLs.keySet().stream()
+	public Set<XPath> getSchema() {
+		return linkCollections.stream().map(LinkCollection::getXPath).collect(toSet());
+	}
+	
+	/**
+	 * Returns the <i>default page schema</i> of this Page, based on {@link XPath#getDefault} 
+	 * <br>
+	 * See also {@link Page#getSchema}
+	 * @return the default page schema
+	 */
+	public Set<String> getDefaultSchema() {
+		return linkCollections.stream().map(LinkCollection::getXPath)
 				.map(XPath::getDefault).collect(toSet());
 	}
 	
-	/**
-	 * 
-	 * @return the XPaths-to-link of this page
-	 */
-	public Set<XPath> getXPaths() {
-		return xpathToURLs.keySet();
-	}
-	
 	public void printSchema() {
-		xpathToURLs.forEach((xp,l) -> System.out.println(xp.getDefault()+" "+l));
+		linkCollections.forEach(System.out::println);
 	}
 	
-	/**
-	 * Returns the List of URLs referenced by the given {@link XPath#getDefault()} 
-	 * version.
-	 * @param xpath the XPath
-	 * @return the outgoing URLs
-	 */
-	public List<String> getURLsByXPath(XPath xpath) {
-		List<String> urls = xpathToURLs.get(xpath);
-		return (urls!=null) ? urls : new ArrayList<>();
+	public Set<LinkCollection> getLinkCollections() {
+		return linkCollections;
 	}
 	
 	/**
@@ -164,9 +172,11 @@ public class Page {
 	 * @return the outgoing URLs set
 	 */
 	public Set<String> getDiscoveredUrls() {
-		return xpathToURLs.values().stream()
+		return linkCollections.stream()
+				.map(LinkCollection::getLinks)
 				.flatMap(List::stream)
-				.distinct().collect(toSet());
+				.distinct()
+				.collect(toSet());
 	}
 	
 	/**
@@ -174,21 +184,21 @@ public class Page {
 	 * @return the number of outgoing URLs
 	 */
 	public long urlsSize() {
-		return xpathToURLs.values().stream()
+		return linkCollections.stream()
+				.map(LinkCollection::getLinks)
 				.flatMap(List::stream)
-				.distinct().count();
+				.distinct()
+				.count();
 	}
 	
 	/**
 	 * Returns the cardinality of the difference between this Page schema
 	 * and the specified {@link ModelPageClass} schema.
-	 * @param candidate
+	 * @param mpc
 	 * @return the cardinality of the difference between the two schemas
 	 */
-	public long schemaDifferenceSize(ModelPageClass candidate) {
-		return getSchema().stream()
-				.filter(xp -> !candidate.getClassSchema().contains(xp))
-				.count();
+	public long schemaDifferenceSize(ModelPageClass mpc) {
+		return getSchema().stream().filter(xp -> !mpc.getSchema().contains(xp)).count();
 	}
 	
 	public String toString() {
