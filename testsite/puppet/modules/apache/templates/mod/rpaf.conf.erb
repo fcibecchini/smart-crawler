@@ -1,0 +1,15 @@
+# Enable reverse proxy add forward
+RPAF_enable On
+# RPAF_sethostname will, when enabled, take the incoming X-Host header and
+# update the virtual host settings accordingly. This allows to have the same
+# hostnames as in the "real" configuration for the forwarding proxy.
+<% if @sethostname -%>
+RPAF_sethostname On
+<% else -%>
+RPAF_sethostname Off
+<% end -%>
+# Which IPs are forwarding requests to us
+RPAF_proxyIPs <%= Array(@proxy_ips).join(" ") %>
+# Setting RPAF_header allows you to change the header name to parse from the
+# default X-Forwarded-For to something of your choice.
+RPAF_header <%= @header %>
