@@ -80,18 +80,6 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 */
 	private List<ModelPageClass> candidates;
 	
-	/**
-	 * a reference to the ModelPageClass id where
-	 * the last singleton newPage was added.
-	 */
-	private int lastSingletonId;
-	
-	/**
-	 * counter of how many times a singleton newPage
-	 * was added to the same ModelPageClass
-	 */
-	private int singletonCounter;
-	
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
@@ -100,6 +88,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 		.matchEquals("getLinks", msg -> getLinks())
 		.matchEquals("fetch", msg -> fetch())
 		.matchEquals("cluster", msg -> cluster())
+		.matchEquals("inspect", msg -> inspect())
 		.matchEquals("refine", msg -> changeXPath())
 		.matchEquals("update", msg -> update())
 		.matchEquals("finalize", msg -> finalizeModel())
@@ -110,8 +99,22 @@ public class DynamicModeler extends AbstractLoggingActor {
 		conf = sc;
 		client = makeWebClient(sc.javascript);
 
-		// Feed queue with seed
-		queue.add(new LinkCollection(Arrays.asList(conf.site)));
+		// Init. site
+		try {
+			HtmlPage html = getPage(conf.site, client);
+			String baseURL = html.getBaseURL().toExternalForm();
+			baseURL = baseURL.substring(0, baseURL.length()-1);
+			if (!baseURL.equals(conf.site))
+				conf.site = new String(baseURL);
+			Page p = new Page(conf.site, html);
+			visitedURLs.put(conf.site, p);
+			newPages.add(p);
+			model.addClass(new ModelPageClass(++id, Arrays.asList(p)));
+			p.classified();
+			queue.addAll(p.getLinkCollections());
+		} catch (Exception e) {
+			log().warning("Failed fetching Seed: "+conf.site+", "+e.getMessage());
+		}
 		self().tell("poll", self());
 	}
 	
@@ -129,79 +132,47 @@ public class DynamicModeler extends AbstractLoggingActor {
 		
 		if (newPages.stream().anyMatch(p -> !p.isLoaded())) // if some page was downloaded, wait
 			context().system().scheduler().scheduleOnce(
-					Duration.create(conf.wait, TimeUnit.MILLISECONDS), 
-					self(), "fetch", context().dispatcher(), self());
-		else self().tell("fetch", self());		
+					Duration.create(conf.wait, TimeUnit.MILLISECONDS), self(), 
+					"fetch", context().dispatcher(), self());
+		else self().tell("fetch", self());
 		
 		/* reset pages */
 		newPages.clear();
 	}
 	
 	public void fetch() {
+		String msg = "fetch";
+		
 		if (!links.isEmpty()) {
 			String url = links.poll();
 			if (isValidURL(conf.site, url)) {
-				try {
-					Page page = visitedURLs.get(url);
-					if (page!=null) {
-						log().info("Loaded: "+url);
-						page.setLoaded();
-					}
-					else if (visitedURLs.size()<conf.modelPages) {
-						page = new Page(url, getPage(url, client));
+				Page page = visitedURLs.get(url);
+				if (page!=null) {
+					page.setLoaded();
+					newPages.add(page);
+					log().info("Loaded: "+url);
+				}
+				else if (visitedURLs.size()<conf.modelPages) {
+					try {
+						HtmlPage html = getPage(url, client);
+						page = new Page(url, html);
 						visitedURLs.put(url, page);
+						newPages.add(page);
 						log().info("Fetched: "+url);
 					}
-					else {
-						self().tell("finalize", self());
-						return;
+					catch (Exception e) {
+						log().warning("Failed fetching: "+url+", "+e.getMessage());
 					}
-					newPages.add(page);
-				} catch (Exception e) {
-					log().warning("Failed fetching: "+url+", "+e.getMessage());
+				}
+				else {
+					/* end, reset queue */
+					queue.clear();
+					msg = "poll";
 				}
 			}
 			else log().info("Rejected URL: "+url);
-			
-			self().tell("fetch", self());
 		}
-		else if (!newPages.isEmpty())
-			self().tell("cluster", self());
-		else 
-			self().tell("poll", self());
-	}
-	
-	/*
-	 * Cluster newPages
-	 * Inspect the candidates and take actions on the base of:
-	 * - Number of newPages fetched
-	 * - Number of clusters created
-	 */
-	public void cluster() {
-		candidates = clusterPages(newPages);
-		
-		String msg = "update";
-		if (newPages.size()==3 && candidates.size()==1)
-			collection.setList();
-		else if (newPages.size()==3 && candidates.size()==2) {
-			if (!collection.isFinest()) {
-				collection.setFiner(true);
-				msg = "refine";
-			}
-			else collection.setList();
-		}
-		else if (candidates.size()>=3 && !collection.isMenu()) {
-			collection.fetchAll();
-			collection.setMenu();
-			msg = "getLinks";
-			log().info("MENU: FETCHING ALL URLS IN LINK COLLECTION...");
-		}
-		else if (newPages.size()==2 && candidates.size()==1)
-			collection.setList();
-		else if (newPages.size()==2 && candidates.size()==2)
-			collection.setMenu();
-		else if (newPages.size()==1)
-			collection.setSingleton();
+		else msg = (!newPages.isEmpty()) ? "cluster" : "poll";
 		
 		self().tell(msg, self());
 	}
@@ -210,9 +181,8 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * Candidate classes selection
 	 * Collapse classes with similar structure
 	 */
-	private List<ModelPageClass> clusterPages(List<Page> pages) {
-		List<ModelPageClass> candidates =
-			pages.stream()
+	public void cluster() {
+		candidates = newPages.stream()
 			.collect(groupingBy(Page::getDefaultSchema)).values().stream()
 			.map(groupedPages -> new ModelPageClass((++id),groupedPages))
 			.sorted((c1,c2) -> c2.size()-c1.size())
@@ -232,12 +202,47 @@ public class DynamicModeler extends AbstractLoggingActor {
 			}
 		}
 		candidates.removeAll(deleted);
-		return candidates;
+		
+		inspect();
 	}
 	
-	public void update() {
-		String msg = "poll";
+	/*
+	 * Inspect the candidates and take actions on the base of:
+	 * - Number of newPages fetched
+	 * - Number of clusters created
+	 */
+	public void inspect() {		
+		String msg = "update";
 		
+		if (newPages.size()==3 && candidates.size()==1)
+			collection.setList();
+		else if (newPages.size()==3 && candidates.size()==2) {
+			if (!collection.isFinest()) {
+				collection.setFiner(true);
+				msg = "refine";
+			}
+			else collection.setList();
+		}
+		else if (candidates.size()>=3 && !collection.isMenu()) {
+			collection.fetchAll();
+			collection.setMenu();
+			msg = "getLinks";
+			log().info("MENU: FETCHING ALL URLS IN LINK COLLECTION...");
+		}
+		else if (newPages.size()==2 && candidates.size()==1)
+			collection.setList();
+		else if (newPages.size()==2 && candidates.size()==2)
+			collection.setMenu();
+		else if (newPages.size()==1) {
+			if (!collection.isCoarsest() && !collection.isFiner())
+				msg = "refine";
+			else collection.setSingleton();
+		}
+		
+		self().tell(msg, self());
+	}
+	
+	public void update() {		
 		List<ModelPageClass> toRemove = new ArrayList<>();
 		for (ModelPageClass c : candidates) {
 			for (Page p : c.getPages()) {
@@ -255,51 +260,30 @@ public class DynamicModeler extends AbstractLoggingActor {
 		candidates.removeAll(toRemove);
 		
 		updateModel(candidates);
+		setPageLinks(collection);
 		
-		if (setPageLinks(collection)) {
-			newPages.stream()
-					.filter(p -> !p.classified())
-					.map(Page::getLinkCollections)
-					.flatMap(Set::stream)
-					.forEach(queue::add);
-		}
-		else msg = "refine"; 
-			
-		self().tell(msg, self());
+		newPages.stream()
+				.filter(p -> !p.classified())
+				.map(Page::getLinkCollections)
+				.flatMap(Set::stream)
+				.forEach(queue::add);
+		
+		self().tell("poll", self());
 	}
 	
 	/*
 	 * Set the Page Links between the current collection Parent page
 	 * and the newPages links
-	 * Returns false if an XPath refinement is required
 	 */
-	private boolean setPageLinks(LinkCollection collection) {
-		boolean saved = true;
-		
+	private void setPageLinks(LinkCollection collection) {		
 		Page page = collection.getPage();
-		
-		// seed does not have a parent page
-		if (page!=null) { 
-			String xpath = collection.getXPath().get();
-			if (collection.isList())
-				page.addListLink(xpath, newPages);
-			else if (collection.isMenu())
-				page.addMenuLink(xpath, newPages);
-			else if (collection.isSingleton()) {
-				int classID = model.getClassOfPage(newPages.get(0)).getId();
-				if (classID==lastSingletonId && singletonCounter==3
-						&& !collection.isCoarsest()) {
-					singletonCounter = 0;
-					saved = false;
-				}
-				else {
-					if (classID==lastSingletonId) 
-						singletonCounter++;
-					page.addSingleLink(xpath, newPages);
-				}
-			}
-		}
-		return saved;
+		String xpath = collection.getXPath().get();
+		if (collection.isList())
+			page.addListLink(xpath, newPages);
+		else if (collection.isMenu())
+			page.addMenuLink(xpath, newPages);
+		else if (collection.isSingleton())
+			page.addSingleLink(xpath, newPages);
 	}
 	
 	/*
@@ -307,8 +291,11 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * until it founds different links
 	 */
 	public void changeXPath() {
+		String msg = "getLinks";
+		
 		boolean finer = collection.isFiner();
 		Page page = collection.getPage();
+		long urls = page.urlsSize();
 		String url = page.getUrl();
 		XPath xp = collection.getXPath();
 		XPath original = new XPath(xp);
@@ -324,28 +311,29 @@ public class DynamicModeler extends AbstractLoggingActor {
 			} else
 				html = HtmlUtils.restorePageFromFile(page.getTempFile(), url);			
 			
-			while (!found && !(xp.refine(finer)).isEmpty()) {
+			while (!found && xp.refine(finer)) {
 				List<String> links = getAbsoluteURLs(html, xp.get(), url);
-				if (!links.equals(collection.getLinks())) {
+				if (!links.equals(collection.getLinks()) && urls<links.stream().distinct().count()) {
 					collection.setLinks(links);
-					log().info("Refined XPath: "+xp.getDefault()+" -> "+xp.get());
+					log().info("Refined XPath: "+original.get()+" -> "+xp.get());
 					found=true;
 				}
 			}
-
 		} catch (Exception e) {
 			log().warning("Failed refinement of XPath: "+e.getMessage());
 		}
 		
 		if (!found) {
 			collection.setXPath(original); // restore previous XPath
+			
 			if (finer)
 				collection.setFinest(true);
 			else 
 				collection.setCoarsest(true);
+			msg = "inspect";
 		}
 		
-		self().tell("getLinks", self());
+		self().tell(msg, self());
 	}
 	
 	/*
@@ -356,8 +344,12 @@ public class DynamicModeler extends AbstractLoggingActor {
 		for (ModelPageClass candidate : candidates) {
 			WebsiteModel merged = minimumModel(candidate);
 			WebsiteModel mNew = new WebsiteModel(model);
-			mNew.addClass(candidate);			
+			mNew.addClass(candidate);
 			model.copy((merged.cost() < mNew.cost()) ? merged : mNew);
+			
+			System.out.println("FINAL\n"
+					+ merged+"="+merged.cost()+"\n"
+					+ mNew  +"="+mNew.cost());
 		}
 	}
 	
@@ -365,17 +357,16 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * Returns the Merged Model with minimum length cost
 	 */
 	private WebsiteModel minimumModel(ModelPageClass candidate) {
-		WebsiteModel minimum = new WebsiteModel();
+		WebsiteModel minimum = null;
 		for (ModelPageClass c : model.getClasses()) {
 			WebsiteModel temp = new WebsiteModel(model);
 			temp.removeClass(c);
 
-			ModelPageClass union = new ModelPageClass(c.getId());
+			ModelPageClass union = new ModelPageClass(c);
 			union.collapse(candidate);
-			union.collapse(c);
 			temp.addClass(union);
-
-			if (minimum.cost()>temp.cost())
+			
+			if (minimum==null || minimum.cost()>temp.cost())
 				minimum = temp;
 		}
 		return minimum;

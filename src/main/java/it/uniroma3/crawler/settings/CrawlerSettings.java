@@ -16,7 +16,8 @@ public class CrawlerSettings implements Extension {
 	public final int frontierheap;
 	
 	public static class SeedConfig {
-		public final String site,file;
+		public String site;
+		public final String file;
 		public final int modelPages;
 		public final boolean javascript,crawl;
 		public final int wait;

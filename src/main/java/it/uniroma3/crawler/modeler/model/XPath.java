@@ -160,12 +160,14 @@ public class XPath {
 	}
 	
 	/**
-	 * Performs a refinement of this XPath. 
+	 * Performs a refinement of this XPath: {@link XPath#finer()} 
+	 * if finer is true, else {@link XPath#coarser()} 
 	 * @param finer
-	 * @return {@link XPath#finer} if finer is true, {@link XPath#coarser} otherwise
+	 * @return true if a refinement has been applied, false otherwise
 	 */
-	public String refine(boolean finer) {
-		return (finer) ? finer() : coarser();
+	public boolean refine(boolean finer) {
+		String version = (finer) ? finer() : coarser();
+		return !version.isEmpty();
 	}
 	
 	

@@ -192,13 +192,31 @@ public class Page {
 	}
 	
 	/**
+	 * Returns the number of elements matched by the given XPath in this page.
+	 * @param path the XPath
+	 * @return number of elements matched
+	 */
+	public int getXPathFrequency(XPath path) {
+		return linkCollections.stream()
+				.filter(lc -> lc.getXPath().equals(path))
+				.map(LinkCollection::size)
+				.findFirst().orElse(0);
+	}
+	
+	public boolean containsXPath(XPath path) {
+		return linkCollections.stream().anyMatch(lc -> lc.getXPath().equals(path));
+	}
+	
+	
+	/**
 	 * Returns the cardinality of the difference between this Page schema
 	 * and the specified {@link ModelPageClass} schema.
 	 * @param mpc
 	 * @return the cardinality of the difference between the two schemas
 	 */
 	public long schemaDifferenceSize(ModelPageClass mpc) {
-		return getSchema().stream().filter(xp -> !mpc.getSchema().contains(xp)).count();
+		Set<XPath> classSchema = mpc.getSchema();
+		return getSchema().stream().filter(xp -> !classSchema.contains(xp)).count();
 	}
 	
 	public String toString() {

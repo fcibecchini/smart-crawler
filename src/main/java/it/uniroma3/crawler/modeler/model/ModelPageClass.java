@@ -3,6 +3,7 @@ package it.uniroma3.crawler.modeler.model;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -15,7 +16,6 @@ import java.util.Objects;
 public class ModelPageClass implements Comparable<ModelPageClass> {
 	private int id;
 	private Set<Page> pages;
-	private Set<XPath> schema;
 
 	/**
 	 * Constructs a new ModelPageClass with the given id
@@ -24,7 +24,6 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	public ModelPageClass(int id) {
 		this.id = id;
 		this.pages = new HashSet<>();
-		this.schema = new HashSet<>();
 	}
 	
 	/**
@@ -38,6 +37,11 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 		pages.forEach(this::addPageToClass);
 	}
 	
+	public ModelPageClass(ModelPageClass copy) {
+		this(copy.getId());
+		copy.getPages().forEach(this::addPageToClass);
+	}
+	
 	public int getId() {
 		return this.id;
 	}
@@ -48,8 +52,9 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @param p the Page to add
 	 */
 	public void addPageToClass(Page p) {
-		if (pages.add(p))
-			schema.addAll(p.getSchema());
+	//	if (pages.add(p))
+	//		schema.addAll(p.getSchema());
+		pages.add(p);
 	}
 	
 	/**
@@ -57,7 +62,9 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return the set of XPaths of this schema
 	 */
 	public Set<XPath> getSchema() {
-		return schema;
+		return pages.stream().map(Page::getSchema)
+				.flatMap(Set::stream)
+				.collect(Collectors.toSet());
 	}
 	
 	public Set<Page> getPages() {
@@ -117,7 +124,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 */
 	public long schemaIntersectionSize(Page p) {
 		Set<XPath> pageSchema = p.getSchema();
-		return schema.stream().filter(pageSchema::contains).count();
+		return getSchema().stream().filter(pageSchema::contains).count();
 	}
 	
 	/**
@@ -128,7 +135,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 */
 	public long schemaDifferenceSize(Page p) {
 		Set<XPath> pageSchema = p.getSchema();
-		return schema.stream().filter(xp -> !pageSchema.contains(xp)).count();
+		return getSchema().stream().filter(xp -> !pageSchema.contains(xp)).count();
 	}
 	
 	/**
@@ -145,7 +152,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return the number of XPaths
 	 */
 	public int schemaSize() {
-		return schema.size();
+		return getSchema().size();
 	}
 	
 	/**
@@ -161,19 +168,22 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return the distance between this ModelPageClass and the other
 	 */
 	public double distance(ModelPageClass other) {
+		Set<XPath> schema = getSchema();
+		Set<XPath> otherSchema = other.getSchema();
+
 		Set<XPath> union = new HashSet<>();
 		Set<XPath> diff1 = new HashSet<>();
 		Set<XPath> diff2 = new HashSet<>();
 		Set<XPath> unionDiff = new HashSet<>();
-
-		union.addAll(getSchema());
-		union.addAll(other.getSchema());
 		
-		diff1.addAll(getSchema());
-		diff1.removeAll(other.getSchema());
+		union.addAll(schema);
+		union.addAll(otherSchema);
+		
+		diff1.addAll(schema);
+		diff1.removeAll(otherSchema);
 				
-		diff2.addAll(other.getSchema());
-		diff2.removeAll(getSchema());
+		diff2.addAll(otherSchema);
+		diff2.removeAll(schema);
 		
 		unionDiff.addAll(diff1);
 		unionDiff.addAll(diff2);

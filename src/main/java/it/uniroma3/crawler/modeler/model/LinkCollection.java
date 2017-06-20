@@ -22,15 +22,6 @@ public class LinkCollection {
 	private int maxFetches;
 	
 	/**
-	 * Constructs a new LinkCollection with the given group of links.
-	 * @param links the outgoing links
-	 */
-	public LinkCollection(List<String> links) {
-		this.links = Collections.unmodifiableList(links);
-		this.maxFetches = 3;
-	}
-	
-	/**
 	 * Constructs a new LinkCollection containing the 
 	 * outgoing links of the specified page related to the given XPath 
 	 * @param parent the parent {@link Page} which contains the outgoing links
@@ -38,9 +29,10 @@ public class LinkCollection {
 	 * @param urls the outgoing links
 	 */
 	public LinkCollection(Page parent, XPath xpath, List<String> urls) {
-		this(urls);
-		this.xpath = xpath;
 		this.page = parent;
+		this.xpath = xpath;
+		this.links = Collections.unmodifiableList(urls);
+		this.maxFetches = 3;
 	}
 	
 	/**
@@ -190,8 +182,7 @@ public class LinkCollection {
 	}
 	
 	public String toString() {
-		String desc = (page!=null) ? page.getUrl() : "entryPoint";
-		return desc+" "+xpath.get()+" -> "+ links.toString();
+		return page.getUrl()+" "+xpath.get()+" -> "+ links.toString();
 	}
 	
 	public int hashCode() {
