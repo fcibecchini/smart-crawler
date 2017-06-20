@@ -4,3 +4,4 @@
 /.settings/
 /html/
 repository.csv
+/testsite/*/.vagrant/
