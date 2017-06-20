@@ -313,7 +313,8 @@ public class DynamicModeler extends AbstractLoggingActor {
 			
 			while (!found && xp.refine(finer)) {
 				List<String> links = getAbsoluteURLs(html, xp.get(), url);
-				if (!links.equals(collection.getLinks()) && urls<links.stream().distinct().count()) {
+				int size = links.stream().distinct().mapToInt(l -> 1).sum();
+				if (!links.equals(collection.getLinks()) && size<urls) {
 					collection.setLinks(links);
 					log().info("Refined XPath: "+original.get()+" -> "+xp.get());
 					found=true;
@@ -325,7 +326,6 @@ public class DynamicModeler extends AbstractLoggingActor {
 		
 		if (!found) {
 			collection.setXPath(original); // restore previous XPath
-			
 			if (finer)
 				collection.setFinest(true);
 			else 
@@ -346,10 +346,6 @@ public class DynamicModeler extends AbstractLoggingActor {
 			WebsiteModel mNew = new WebsiteModel(model);
 			mNew.addClass(candidate);
 			model.copy((merged.cost() < mNew.cost()) ? merged : mNew);
-			
-			System.out.println("FINAL\n"
-					+ merged+"="+merged.cost()+"\n"
-					+ mNew  +"="+mNew.cost());
 		}
 	}
 	
