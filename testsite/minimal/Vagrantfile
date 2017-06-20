@@ -19,7 +19,7 @@ Vagrant.configure(2) do |config|
         node.vm.provision :shell, inline: "sudo apt-get update"        
 
         # Update Augeas
-        node.vm.provision :shell, :path => "scripts/bootstrap_augeas.sh"
+        node.vm.provision :shell, :path => "../scripts/bootstrap_augeas.sh"
         
         # Puppet provisioning
         node.vm.provision "puppet" do |puppet|
