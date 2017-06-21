@@ -24,6 +24,7 @@ public class WebsiteModel {
 	private static final double C_MISS = 1;
 
 	private TreeSet<ModelPageClass> modelClasses;
+	private int pages;
 	private double cost;
 	
 	/**
@@ -94,11 +95,9 @@ public class WebsiteModel {
 				.filter(c -> c.containsPage(page)).findAny().orElse(null);
 	}
 	
-	/**
-	 * @return the total number of Pages in this model
-	 */
-	public int pagesCount() {
-		return modelClasses.stream().map(c -> c.size()).reduce(Integer::sum).orElse(0);
+	
+	public void setPages(int pages) {
+		this.pages = pages;
 	}
 	
 	/**
@@ -157,7 +156,6 @@ public class WebsiteModel {
 	private double calculateLength() {
 		double modelCost = 0;
 		double dataCost = 0;
-		int pages = pagesCount();
 		for (ModelPageClass c : modelClasses) {
 			modelCost += c.schemaSize()*C_XP;
 			for (Page p : c.getPages()) {

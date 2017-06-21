@@ -39,7 +39,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	
 	public ModelPageClass(ModelPageClass copy) {
 		this(copy.getId());
-		copy.getPages().forEach(this::addPageToClass);
+		collapse(copy);
 	}
 	
 	public int getId() {
