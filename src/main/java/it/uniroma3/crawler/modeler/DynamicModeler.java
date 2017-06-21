@@ -128,7 +128,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 	
 	public void getLinks() {
 		log().info("Parent Page: "+collection.getPage()+", "+collection.size()+" links");
-		links = collection.getLinksToFetch();
+		links = collection.getLinksToFetch(conf.site);
 		
 		if (newPages.stream().anyMatch(p -> !p.isLoaded())) // if some page was downloaded, wait
 			context().system().scheduler().scheduleOnce(
@@ -145,32 +145,29 @@ public class DynamicModeler extends AbstractLoggingActor {
 		
 		if (!links.isEmpty()) {
 			String url = links.poll();
-			if (isValidURL(conf.site, url)) {
-				Page page = visitedURLs.get(url);
-				if (page!=null) {
-					page.setLoaded();
+			Page page = visitedURLs.get(url);
+			if (page!=null) {
+				page.setLoaded();
+				newPages.add(page);
+				log().info("Loaded: "+url);
+			}
+			else if (visitedURLs.size()<conf.modelPages) {
+				try {
+					HtmlPage html = getPage(url, client);
+					page = new Page(url, html);
+					visitedURLs.put(url, page);
 					newPages.add(page);
-					log().info("Loaded: "+url);
+					log().info("Fetched: "+url);
 				}
-				else if (visitedURLs.size()<conf.modelPages) {
-					try {
-						HtmlPage html = getPage(url, client);
-						page = new Page(url, html);
-						visitedURLs.put(url, page);
-						newPages.add(page);
-						log().info("Fetched: "+url);
-					}
-					catch (Exception e) {
-						log().warning("Failed fetching: "+url+", "+e.getMessage());
-					}
-				}
-				else {
-					/* end, reset queue */
-					queue.clear();
-					msg = "poll";
+				catch (Exception e) {
+					log().warning("Failed fetching: "+url+", "+e.getMessage());
 				}
 			}
-			else log().info("Rejected URL: "+url);
+			else {
+				/* end, reset queue */
+				queue.clear();
+				msg = "poll";
+			}
 		}
 		else msg = (!newPages.isEmpty()) ? "cluster" : "poll";
 		
@@ -341,9 +338,11 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * or creating new ones.
 	 */
 	private void updateModel(List<ModelPageClass> candidates) {
+		int pages = visitedURLs.size();
 		for (ModelPageClass candidate : candidates) {
-			WebsiteModel merged = minimumModel(candidate);
+			WebsiteModel merged = minimumModel(candidate,pages);
 			WebsiteModel mNew = new WebsiteModel(model);
+			mNew.setPages(pages);
 			mNew.addClass(candidate);
 			model.copy((merged.cost() < mNew.cost()) ? merged : mNew);
 		}
@@ -352,10 +351,11 @@ public class DynamicModeler extends AbstractLoggingActor {
 	/*
 	 * Returns the Merged Model with minimum length cost
 	 */
-	private WebsiteModel minimumModel(ModelPageClass candidate) {
+	private WebsiteModel minimumModel(ModelPageClass candidate, int pages) {
 		WebsiteModel minimum = null;
 		for (ModelPageClass c : model.getClasses()) {
 			WebsiteModel temp = new WebsiteModel(model);
+			temp.setPages(pages);
 			temp.removeClass(c);
 
 			ModelPageClass union = new ModelPageClass(c);

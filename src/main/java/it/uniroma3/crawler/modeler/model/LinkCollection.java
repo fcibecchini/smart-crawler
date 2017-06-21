@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 
+import static it.uniroma3.crawler.util.HtmlUtils.isValidURL;
+
 /**
  * A LinkCollection is an immutable group of links with uniform layout and 
  * presentation properties.<br> Pages reached from the same 
@@ -134,19 +136,46 @@ public class LinkCollection {
 	}
 	
 	/**
-	 * Returns a subset of the links of this collection consisting of links that
+	 * Returns a subset of the links of this collection consisting of valid links that
 	 * must be fetched.
+	 * @param base the base URL to retrieve valid internal URLs
 	 * @return the subset links group to fetch
 	 */
-	public Queue<String> getLinksToFetch() {
+	public Queue<String> getLinksToFetch(String base) {
 		Queue<String> linksToFetch = new LinkedList<>();
 		int size = size();
 		if (size<=maxFetches)
-			linksToFetch.addAll(links);
+			links.stream().filter(l->isValidURL(base,l)).forEach(linksToFetch::add);
 		else {
-			linksToFetch.add(links.get(0));
-			linksToFetch.add(links.get((size-1)/2));
-			linksToFetch.add(links.get(size-1));
+			int start=0, middle=(size-1)/2, end=size-1;
+			int i = start;
+			while (i<size) {
+				String link = links.get(i);
+				if (isValidURL(base, link)) {
+					linksToFetch.add(link);
+					break;
+				}
+				i++;
+			}
+			i = (i<middle) ? middle : i+1;
+			while (i<size) {
+				String link = links.get(i);
+				if (isValidURL(base, link)) {
+					linksToFetch.add(link);
+					break;
+				}
+				i++;
+			}
+			int lastIndex = i;
+			i = (i<end) ? end : 0;
+			while (i>lastIndex) {
+				String link = links.get(i);
+				if (isValidURL(base, link)) {
+					linksToFetch.add(link);
+					break;
+				}
+				i--;
+			}
 		}
 		return linksToFetch;
 	}
