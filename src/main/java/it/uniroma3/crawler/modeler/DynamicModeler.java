@@ -5,6 +5,7 @@ import static it.uniroma3.crawler.util.HtmlUtils.*;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURLs;
+import static it.uniroma3.crawler.util.Commands.STOP;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,14 +22,15 @@ import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import akka.actor.AbstractLoggingActor;
+import akka.util.ByteString;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.modeler.model.ModelPageClass;
+import it.uniroma3.crawler.modeler.evaluator.ModelerEvaluator;
 import it.uniroma3.crawler.modeler.model.LinkCollection;
 import it.uniroma3.crawler.modeler.model.Page;
 import it.uniroma3.crawler.modeler.model.WebsiteModel;
 import it.uniroma3.crawler.modeler.model.XPath;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
-import it.uniroma3.crawler.util.Commands;
 import it.uniroma3.crawler.util.FileUtils;
 import it.uniroma3.crawler.util.HtmlUtils;
 import scala.concurrent.duration.Duration;
@@ -92,6 +94,9 @@ public class DynamicModeler extends AbstractLoggingActor {
 		.matchEquals("refine", msg -> changeXPath())
 		.matchEquals("update", msg -> update())
 		.matchEquals("finalize", msg -> finalizeModel())
+		.match(ByteString.class, golden -> 
+			context().actorOf(ModelerEvaluator.props(golden), "evaluator").tell(model, self()))
+		.matchEquals(STOP, msg -> context().parent().tell(msg, self()))
 		.build();
 	}
 	
@@ -240,23 +245,13 @@ public class DynamicModeler extends AbstractLoggingActor {
 	}
 	
 	public void update() {		
-		List<ModelPageClass> toRemove = new ArrayList<>();
-		for (ModelPageClass c : candidates) {
-			for (Page p : c.getPages()) {
-				/* If there are already classified pages in candidates
-				 * we should skip the update phase for this cluster,
-				 * merging new fetched pages. */
-				if (p.isClassified()) {
-					ModelPageClass mpc = model.getClassOfPage(p);
-					mpc.collapse(c); // merge new fetched pages, if any
-					toRemove.add(c);
-					break;
-				}
-			}
-		}
-		candidates.removeAll(toRemove);
+		/* skip pages already classified */
+		candidates.removeIf(c -> {
+			c.getPages().removeIf(Page::isClassified);
+			return c.size()==0;
+		});
 		
-		updateModel(candidates);
+		if (!candidates.isEmpty()) updateModel(candidates);
 		setPageLinks(collection);
 		
 		newPages.stream()
@@ -380,7 +375,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 		}
 		else {
 			log().info("MODELING FAILED");
-			context().parent().tell(Commands.STOP, self());
+			context().parent().tell(STOP, self());
 		}
 	}
 
