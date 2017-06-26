@@ -4,6 +4,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import it.uniroma3.crawler.model.PageClass;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -16,6 +19,8 @@ import java.util.Objects;
 public class ModelPageClass implements Comparable<ModelPageClass> {
 	private int id;
 	private Set<Page> pages;
+	
+	private PageClass pageClass;
 
 	/**
 	 * Constructs a new ModelPageClass with the given id
@@ -155,6 +160,18 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 		return getSchema().size();
 	}
 	
+	public void removePage(Page p) {
+		pages.remove(p);
+	}
+	
+	public PageClass getPageClass() {
+		return pageClass;
+	}
+
+	public void setPageClass(PageClass pageClass) {
+		this.pageClass = pageClass;
+	}
+
 	/**
 	 * The distance between the page class schemas is defined as
 	 * the normalized cardinality of the symmetric 

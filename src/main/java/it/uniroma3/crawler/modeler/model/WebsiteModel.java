@@ -1,12 +1,10 @@
 package it.uniroma3.crawler.modeler.model;
 
-import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
+import static java.util.stream.Collectors.toList;
 
-import static java.util.stream.Collectors.toMap;
-
+import java.util.ArrayList;
 import java.util.List;
 
 import it.uniroma3.crawler.model.PageClass;
@@ -119,25 +117,54 @@ public class WebsiteModel {
 	 * @param conf Configuration parameters for this website 
 	 * @return the root (homepage) PageClass of the navigation graph
 	 */
-	public PageClass toGraph(SeedConfig conf) {
-		Map<Integer, PageClass> pageClasses = 
-				modelClasses.stream().collect(toMap(
-				c -> c.getId(), 
-				c -> new PageClass(c.name(), conf)));
+	public PageClass toGraph(SeedConfig conf) {		
+		modelClasses.forEach(c -> c.setPageClass(new PageClass(c.name(),conf)));
 		
 		for (ModelPageClass mpc : modelClasses) {
+			PageClass src = mpc.getPageClass();
 			for (Page p : mpc.getPages()) {
-				PageClass src = pageClasses.get(getClassOfPage(p).getId());
 				for (PageLink link : p.getLinks()) {
 					List<PageClass> dests = 
 						link.getDestinations().stream()
-						.map(pdest -> pageClasses.get(getClassOfPage(pdest).getId()))
-						.collect(Collectors.toList());
-					link.linkToPageClass(src,dests);
+						.map(d -> getClassOfPage(d).getPageClass()).collect(toList());
+					link.linkToPageClass(src, dests);
 				}
 			}
 		}
-		return pageClasses.get(modelClasses.first().getId());
+		collapsePageClasses();
+		return modelClasses.first().getPageClass();
+	}
+	
+	private void collapsePageClasses() {		
+		List<ModelPageClass> classList = new ArrayList<>(modelClasses);
+		List<ModelPageClass> toRemove = new ArrayList<>();
+		
+		for (int i = 0; i < classList.size(); i++) {
+			for (int j = classList.size() - 1; j > i; j--) {
+				ModelPageClass c1 = classList.get(i);
+				ModelPageClass c2 = classList.get(j);
+				if (!toRemove.contains(c1) && !toRemove.contains(c2)) {
+					PageClass p1 = c1.getPageClass();
+					PageClass p2 = c2.getPageClass();
+					
+					if (p1.getLinks().equals(p2.getLinks())) {
+						c1.collapse(c2);
+						toRemove.add(c2);
+						changeClassesDestination(p2,p1);
+					}
+				}
+			}
+		}
+		modelClasses.removeAll(toRemove);
+	}
+	
+	private void changeClassesDestination(PageClass oldClass, PageClass newClass) {
+		modelClasses.stream()
+			.map(mc -> mc.getPageClass().getLinks())
+			.forEach(ll -> 
+				ll.stream()
+				.filter(l -> l.getDestination().equals(oldClass))
+				.forEach(l -> l.setDestination(newClass)));
 	}
 	
 	/**
@@ -184,10 +211,6 @@ public class WebsiteModel {
 		double idf = Math.log((double) pages / (double) pageFrequency);
 		double score = 1 + (xpathFrequency * idf);
 		double cost = 1 / score;
-//		System.out.println(p+": "+xp.get()+" = 1+("
-//				+xpathFrequency+" * "
-//				+"LOG("+(double) pages+"/"+(double) pageFrequency+"))"
-//				+" = "+cost);
 		return cost;
 	}
 	
