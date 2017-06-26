@@ -35,13 +35,13 @@ public class PageClass {
 	@Transient private boolean javascript;
 	
 	@Relationship(type="CLASS_LINK", direction=Relationship.OUTGOING)
-	private List<ClassLink> links;
+	private Set<ClassLink> links;
 	
 	@Relationship(type="DATA_LINK", direction=Relationship.OUTGOING)
 	private List<DataLink> dataLinks;
 	
 	public PageClass() {
-		this.links = new ArrayList<>();
+		this.links = new HashSet<>();
 		this.dataLinks = new ArrayList<>();
 	}
 	
@@ -91,8 +91,12 @@ public class PageClass {
 		this.name = name;
 	}
 
-	public void setLinks(List<ClassLink> links) {
+	public void setLinks(Set<ClassLink> links) {
 		this.links = links;
+	}
+	
+	public Set<ClassLink> getLinks() {
+		return links;
 	}
 
 	public void setDataLinks(List<DataLink> dataLinks) {

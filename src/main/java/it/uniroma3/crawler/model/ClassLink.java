@@ -1,5 +1,7 @@
 package it.uniroma3.crawler.model;
 
+import java.util.Objects;
+
 import org.neo4j.ogm.annotation.EndNode;
 import org.neo4j.ogm.annotation.RelationshipEntity;
 import org.neo4j.ogm.annotation.StartNode;
@@ -83,6 +85,10 @@ public class ClassLink {
 	public boolean isSingleton() {
 		return type.equals("singleton");
 	}
+	
+	public void setDestination(PageClass destination) {
+		this.destination = destination;
+	}
 
 	public PageClass getDestination() {
 		return destination;
@@ -90,6 +96,16 @@ public class ClassLink {
 	
 	public String toString() {
 		return "["+xpath.toString()+", "+destination.getName()+"]";
+	}
+	
+	public int hashCode() {
+		return Objects.hash(xpath,type);
+	}
+	
+	public boolean equals(Object other) {
+		ClassLink o = (ClassLink) other;
+		return Objects.equals(xpath, o.getXPath()) 
+				&& Objects.equals(type, o.getType());
 	}
 	
 }
