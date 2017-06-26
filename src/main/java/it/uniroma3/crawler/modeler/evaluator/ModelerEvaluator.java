@@ -54,7 +54,7 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 		calculatePurity();
 		calculateLinksFMeasure();
 		
-		sender().tell(ByteString.fromString(getStatistics()), self());
+		sender().tell(ByteString.fromString(getStatistics()), context().parent());
 		
 		log().info("END evaluation");
 	}

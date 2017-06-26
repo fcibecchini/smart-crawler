@@ -100,7 +100,7 @@ public class CrawlModeler extends AbstractLoggingActor {
 		} catch (IOException ie) {
 			log().warning("IOException while printing Website Statistics: "+ie.getMessage());
 		}
-		stopChild(context().child("dynamic").get());
+		stopChild(sender());
     }
     
     private void stopChild(ActorRef ref) {
