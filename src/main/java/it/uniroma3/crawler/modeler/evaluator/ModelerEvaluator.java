@@ -1,12 +1,5 @@
 package it.uniroma3.crawler.modeler.evaluator;
 
-import static org.apache.commons.io.FileUtils.writeStringToFile;
-import static it.uniroma3.crawler.util.FileUtils.normalizeURL;
-import static it.uniroma3.crawler.util.Commands.STOP;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -61,20 +54,9 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 		calculatePurity();
 		calculateLinksFMeasure();
 		
-		saveToFile();
-		//System.out.println(getStatistics());
+		sender().tell(ByteString.fromString(getStatistics()), self());
 		
 		log().info("END evaluation");
-		context().parent().tell(STOP, self());
-	}
-	
-	private void saveToFile() {
-		try {
-			File file = new File("src/main/resources/evaluations/"+normalizeURL(domain)+".csv");
-			writeStringToFile(file, getStatistics(), Charset.forName("UTF-8"));
-		} catch (IOException ie) {
-			log().warning("IOException while printing Website Statistics: "+ie.getMessage());
-		}
 	}
 	
 	private String getStatistics() {

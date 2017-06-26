@@ -95,8 +95,8 @@ public class DynamicModeler extends AbstractLoggingActor {
 		.matchEquals("update", msg -> update())
 		.matchEquals("finalize", msg -> finalizeModel())
 		.match(ByteString.class, golden -> 
-			context().actorOf(ModelerEvaluator.props(golden), "evaluator").tell(model, self()))
-		.matchEquals(STOP, msg -> context().parent().tell(msg, self()))
+			context().actorOf(ModelerEvaluator.props(golden), "evaluator")
+			.tell(model, context().parent()))
 		.build();
 	}
 	

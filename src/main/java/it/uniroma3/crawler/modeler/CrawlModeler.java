@@ -1,8 +1,11 @@
 package it.uniroma3.crawler.modeler;
 
 import static it.uniroma3.crawler.util.Commands.STOP;
+import static org.apache.commons.io.FileUtils.writeStringToFile;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,18 +26,15 @@ import it.uniroma3.crawler.util.FileUtils;
 public class CrawlModeler extends AbstractLoggingActor {
 	private boolean crawl;
 	private int children;
+	private String domainName;
 
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
 		.match(ModelMsg.class, this::start)
 		.match(PageClass.class, this::sendAndSave)
-		.matchEquals(STOP, s -> {
-			context().unwatch(sender());
-			context().stop(sender());
-			children--;
-			if (children==0) context().stop(self());
-		})
+		.match(ByteString.class, this::saveEvaluation)
+		.matchEquals(STOP, s -> stopChild(sender()))
 		.build();
 	}
 	
@@ -83,13 +83,31 @@ public class CrawlModeler extends AbstractLoggingActor {
 			try {
 				byte[] byteFile = Files.readAllBytes(file);
 				ByteString msg = ByteString.fromArray(byteFile);
+				domainName = name;
 				sender().tell(msg,self());
 			} catch (IOException e) {
 				log().warning("IOException: "+e.getMessage());
-				self().tell(STOP, sender());
+				stopChild(sender());
 			}
 		}
-		else self().tell(STOP, sender());
+		else stopChild(sender());
+    }
+    
+    private void saveEvaluation(ByteString stats) {
+		try {
+			File file = new File("src/main/resources/evaluations/"+domainName+".csv");
+			writeStringToFile(file, stats.utf8String(), Charset.forName("UTF-8"));
+		} catch (IOException ie) {
+			log().warning("IOException while printing Website Statistics: "+ie.getMessage());
+		}
+		stopChild(context().child("dynamic").get());
+    }
+    
+    private void stopChild(ActorRef ref) {
+    	context().unwatch(ref);
+		context().stop(ref);
+		children--;
+		if (children==0) context().stop(self());
     }
     
 }
