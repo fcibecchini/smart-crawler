@@ -1,13 +1,13 @@
 package it.uniroma3.crawler.modeler.evaluator;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.TreeMap;
 
 import akka.actor.AbstractLoggingActor;
@@ -24,10 +24,9 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 	private WebsiteModel computedModel;
 	private String domain;
 	private Map<String,Integer> matrix;
-	private Map<String,Integer> class2size;
 	private Map<ModelPageClass,Double> cohesions;
 	private Map<ModelPageClass,Double> purities;
-	private int pages;
+	private int trueClassesPages;
 	private double fmeasure, cohesion, purity, linksFmeasure;
 		
 	public static Props props(ByteString msg) {
@@ -55,7 +54,7 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 		calculateLinksFMeasure();
 		
 		sender().tell(ByteString.fromString(getStatistics()), context().parent());
-		
+				
 		log().info("END evaluation");
 	}
 	
@@ -69,6 +68,7 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 		computedModel.getClasses().forEach(c -> build.append(getModelClassStatistics(c)+"\n"));
 		
 		build.append("GOLDEN_CLASS\tPAGECLASS\t"
+				+ "CLASS_SIZE\tCLASS_LINKS\t"
 				+ "CLUSTER_PRECISION\tCLUSTER_RECALL\tCLUSTER_F-MEASURE\t"
 				+ "LINKS_PRECISION\tLINKS_RECALL\tLINKS_F-MEASURE\n");
 		goldenModel.getClasses().forEach(c -> build.append(c.getStatistics()+"\n"));
@@ -83,30 +83,34 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 				df.format(cohesion)+"\t"+
 				df.format(purity)+"\t"+
 				df.format(linksFmeasure)+"\t"+
-				pages;
+				trueClassesPages;
 	}
 	
 	private String getModelClassStatistics(ModelPageClass mpc) {
 		DecimalFormat df = new DecimalFormat("#.##");
 		String name = mpc.getPageClass().getName();
-		return name+"\t"+df.format(cohesions.get(mpc))+"\t"+df.format(purities.get(mpc));
+		Double cohesion = cohesions.get(mpc);
+		Double purity = purities.get(mpc);
+		String cs = (cohesion!=null) ? df.format(cohesion) : "-";
+		String ps = (purity!=null) ? df.format(purity) : "-";
+		return name+"\t"+cs+"\t"+ps;
 	}
 	
 	private void loadStatistics(WebsiteModel model) {
 		computedModel = model;
 		domain = model.getClasses().first().getPageClass().getDomain();
 		matrix = countMatrix();
-		class2size = getSizes();
-		pages = matrix.values().stream().reduce(Integer::sum).get();
+		setTrueClassesSize();
+		trueClassesPages = matrix.values().stream().reduce(Integer::sum).get();
 	}
 	
 	private void calculateFmeasure() {
-		for (TrueClass tClass : goldenModel.getClasses()) {
-			double fm=0, p=0, r=0;
+		for (TrueClass tc : goldenModel.getClasses()) {
+			double fm=-1, p=-1, r=-1;
 			ModelPageClass computed=null;
 			for (ModelPageClass mpc : computedModel.getClasses()) {
-				double precision = precision(tClass,mpc);
-				double recall = recall(tClass,mpc);
+				double precision = precision(tc,mpc);
+				double recall = recall(tc,mpc);
 				double fmeasure = fMeasure(precision,recall);
 				if (fmeasure>fm) {
 					fm = fmeasure;
@@ -115,42 +119,59 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 					computed = mpc;
 				}
 			}
-			tClass.setComputedClass(computed);
-			tClass.setPrecision(p);
-			tClass.setRecall(r);
-			tClass.setFmeasure(fm);
-			fmeasure += fm*((double) class2size.get(tClass.getName()) / (double)pages);
+			tc.setComputedClass(computed);
+			tc.setPrecision(p);
+			tc.setRecall(r);
+			tc.setFmeasure(fm);
+			fmeasure += fm*((double) tc.size() / (double)trueClassesPages);
 		}
 	}
 	
 	private void calculateCohesion() {
 		cohesions = new HashMap<>();
+		double totalSize = 0;
 		for (ModelPageClass mpc : computedModel.getClasses()) {
-			String id = String.valueOf(mpc.getId());
 			double cohesion = 0;
+			boolean found = false;
 			for (TrueClass tClass : goldenModel.getClasses()) {
 				double p = precision(tClass,mpc);
+				if (p>0) found=true;
 				cohesion += (p==0) ? 0 : p*Math.log(p);
 			}
 			cohesion = (cohesion==0) ? 0 : -cohesion;
-			cohesions.put(mpc, cohesion);
-			this.cohesion += cohesion * ((double)class2size.get(id) / (double)pages);
+			if (found) {
+				cohesions.put(mpc, cohesion);
+				totalSize+=mpc.size();
+			}
 		}
+
+		for (ModelPageClass mpc : computedModel.getClasses()) {
+			Double c = cohesions.get(mpc);
+			if (c!=null) cohesion += c * ((double)mpc.size() / (double)totalSize);
+		}
+		
 	}
 	
 	private void calculatePurity() {
 		purities = new HashMap<>();
+		double totalSize = 0;
 		for (ModelPageClass mpc : computedModel.getClasses()) {
-			String id = String.valueOf(mpc.getId());
 			double max = 0;
 			for (TrueClass tClass : goldenModel.getClasses()) {
-				int count = matrix.get(tClass.getName()+"\t"+id);
+				int count = matrix.get(tClass.getName()+"\t"+mpc.getId());
 				if (count>max)
 					max = count;
 			}
-			double purity = max / (double) class2size.get(id);
-			purities.put(mpc, purity);
-			this.purity += purity * ((double)class2size.get(id) / (double)pages);
+			double purity = max / (double) mpc.size();
+			if (purity>0) {
+				purities.put(mpc, purity);
+				totalSize+=mpc.size();
+			}
+		}
+
+		for (ModelPageClass mpc : computedModel.getClasses()) {
+			Double p = purities.get(mpc); 
+			if (p!=null) purity += p * ((double)mpc.size() / (double)totalSize);
 		}
 	}
 	
@@ -163,7 +184,8 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 			for (ModelPageClass mpc : computedModel.getClasses()) {
 				int count=0;
 				for (Page p : mpc.getPages()) {
-					if (tClass.belongsToClass(p.getUrl()))
+					boolean belong = tClass.belongsToClass(p.getUrl());
+					if (belong)
 						count++;
 				}
 				matrix.put(tClass.getName()+"\t"+mpc.getId(), count);
@@ -182,7 +204,7 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 			double size = tc.getLinks().size();
 			if (size>0) {
 				setLinksPrecisionAndRecall(tc);
-				linksFmeasure += tc.getFmeasure() * (size / totalLinksSize);
+				linksFmeasure += tc.getLinksFmeasure() * (size / totalLinksSize);
 			}
 		}
 	}
@@ -190,19 +212,23 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 	private void setLinksPrecisionAndRecall(TrueClass tc) {
 		double count = 0;
 		PageClass pc = tc.getComputedClass().getPageClass();
-		Set<ClassLink> pLinks = pc.getLinks();
+		List<ClassLink> pLinks = new ArrayList<>(pc.getLinks());
+		int pLinksSize = pLinks.size();
 		List<TrueLink> tLinks = tc.getLinks();
 		for (TrueLink tl : tLinks) {
 			String type = tl.getType();
 			PageClass dest = tl.getDestination().getComputedClass().getPageClass();
+			ClassLink current=null;
 			for (ClassLink pl : pLinks) {
 				if (type.equals(pl.getType()) && dest.equals(pl.getDestination())) {
 					count++;
+					current=pl;
 					break;
 				}
 			}
+			if(current!=null) pLinks.remove(current);
 		}
-		double p = count / (double) pLinks.size();
+		double p = (pLinksSize>0) ? count / (double) pLinksSize : 0;
 		double r = count / (double) tLinks.size();
 		double f = fMeasure(p,r);
 		tc.setLinksPrecision(p);
@@ -210,45 +236,26 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 		tc.setLinksFmeasure(f);
 	}
 	
-	private Map<String, Integer> getSizes() {
-		Map<String, Integer> matrix = new TreeMap<>();
+	private void setTrueClassesSize() {
 		for (TrueClass tc : goldenModel.getClasses()) {
-			matrix.put(tc.getName(), sizeOfClass(tc));
+			int sum = 0;
+			for (ModelPageClass mpcc : computedModel.getClasses()) {
+				sum += matrix.get(tc.getName()+"\t"+mpcc.getId());
+			}
+			tc.setSize(sum);
 		}
-		for (ModelPageClass mpc : computedModel.getClasses()) {
-			matrix.put(String.valueOf(mpc.getId()), sizeOfClass(mpc));
-		}
-		return matrix;
 	}
 	
 	private double precision(TrueClass tc, ModelPageClass mpc) {
 		double count = matrix.get(tc.getName()+"\t"+mpc.getId());
-		double size = class2size.get(String.valueOf(mpc.getId()));
-		return count / size ;
+		double size = mpc.size();
+		return (count==0) ? 0 : count / size;
 	}
 	
 	private double recall(TrueClass tc, ModelPageClass mpc) {
 		double count = matrix.get(tc.getName()+"\t"+mpc.getId());
-		double size = class2size.get(tc.getName());
-		return count / size;
-	}
-	
-	private int sizeOfClass(TrueClass tc) {
-		String name = tc.getName();
-		int sum = 0;
-		for (ModelPageClass mpcc : computedModel.getClasses()) {
-			sum += matrix.get(name+"\t"+mpcc.getId());
-		}
-		return sum;
-	}
-	
-	private int sizeOfClass(ModelPageClass mpc) {
-		int id = mpc.getId();
-		int sum = 0;
-		for (TrueClass tcc : goldenModel.getClasses()) {
-			sum += matrix.get(tcc.getName()+"\t"+id);
-		}
-		return sum;
+		double size = tc.size();
+		return (count==0) ? 0 : count / size;
 	}
 	
 	private double fMeasure(double precision, double recall) {

@@ -1,0 +1,27 @@
+home	http://www.wwagency.com/?$,http://www.wwagency.com/\?[^/]*$
+find_property	http://www.wwagency.com/properties.php\?sale_type_id=.*$
+results	http://www.wwagency.com/.*&search=Search.*,http://www.wwagency.com/fresh.php.*
+detail	http://www.wwagency.com/property-in-[^/]*/[^/]*/.*
+lettings	http://www.wwagency.com/property-lettings.php.*
+
+home	menu	lettings
+home	menu	lettings
+home	singleton	find_property
+home	singleton	find_property
+lettings	menu	lettings
+lettings	menu	lettings
+lettings	list	lettings
+find_property	menu	lettings
+find_property	menu	lettings
+find_property	list	results
+find_property	singleton	results
+results	menu	lettings
+results	menu	lettings
+results	list	results
+results	list	detail
+results	list	detail
+results	singleton	find_property
+detail	menu	lettings
+detail	menu	lettings
+detail	menu	home
+detail	menu	results

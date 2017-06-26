@@ -15,6 +15,7 @@ public class TrueClass {
 	
 	private ModelPageClass computedClass;
 	
+	private int size;
 	private double precision, recall, fmeasure;
 	private double linksPrecision, linksRecall, linksFmeasure;
 	
@@ -101,15 +102,23 @@ public class TrueClass {
 		this.linksFmeasure = linksFmeasure;
 	}
 
+	public int size() {
+		return size;
+	}
+
+	public void setSize(int size) {
+		this.size = size;
+	}
+
 	public String getStatistics() {
 		DecimalFormat df = new DecimalFormat("#.##");
-		String pClassName = computedClass.getPageClass().getName();
-		String format1 = name+"\t"+pClassName+"\t"+
-			df.format(precision)+"\t"+df.format(recall)+"\t"+df.format(fmeasure);
-		String format2 = (links.size()>0) ?
+		String format1 = name+"\t"+computedClass.getPageClass().getName();
+		String format2 = computedClass.size()+"\t"+computedClass.getPageClass().getLinks().size();
+		String format3 = df.format(precision)+"\t"+df.format(recall)+"\t"+df.format(fmeasure);
+		String format4 = (links.size()>0) ?
 			df.format(linksPrecision)+"\t"+df.format(linksRecall)+"\t"+df.format(linksFmeasure)
 			: "-\t-\t-";
-		return format1+"\t"+format2;
+		return format1+"\t"+format2+"\t"+format3+"\t"+format4;
 	}
 
 	public int hashCode() {
