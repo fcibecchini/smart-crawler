@@ -1,0 +1,32 @@
+home	http://www.pennyandsinclair.co.uk/?$
+results	http://www.pennyandsinclair.co.uk/search\?.*
+detail	http://www.pennyandsinclair.co.uk/property/.*
+news_result	http://www.pennyandsinclair.co.uk/news$
+news_detail	http://www.pennyandsinclair.co.uk/news/.*/.*
+reviews	http://www.pennyandsinclair.co.uk/reviews.*
+
+home	menu	news_result
+home	menu	reviews
+home	menu	results
+home	list	detail
+home	menu	results
+results	menu	news_result
+results	menu	reviews
+results	menu	results
+results	list	detail
+results	list	results
+detail	menu	news_result
+detail	menu	reviews
+detail	menu	results
+detail	list	results
+news_result	menu	news_result
+news_result	menu	reviews
+news_result	menu	results
+news_result	list	news_detail
+news_detail	menu	news_result
+news_detail	menu	reviews
+news_detail	menu	results
+reviews	menu	news_result
+reviews	menu	reviews
+reviews	menu	results
+reviews	list	reviews

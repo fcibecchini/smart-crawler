@@ -64,7 +64,7 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 		build.append("WEBSITE\tF-MEASURE\tCOHESION\tPURITY\tLINKS_F-MEASURE\t#PAGES\n");
 		build.append(getWebsiteStatistics()+"\n");
 		
-		build.append("PAGECLASS\tCOHESION\tPURITY\n");
+		build.append("PAGECLASS\tCLASS_SIZE\tCOHESION\tPURITY\n");
 		computedModel.getClasses().forEach(c -> build.append(getModelClassStatistics(c)+"\n"));
 		
 		build.append("GOLDEN_CLASS\tPAGECLASS\t"
@@ -89,11 +89,12 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 	private String getModelClassStatistics(ModelPageClass mpc) {
 		DecimalFormat df = new DecimalFormat("#.##");
 		String name = mpc.getPageClass().getName();
+		int size = mpc.size();
 		Double cohesion = cohesions.get(mpc);
 		Double purity = purities.get(mpc);
 		String cs = (cohesion!=null) ? df.format(cohesion) : "-";
 		String ps = (purity!=null) ? df.format(purity) : "-";
-		return name+"\t"+cs+"\t"+ps;
+		return name+"\t"+size+"\t"+cs+"\t"+ps;
 	}
 	
 	private void loadStatistics(WebsiteModel model) {
@@ -101,7 +102,9 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 		domain = model.getClasses().first().getPageClass().getDomain();
 		matrix = countMatrix();
 		setTrueClassesSize();
-		trueClassesPages = matrix.values().stream().reduce(Integer::sum).get();
+		trueClassesPages = goldenModel.getClasses().stream()
+				.mapToInt(tc -> tc.size())
+				.reduce(Integer::sum).getAsInt();
 	}
 	
 	private void calculateFmeasure() {
