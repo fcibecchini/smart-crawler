@@ -215,7 +215,7 @@ public class XPath {
 				else if (index==0) tag.setAllAttributes();
 				else tag.setFirstAttribute();
 			} 
-			else tag.setUse(false);
+			//else tag.setUse(false); // always use all tags (?)
 			tags.add(tag);
 			node = node.getParentNode();
 			index++;

@@ -116,7 +116,7 @@ public class XPathAttribute {
 	 * @return true if attribute is equal to the attribute name
 	 */
 	public boolean is(String attribute) {
-		return attribute.equals(attribute);
+		return this.attribute.equals(attribute);
 	}
 	
 	/**
