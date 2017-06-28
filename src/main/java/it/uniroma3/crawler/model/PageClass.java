@@ -67,10 +67,6 @@ public class PageClass {
 		return this.name;
 	}
 	
-	public String getWebsite() {
-		return website;
-	}
-	
 	public String getDomain() {
 		return website;
 	}
@@ -411,7 +407,7 @@ public class PageClass {
 		if (cmpdepth!=0) return cmpdepth;
 		int cmpname = name.compareTo(pc2.getName());
 		if (cmpname!=0) return cmpname;
-		return website.compareTo(pc2.getWebsite());
+		return website.compareTo(pc2.getDomain());
 	}
 	
 	public String toString() {
@@ -426,7 +422,7 @@ public class PageClass {
 		PageClass other = (PageClass) obj;
 		return Objects.equals(name, other.getName())
 			&& depth==other.getDepth()
-			&& website.equals(other.getWebsite());
+			&& website.equals(other.getDomain());
 	}
 
 }
