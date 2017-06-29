@@ -64,13 +64,19 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 		build.append("WEBSITE\tF-MEASURE\tCOHESION\tPURITY\tLINKS_F-MEASURE\t#PAGES\n");
 		build.append(getWebsiteStatistics()+"\n");
 		
-		build.append("PAGECLASS\tCLASS_SIZE\tCOHESION\tPURITY\n");
+		build.append("PAGECLASS\tCLASS_SIZE\tCLASS_LINKS\tCOHESION\tPURITY\n");
 		computedModel.getClasses().forEach(c -> build.append(getModelClassStatistics(c)+"\n"));
 		
-		build.append("GOLDEN_CLASS\tPAGECLASS\t"
-				+ "CLASS_SIZE\tCLASS_LINKS\t"
-				+ "CLUSTER_PRECISION\tCLUSTER_RECALL\tCLUSTER_F-MEASURE\t"
-				+ "LINKS_PRECISION\tLINKS_RECALL\tLINKS_F-MEASURE\n");
+		build.append("GOLDEN_CLASS\t"
+				+ "PAGECLASS\t"
+				+ "CLASS_SIZE\t"
+				+ "CLASS_LINKS\t"
+				+ "CLUSTER_PRECISION\t"
+				+ "CLUSTER_RECALL\t"
+				+ "CLUSTER_F-MEASURE\t"
+				+ "LINKS_PRECISION\t"
+				+ "LINKS_RECALL\t"
+				+ "LINKS_F-MEASURE\n");
 		goldenModel.getClasses().forEach(c -> build.append(c.getStatistics()+"\n"));
 		
 		return build.toString();
@@ -90,11 +96,12 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 		DecimalFormat df = new DecimalFormat("#.##");
 		String name = mpc.getPageClass().getName();
 		int size = mpc.size();
+		int linksSize = mpc.getPageClass().getLinks().size();
 		Double cohesion = cohesions.get(mpc);
 		Double purity = purities.get(mpc);
 		String cs = (cohesion!=null) ? df.format(cohesion) : "-";
 		String ps = (purity!=null) ? df.format(purity) : "-";
-		return name+"\t"+size+"\t"+cs+"\t"+ps;
+		return name+"\t"+size+"\t"+linksSize+"\t"+cs+"\t"+ps;
 	}
 	
 	private void loadStatistics(WebsiteModel model) {
