@@ -132,6 +132,7 @@ public class HtmlUtils {
 	 * @return true if the url is valid
 	 */
 	public static boolean isValidURL(String base, String href) {
+		if (href.contains(".jpg")) return false;
 		if (href.startsWith("http")) {
 			try {
 				String domain1 = 
