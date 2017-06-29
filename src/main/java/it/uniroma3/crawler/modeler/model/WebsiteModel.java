@@ -1,6 +1,5 @@
 package it.uniroma3.crawler.modeler.model;
 
-import java.util.Set;
 import java.util.TreeSet;
 import static java.util.stream.Collectors.toList;
 
@@ -16,14 +15,7 @@ import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
  *
  */
 public class WebsiteModel {
-	private static final double C_U = 1;
-	private static final double C_XP = 1;
-	private static final double C_I = 0.8;
-	private static final double C_MISS = 1;
-
 	private TreeSet<ModelPageClass> modelClasses;
-	private int pages;
-	private double cost;
 	
 	/**
 	 * Constructs a new, empty Website model.
@@ -93,24 +85,6 @@ public class WebsiteModel {
 				.filter(c -> c.containsPage(page)).findAny().orElse(null);
 	}
 	
-	
-	public void setPages(int pages) {
-		this.pages = pages;
-	}
-	
-	/**
-	 * Returns the frequency of the specified XPath among all Pages of this Model.
-	 * @param path the XPath
-	 * @return the total XPath frequency
-	 */
-	public int getPageFrequency(XPath path) {
-		return modelClasses.stream()
-				.map(c -> c.getPages())
-				.flatMap(Set::stream)
-				.filter(p -> p.containsXPath(path))
-				.mapToInt(p -> 1).sum();
-	}
-	
 	/**
 	 * Turns this WebsiteModel into a {@link PageClass} graph ready for crawling and storage.
 	 * 
@@ -147,7 +121,7 @@ public class WebsiteModel {
 					PageClass p1 = c1.getPageClass();
 					PageClass p2 = c2.getPageClass();
 					
-					if (p1.getLinks().equals(p2.getLinks())) {
+					if (p1.distance(p2)<0.2) {
 						c1.collapse(c2);
 						toRemove.add(c2);
 						changeClassesDestination(p2,p1);
@@ -165,53 +139,6 @@ public class WebsiteModel {
 				ll.stream()
 				.filter(l -> l.getDestination().equals(oldClass))
 				.forEach(l -> l.setDestination(newClass)));
-	}
-	
-	/**
-	 * Calculates the Minimum Description Length cost of this model.<br>
-	 * Model Cost is cached after the first invocation.
-	 * @see <a href="https://en.wikipedia.org/wiki/Minimum_description_length">
-	 * Minimum description length (MDL) principle</a>
-	 * @return the MDL cost
-	 */
-	public double cost() {
-		if (cost==0) 
-			cost = calculateLength();
-		return cost;
-	}
-	
-	private double calculateLength() {
-		double modelCost = 0;
-		double dataCost = 0;
-		for (ModelPageClass c : modelClasses) {
-			modelCost += c.schemaSize()*C_XP;
-			for (Page p : c.getPages()) {
-				dataCost += pageCost(p,c,pages);
-			}
-		}
-		return modelCost+dataCost;
-	}
-	
-	private double pageCost(Page p, ModelPageClass c, int pages) {
-		double xpathWeigths = 0;
-		for (XPath xp : c.getSchema()) {
-			xpathWeigths += scoreCost(xp, p, pages);
-		}
-		
-		double pageCost = xpathWeigths*C_I +
-				p.urlsSize()*C_U +
-				p.schemaDifferenceSize(c)*C_XP +
-				c.schemaDifferenceSize(p)*C_MISS;
-		return pageCost;
-	}
-	
-	private double scoreCost(XPath xp, Page p, int pages) {
-		int xpathFrequency = p.getXPathFrequency(xp);
-		int pageFrequency = this.getPageFrequency(xp);
-		double idf = Math.log((double) pages / (double) pageFrequency);
-		double score = 1 + (xpathFrequency * idf);
-		double cost = 1 / score;
-		return cost;
 	}
 	
 	public String toString() {

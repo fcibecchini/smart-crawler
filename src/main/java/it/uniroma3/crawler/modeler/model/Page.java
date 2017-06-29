@@ -21,6 +21,7 @@ public class Page {
 	private String url;
 	private String tempFile;
 	private Set<LinkCollection> linkCollections;
+	private int urlsSize;
 	private List<PageLink> links;
 	private boolean loaded, classified;
 	
@@ -184,11 +185,14 @@ public class Page {
 	 * @return the number of outgoing URLs
 	 */
 	public long urlsSize() {
-		return linkCollections.stream()
+		if (urlsSize==0)
+			urlsSize = linkCollections.stream()
 				.map(LinkCollection::getLinks)
 				.flatMap(List::stream)
 				.distinct()
-				.count();
+				.mapToInt(u -> 1)
+				.sum();
+		return urlsSize;
 	}
 	
 	/**
@@ -205,18 +209,6 @@ public class Page {
 	
 	public boolean containsXPath(XPath path) {
 		return linkCollections.stream().anyMatch(lc -> lc.getXPath().equals(path));
-	}
-	
-	
-	/**
-	 * Returns the cardinality of the difference between this Page schema
-	 * and the specified {@link ModelPageClass} schema.
-	 * @param mpc
-	 * @return the cardinality of the difference between the two schemas
-	 */
-	public long schemaDifferenceSize(ModelPageClass mpc) {
-		Set<XPath> classSchema = mpc.getSchema();
-		return getSchema().stream().filter(xp -> !classSchema.contains(xp)).count();
 	}
 	
 	public String toString() {

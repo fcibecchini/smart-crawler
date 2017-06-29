@@ -9,6 +9,7 @@ import static it.uniroma3.crawler.util.Commands.STOP;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -81,6 +82,11 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * current list of candidate clusters
 	 */
 	private List<ModelPageClass> candidates;
+	
+	/**
+	 * map of inverse document frequency value for each XPath 
+	 */
+	private Map<XPath,Double> xpath2IDF;
 	
 	@Override
 	public Receive createReceive() {
@@ -215,32 +221,36 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 */
 	public void inspect() {		
 		String msg = "update";
-		
-		if (newPages.size()==3 && candidates.size()==1)
-			collection.setList();
-		else if (newPages.size()==3 && candidates.size()==2) {
-			if (!collection.isFinest()) {
-				collection.setFiner(true);
-				msg = "refine";
+		int pages = newPages.size();
+		int clusters = candidates.size();
+		if (pages==3) {
+			if (clusters==1)
+				collection.setList();
+			else if (clusters==2) {
+				if (collection.isRefinable()) {
+					collection.setFiner(true);
+					msg = "refine";
+				} else
+					collection.setList();
+			} else {
+				collection.setMenu();
+				int totalSize = collection.size();
+				if (totalSize>3 && collection.getMaxFetches()==3) {
+					collection.setMaxFetches(totalSize);
+					msg = "getLinks";
+				}
 			}
-			else collection.setList();
-		}
-		else if (candidates.size()>=3 && !collection.isMenu()) {
-			collection.fetchAll();
-			collection.setMenu();
-			msg = "getLinks";
-			log().info("MENU: FETCHING ALL URLS IN LINK COLLECTION...");
-		}
-		else if (newPages.size()==2 && candidates.size()==1)
-			collection.setList();
-		else if (newPages.size()==2 && candidates.size()==2)
-			collection.setMenu();
-		else if (newPages.size()==1) {
-			if (!collection.isCoarsest() && !collection.isFiner())
+		} else if (pages==2) {
+			if (clusters==1)
+				collection.setList();
+			else
+				collection.setMenu();
+		} else if (pages==1) {
+			if (collection.isRefinable() && !collection.isFiner())
 				msg = "refine";
-			else collection.setSingleton();
+			else
+				collection.setSingleton();
 		}
-		
 		self().tell(msg, self());
 	}
 	
@@ -318,10 +328,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 		
 		if (!found) {
 			collection.setXPath(original); // restore previous XPath
-			if (finer)
-				collection.setFinest(true);
-			else 
-				collection.setCoarsest(true);
+			collection.setRefinable(false);
 			msg = "inspect";
 		}
 		
@@ -332,35 +339,88 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * Update Model merging candidates to existing classes
 	 * or creating new ones.
 	 */
-	private void updateModel(List<ModelPageClass> candidates) {
-		int pages = visitedURLs.size();
+	private void updateModel(List<ModelPageClass> candidates) {		
+		xpath2IDF = getXPathIDFs();
 		for (ModelPageClass candidate : candidates) {
-			WebsiteModel merged = minimumModel(candidate,pages);
+			WebsiteModel merged = null;
+			double mergedCost = Double.MAX_VALUE;
+			for (ModelPageClass c : model.getClasses()) {
+				WebsiteModel temp = new WebsiteModel(model);
+				temp.removeClass(c);
+
+				ModelPageClass union = new ModelPageClass(c);
+				union.collapse(candidate);
+				temp.addClass(union);
+				
+				double cost = cost(temp);
+				if (mergedCost>cost) {
+					merged = temp;
+					mergedCost = cost;
+				}
+			}
 			WebsiteModel mNew = new WebsiteModel(model);
-			mNew.setPages(pages);
 			mNew.addClass(candidate);
-			model.copy((merged.cost() < mNew.cost()) ? merged : mNew);
+			model.copy((mergedCost < cost(mNew)) ? merged : mNew);
 		}
 	}
 	
 	/*
-	 * Returns the Merged Model with minimum length cost
+	 * Map XPath -> IDF value
 	 */
-	private WebsiteModel minimumModel(ModelPageClass candidate, int pages) {
-		WebsiteModel minimum = null;
-		for (ModelPageClass c : model.getClasses()) {
-			WebsiteModel temp = new WebsiteModel(model);
-			temp.setPages(pages);
-			temp.removeClass(c);
-
-			ModelPageClass union = new ModelPageClass(c);
-			union.collapse(candidate);
-			temp.addClass(union);
-			
-			if (minimum==null || minimum.cost()>temp.cost())
-				minimum = temp;
+	private Map<XPath,Double> getXPathIDFs() {
+		Map<XPath,Double> xp2idf = new HashMap<>();
+		Collection<Page> pages = visitedURLs.values();
+		int totalPages = visitedURLs.size();
+		for (Page page : pages) {
+			for (XPath xp : page.getSchema()) {
+				int df = pages.stream()
+					.filter(p -> p.containsXPath(xp))
+					.mapToInt(p -> 1)
+					.sum();
+				double idf = Math.log((double) totalPages / (double) df);
+				xp2idf.put(xp, idf);
+			}
 		}
-		return minimum;
+		return xp2idf;
+	}
+	
+	/*
+	 * Calculates the Minimum Description Length cost of this model
+	 */
+	private double cost(WebsiteModel model) {
+		double modelCost = 0;
+		double dataCost = 0;
+		for (ModelPageClass c : model.getClasses()) {
+			Set<XPath> classSchema = c.getSchema();
+			modelCost += classSchema.size();
+			
+			for (Page p : c.getPages()) {
+				dataCost += pageCost(p,c,classSchema);
+			}
+		}
+		return modelCost+dataCost;
+	}
+	
+	private double pageCost(Page p, ModelPageClass c, Set<XPath> classSchema) {
+		double xpathWeigths = 0;
+		for (XPath xp : classSchema) {
+			xpathWeigths += scoreCost(xp, p);
+		}
+		Set<XPath> pageSchema = p.getSchema();
+		long cDifferenceP = classSchema.stream().filter(xp -> !pageSchema.contains(xp)).count();
+		double pageCost = xpathWeigths*0.8 + p.urlsSize() + cDifferenceP;
+		return pageCost;
+	}
+	
+	/*
+	 * TF-IDF of XPath in Page
+	 */
+	private double scoreCost(XPath xp, Page p) {
+		int frequencyInPage = p.getXPathFrequency(xp);
+		double idf = xpath2IDF.get(xp);
+		double score = 1 + (frequencyInPage * idf);
+		double cost = 1 / score;
+		return cost;
 	}
 	
 	public void finalizeModel() {

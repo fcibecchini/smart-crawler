@@ -122,42 +122,11 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	}
 	
 	/**
-	 * Returns the cardinality of the intersection between the page schema 
-	 * of the given {@link Page} and the page class schema of this ModelPageClass
-	 * @param p the Page
-	 * @return the cardinality of the intersection
-	 */
-	public long schemaIntersectionSize(Page p) {
-		Set<XPath> pageSchema = p.getSchema();
-		return getSchema().stream().filter(pageSchema::contains).count();
-	}
-	
-	/**
-	 * Returns the cardinality of the difference between the page class schema 
-	 * of this ModelPageClass and the page schema of the given {@link Page} 
-	 * @param p the Page
-	 * @return the XPaths difference
-	 */
-	public long schemaDifferenceSize(Page p) {
-		Set<XPath> pageSchema = p.getSchema();
-		return getSchema().stream().filter(xp -> !pageSchema.contains(xp)).count();
-	}
-	
-	/**
 	 * Returns the total number of {@link Page}s in this ModelPageClass
 	 * @return the number of pages
 	 */
 	public int size() {
 		return pages.size();
-	}
-	
-	/**
-	 * Returns the total number of XPaths in the page class schema of this
-	 * ModelPageClass
-	 * @return the number of XPaths
-	 */
-	public int schemaSize() {
-		return getSchema().size();
 	}
 	
 	public void removePage(Page p) {

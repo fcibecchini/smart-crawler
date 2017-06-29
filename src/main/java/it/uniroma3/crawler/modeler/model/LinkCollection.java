@@ -20,7 +20,7 @@ public class LinkCollection {
 	private XPath xpath;
 	private List<String> links;
 	private short type;
-	private boolean isFinest, isCoarsest, finer;
+	private boolean refinable, finer;
 	private int maxFetches;
 	
 	/**
@@ -35,6 +35,7 @@ public class LinkCollection {
 		this.xpath = xpath;
 		this.links = Collections.unmodifiableList(urls);
 		this.maxFetches = 3;
+		this.refinable = true;
 	}
 	
 	/**
@@ -104,20 +105,12 @@ public class LinkCollection {
 		return type==3;
 	}
 	
-	public boolean isFinest() {
-		return isFinest;
+	public boolean isRefinable() {
+		return refinable;
 	}
 
-	public void setFinest(boolean finest) {
-		this.isFinest = finest;
-	}
-
-	public boolean isCoarsest() {
-		return isCoarsest;
-	}
-
-	public void setCoarsest(boolean coarsest) {
-		this.isCoarsest = coarsest;
+	public void setRefinable(boolean ref) {
+		this.refinable = ref;
 	}
 
 	public boolean isFiner() {
@@ -127,12 +120,13 @@ public class LinkCollection {
 	public void setFiner(boolean finer) {
 		this.finer = finer;
 	}
-
-	/**
-	 * Set that this collection must be traversed completely
-	 */
-	public void fetchAll() {
-		this.maxFetches = size();
+	
+	public int getMaxFetches() {
+		return maxFetches;
+	}
+	
+	public void setMaxFetches(int n) {
+		this.maxFetches = n;
 	}
 	
 	/**
