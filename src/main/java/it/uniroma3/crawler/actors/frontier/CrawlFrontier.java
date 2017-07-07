@@ -2,6 +2,8 @@ package it.uniroma3.crawler.actors.frontier;
 
 import static it.uniroma3.crawler.util.Commands.*;
 
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Random;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +33,7 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 	private int maxPages;
 	private int pageCount;
 	private boolean isEnding;
+	private Queue<ActorRef> waitingFetchers;
 	
 	static class InnerProps implements Creator<CrawlFrontier> {
 		private static final long serialVersionUID = 1L;
@@ -66,6 +69,7 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 		this.isEnding = false;
 		this.queue = new CrawlQueue(size,pclass);
 		this.inProcessURLs = new TreeSet<>();
+		this.waitingFetchers = new LinkedList<>();
 		this.queue.deleteStorage();
 		this.maxPages = maxPages;
 		this.writer = context().actorOf(Props.create(CrawlDataWriter.class), "writer");
@@ -112,18 +116,20 @@ public class CrawlFrontier extends AbstractPersistentActor  {
 	}
 	
 	private void store(StoreURLMsg msg) {
-		if (queue.add(msg.getURL(), msg.getPageClass()))
-			persist(msg, (StoreURLMsg ev) -> context().system().eventStream().publish(NEW_URL));
+		if (queue.add(msg.getURL(), msg.getPageClass())) {
+			persist(msg, (StoreURLMsg ev) -> {});
+			if (!waitingFetchers.isEmpty())
+				self().tell(NEXT, waitingFetchers.poll());
+		}
 	}
 		
 	private void retrieve() {
 		if (!queue.isEmpty()) 
 			persist(NEXT, ev -> sendURL(queue.next()));
-		else context().system().eventStream().subscribe(sender(), Short.class);
+		else waitingFetchers.add(sender());
 	}
 	
 	private void sendURL(CrawlURL next) {
-		//TODO: update page class wait time somehow
 		PageClass pClass = next.getPageClass();
 		long wait = pClass.getWaitTime() + random.nextInt(pClass.getPause());
 		context().system().scheduler().scheduleOnce(
