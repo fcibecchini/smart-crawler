@@ -12,6 +12,7 @@ import it.uniroma3.crawler.modeler.CrawlModeler;
 import it.uniroma3.crawler.settings.AddressSettings;
 import it.uniroma3.crawler.settings.CrawlerSettings;
 import it.uniroma3.crawler.settings.Settings;
+import it.uniroma3.crawler.util.FileUtils;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 public class CrawlController extends AbstractLoggingActor {
@@ -43,7 +44,7 @@ public class CrawlController extends AbstractLoggingActor {
 		int n = nodes.length;
 		int i = 0;
     	for (SeedConfig conf : set.seeds) {
-        	String name = conf.site.replace("://", "_");
+        	String name = FileUtils.normalizeURL(conf.site);
     		ActorRef modeler = 
     			context().actorOf(Props.create(CrawlModeler.class), "modeler_"+name);
     		modeler.tell(new ModelMsg(conf, nodes[i]), self());
@@ -59,7 +60,7 @@ public class CrawlController extends AbstractLoggingActor {
     }
     
     private ActorRef createFrontier(PageClass pclass) {
-    	String name = pclass.getDomain().replace("://", "_");
+    	String name = FileUtils.normalizeURL(pclass.getDomain());
 		ActorRef frontier = context().actorOf(
 				CrawlFrontier.props(set.fetchers, set.pages, set.frontierheap, pclass), 
     			"frontier_"+name);
