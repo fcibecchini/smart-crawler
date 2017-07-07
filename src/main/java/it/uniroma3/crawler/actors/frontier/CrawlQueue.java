@@ -79,7 +79,7 @@ public class CrawlQueue {
 	 * @return true if the CrawlURL was added to this queue, false if it was already visited
 	 */
 	public boolean add(CrawlURL curl) {
-		if (testAndSetVisited(curl)) {
+		if (visited.add(checksum(curl.getRelativeUrl()))) {
 			addToQueue(curl);
 			return true;
 		}
@@ -133,13 +133,6 @@ public class CrawlQueue {
 		} catch (IOException e) {
 			return false;
 		}
-	}
-	
-	private boolean testAndSetVisited(CrawlURL curl) {
-		String cs = checksum(curl.getRelativeUrl());
-		boolean isNew = !visited.contains(cs);
-		if (isNew) visited.add(cs);
-		return isNew;
 	}
 	
 	private void addToQueue(CrawlURL curl) {

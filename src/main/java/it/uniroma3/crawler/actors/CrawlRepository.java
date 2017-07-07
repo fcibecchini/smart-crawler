@@ -9,6 +9,7 @@ import akka.actor.Props;
 import akka.remote.RemoteScope;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.settings.AddressSettings;
+import it.uniroma3.crawler.util.FileUtils;
 
 import static it.uniroma3.crawler.util.Commands.SAVE;
 
@@ -54,14 +55,14 @@ public class CrawlRepository extends AbstractActor {
 	}
 	
 	private ActorRef find(String url) {
-		String name = formatUrl(url);
+		String name = FileUtils.normalizeURL(url);
 		Option<ActorRef> option = context().child(name);
 		ActorRef ref = (option.isEmpty()) ? null : option.get();
 		return ref;
 	}
 	
 	private ActorRef create(String url, int id) {	
-		String name = formatUrl(url);
+		String name = FileUtils.normalizeURL(url);
 		Address addr = AddressFromURIString.parse(nodes[id]);
 		Props props = Props.create(CrawlPage.class).withDeploy(new Deploy(new RemoteScope(addr)));
 		ActorRef child = context().actorOf(props, name);		
@@ -69,7 +70,4 @@ public class CrawlRepository extends AbstractActor {
 		return child;
 	}
 	
-	private String formatUrl(String id) {
-		return id.replaceAll("/", "_").replaceAll("\\?", "-");
-	}
 }

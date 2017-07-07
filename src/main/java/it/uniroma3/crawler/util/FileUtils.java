@@ -16,7 +16,8 @@ public class FileUtils {
 	 * @return the normalized URL
 	 */
 	public static String normalizeURL(String url) {
-		return url.replaceAll("http[s]?://(www.)?", "").replaceAll("\\.|/|\\?", "_");
+		return url.replaceAll("http[s]?://(www.)?", "")
+				.replaceAll("\\.|/|\\?|\\(|\\)", "_");
 	}
 	
     /**
