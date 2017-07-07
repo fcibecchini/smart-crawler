@@ -1,13 +1,16 @@
 package it.uniroma3.crawler.actors;
 
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+
 import static java.nio.file.Files.exists;
 import static java.nio.file.Files.createDirectories;
+
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
-import com.csvreader.CsvWriter;
 
 import akka.actor.AbstractLoggingActor;
 import it.uniroma3.crawler.model.CrawlURL;
@@ -44,14 +47,37 @@ public class CrawlDataWriter extends AbstractLoggingActor {
 	}
 	
 	private void saveRecord(String[] record, String className, String dir) {
-		String output = dir+"/"+className+".csv";
-		try {
-			CsvWriter writer = new CsvWriter(new FileWriter(output, true), '\t');
-			writer.writeRecord(record);
-			writer.close();
+		String file = dir+"/"+className+".csv";
+		try (Writer out = new OutputStreamWriter(new FileOutputStream(file, true),
+				StandardCharsets.UTF_8)) {
+			if (record.length==1 && record[0].contains("\t"))
+				writeMultipleRecords(out, record[0]);
+			else
+				writeSingleRecord(out, record);
 		} catch (IOException e) {
 			log().error("Can't save record to csv");
 		}
+	}
+	
+	private void writeSingleRecord(Writer csvOutput, String[] record) 
+			throws IOException {
+		int len = record.length;
+		for (int i=0;i<len;i++) {
+			csvOutput.write(record[i]);
+			if (i<len-1)
+				csvOutput.write("\t");
+		}
+		if (len>0) csvOutput.write("\n");
+		csvOutput.close();
+	}
+	
+	private void writeMultipleRecords(Writer csvOutput, String records) 
+			throws IOException {
+		for (String r : records.split("\t")) {
+			csvOutput.write(r);
+			csvOutput.write("\n");
+		}
+		csvOutput.close();
 	}
 
 }
