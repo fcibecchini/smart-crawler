@@ -30,6 +30,13 @@ public class CrawlDataWriter extends AbstractLoggingActor {
 		PageClass src = curl.getPageClass();
 		String[] record = curl.getRecord();
 		if (record!=null) {
+						
+			String[] newRec = new String[record.length+1];
+			newRec[0] = curl.getStringUrl();
+			for (int i=0;i<record.length;i++) {
+				newRec[i+1] = record[i];
+			}
+			
 			String output = FileUtils.getRecordDirectory(src.getDomain());
 			Path dir = Paths.get(output);
 	    	if (!exists(dir)) {
@@ -40,18 +47,22 @@ public class CrawlDataWriter extends AbstractLoggingActor {
 					return;
 				}
 	    	}
-			saveRecord(record, src.getName(), output);
+			String file = dir+"/"+src.getName()+".csv";
+
+			if (!exists(Paths.get(file))) // save file header
+				saveRecord(src.getDataFieldNames(), file);
+			saveRecord(newRec, file);
+			
 			//TODO
 			//saveWARC(curl)
 		}
 	}
 	
-	private void saveRecord(String[] record, String className, String dir) {
-		String file = dir+"/"+className+".csv";
+	private void saveRecord(String[] record, String file) {
 		try (Writer out = new OutputStreamWriter(new FileOutputStream(file, true),
 				StandardCharsets.UTF_8)) {
-			if (record.length==1 && record[0].contains("\t"))
-				writeMultipleRecords(out, record[0]);
+			if (record.length==2 && record[1].contains("\t"))
+				writeMultipleRecords(out, record);
 			else
 				writeSingleRecord(out, record);
 		} catch (IOException e) {
@@ -71,10 +82,10 @@ public class CrawlDataWriter extends AbstractLoggingActor {
 		csvOutput.close();
 	}
 	
-	private void writeMultipleRecords(Writer csvOutput, String records) 
+	private void writeMultipleRecords(Writer csvOutput, String[] records) 
 			throws IOException {
-		for (String r : records.split("\t")) {
-			csvOutput.write(r);
+		for (String r : records[1].split("\t")) {
+			csvOutput.write(records[0]+"\t"+r);
 			csvOutput.write("\n");
 		}
 		csvOutput.close();
