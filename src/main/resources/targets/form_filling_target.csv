@@ -1,0 +1,2 @@
+home	link	//form[@id="global-search-form"],./input[@id="global-search"]:tout	perfumes	form
+perfumes	link	//span[@class="active"]/../following-sibling::li[1]/a	perfumes	singleton

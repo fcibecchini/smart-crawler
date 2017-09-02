@@ -1,0 +1,14 @@
+home	link	//div[@id="sidebar-menu-content"]/ul/li[3]/a	perfumes	singleton
+perfumes	link	//span[@class="active"]/../following-sibling::li[1]/a	perfumes	singleton
+perfumes	link	/html/body/div/div/div/div/div/div/div[@id="liste_result"]/div[@class]/div[@class]/h3/a	perfume	list
+perfume	form	//form[@id="connexion_form"],./div/div/input[@type="text"]:yakazafuda@matchpol.net,./div/div/input[@type="password"]:amadeus
+perfume	string	//div[@class="fiche-title"]/h1/text()	Name
+perfume	string	//div[@id="recap"]/p[@class="famille"]/a/text()	Family
+perfume	string	//div[@id="recap"]/p/span[contains(text(), "Facets")]/../a/text()	Facets
+perfume	string	//div[@id="recap"]/p/span[contains(text(), "Perfumer")]/../a/text()	Perfumer
+perfume	string	//div[@id="recap"]/p/span[contains(text(), "Creative")]/../a/text()	Creative studios
+perfume	string	//div[@id="recap"]/p/span[contains(text(), "Creation")]/../a/text()	Creation date
+perfume	string	//div[@id="recap"]/p/span[contains(text(), "Collection")]/../a/text()	Collection
+perfume	string	//div[@class="note note-tete"]/p/a/text()	Top notes
+perfume	string	//div[@class="note note-coeur"]/p/a/text()	Heart notes
+perfume	string	//div[@class="note note-fond"]/p/a/text()	Background Notes
