@@ -70,6 +70,10 @@ public class ClassLink {
 		this.type = "singleton";
 	}
 	
+	public void setTypeForm() {
+		this.type = "form";
+	}
+	
 	public String getType() {
 		return this.type;
 	}
@@ -84,6 +88,10 @@ public class ClassLink {
 	
 	public boolean isSingleton() {
 		return type.equals("singleton");
+	}
+	
+	public boolean isForm() {
+		return type.equals("form");
 	}
 	
 	public void setDestination(PageClass destination) {

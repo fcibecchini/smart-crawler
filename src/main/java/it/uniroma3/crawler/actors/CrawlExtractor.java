@@ -73,15 +73,15 @@ public class CrawlExtractor extends AbstractLoggingActor {
 
 		if (!src.isEndPage())
 			links = ask(repository,
-					new ExtractLinksMsg(url, src.getNavigationXPaths())
-					, 4000).toCompletableFuture();
+					new ExtractLinksMsg(url, src.getNavigationXPaths(), src.getFormXPaths())
+					, 10000).toCompletableFuture();
 		else
 			links = completedFuture(new ExtractedLinksMsg());
 
 		if (src.isDataPage())
 			data = ask(repository, 
 					new ExtractDataMsg(url, src.xPathToData())
-					, 4000).toCompletableFuture();
+					, 10000).toCompletableFuture();
 		else
 			data = completedFuture(new ExtractedDataMsg());
 

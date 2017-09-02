@@ -13,6 +13,7 @@ import akka.actor.ActorSelection;
 import akka.actor.Props;
 import it.uniroma3.crawler.messages.*;
 import it.uniroma3.crawler.model.CrawlURL;
+import it.uniroma3.crawler.model.PageClass;
 import scala.concurrent.duration.Duration;
 
 public class CrawlFetcher extends AbstractLoggingActor {
@@ -22,15 +23,21 @@ public class CrawlFetcher extends AbstractLoggingActor {
 	
 	static public class ResultMsg {
 		private final CrawlURL curl;
+		private final String url;
 		private final int responseCode;
 		
-		public ResultMsg(CrawlURL curl, int resp) {
+		public ResultMsg(CrawlURL curl, String url, int resp) {
 			this.curl = curl;
+			this.url = url;
 			this.responseCode = resp;
 		}
 		
 		public CrawlURL getCurl() {
 			return this.curl;
+		}
+		
+		public String getUrl() {
+			return this.url;
 		}
 		
 		public int getResponseCode() {
@@ -56,16 +63,18 @@ public class CrawlFetcher extends AbstractLoggingActor {
 	
 	private void fetchRequest(CrawlURL curl) {
 		String url = curl.getStringUrl();
+		PageClass pClass = curl.getPageClass();
 		boolean js = curl.getPageClass().useJavaScript();
 		ActorSelection repository = context().actorSelection(REPOSITORY);
-	
+		
 		CompletableFuture<Object> future = 
 				ask(repository, 
-					new FetchMsg(url,curl.getPageClass().getName(),curl.getDomain(),id,js)
-					, 4000).toCompletableFuture();
+					new FetchMsg(url, pClass.getForm(), curl.getFormParameters(),
+							pClass.getName(), curl.getDomain(),id,js), 
+					10000).toCompletableFuture();
 		CompletableFuture<ResultMsg> result = future.thenApply(v -> {
 			FetchedMsg msg = (FetchedMsg) future.join();
-			return new ResultMsg(curl, msg.getResponse());
+			return new ResultMsg(curl, msg.getUrl(), msg.getResponse());
 		});
 		pipe(result, context().dispatcher()).to(self());
 	}
@@ -73,15 +82,18 @@ public class CrawlFetcher extends AbstractLoggingActor {
 	private void fetchHandle(ResultMsg msg) {
 		CrawlURL curl = msg.getCurl();
 		String url = curl.getStringUrl();
+		String newUrl = msg.getUrl();
 		
-		if (msg.getResponseCode()==0) {
-			log().info("Page reached = "+url);
-			
+		if (msg.getResponseCode()==0) {			
 			failures = 0; // everything went ok
 
+			if (newUrl!=null)
+				log().info("Page reached = "+newUrl); // url has changed
+			else 
+				log().info("Page reached = "+url);
+			
 			// send cUrl to cache for further processing
 			cache.tell(curl, self());
-			
 			// request next cUrl to Frontier
 			context().parent().tell(NEXT, self());
 		}

@@ -29,7 +29,14 @@ public class CrawlURLFactory {
 	
 	private CrawlURL create(String url, PageClass pClass) {
 		try {
-			CrawlURL crawlUrl = new CrawlURL(url, pClass);
+			CrawlURL crawlUrl;
+			if (url.contains(">")) {
+				// form
+				String[] formUrl = url.split(">");
+				crawlUrl = new CrawlURL(formUrl[0], formUrl[1], pClass);
+			}
+			else
+				crawlUrl = new CrawlURL(url, pClass);
 	        if (logger.isLoggable(Level.FINE)) {
 	            logger.fine("URL "+url+" INITIALIZED");
 	        }

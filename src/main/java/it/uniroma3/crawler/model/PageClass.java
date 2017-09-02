@@ -1,7 +1,6 @@
 package it.uniroma3.crawler.model;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -9,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -25,6 +25,7 @@ public class PageClass {
 	private Long id;
 	
 	private String name;
+	private String form;
 	private String website;
 	private int depth;
 	private int version;
@@ -101,6 +102,14 @@ public class PageClass {
 
 	public void setWebsite(String website) {
 		this.website = website;
+	}
+	
+	public String getForm() {
+		return this.form;
+	}
+	
+	public void setForm(String form) {
+		this.form = form;
 	}
 
 	public long getWaitTime() {
@@ -213,13 +222,40 @@ public class PageClass {
 	}
 	
 	public Map<String, DataType> xPathToData() {
-		Map<String, DataType> map = new HashMap<>();
-		dataLinks.stream().forEach(l -> map.put(l.getXPath(), l.getDataType()));
+		Map<String, DataType> map = new TreeMap<>();
+		int i = 0;
+		for (DataLink l : dataLinks) {
+			map.put(i+"\t"+l.getXPath(), l.getDataType());
+			i++;
+		}
 		return map;
 	}
 	
+	public String[] getDataFieldNames() {
+		String[] fields = new String[dataLinks.size()+1];
+		fields[0] = "URL";
+		int i = 1;
+		for (DataLink l : dataLinks) {
+			String name = l.getDataType().getName();
+			if (name!=null) 
+				fields[i] = name;
+			else 
+				return new String[0]; // no header
+			i++;
+		}
+		return fields;
+	}
+	
 	public List<String> getNavigationXPaths() {
-		return this.links.stream().map(l -> l.getXPath()).collect(toList());
+		return this.links.stream()
+				.filter(l -> !l.isForm())
+				.map(l -> l.getXPath()).collect(toList());
+	}
+	
+	public List<String> getFormXPaths() {
+		return this.links.stream()
+				.filter(ClassLink::isForm)
+				.map(ClassLink::getXPath).collect(toList());
 	}
 	
 	public List<String> getMenuXPaths() {
@@ -304,6 +340,18 @@ public class PageClass {
 	public boolean addSingletonLink(String xpath, PageClass dest) {
 		ClassLink link = new ClassLink(this, xpath, dest);
 		link.setTypeSingleton();
+		return links.add(link);
+	}
+	
+	/**
+	 * Adds a ClassLink, reachable through a Form, to this PageClass
+	 * @param xpath the composed XPath (how to reach the Form, what and how to fill it)
+	 * @param dest the destination PageClass
+	 * @return true if the Link was added
+	 */
+	public boolean addFormLink(String xpath, PageClass dest) {
+		ClassLink link = new ClassLink(this, xpath, dest);
+		link.setTypeForm();
 		return links.add(link);
 	}
 	

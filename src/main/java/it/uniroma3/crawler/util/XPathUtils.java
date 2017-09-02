@@ -4,8 +4,10 @@ import static it.uniroma3.crawler.util.HtmlUtils.isValidURL;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.*;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -13,11 +15,15 @@ import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.gargoylesoftware.htmlunit.html.DomNode;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
+import com.gargoylesoftware.htmlunit.html.HtmlButton;
+import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlOption;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlRadioButtonInput;
 import com.gargoylesoftware.htmlunit.html.HtmlSelect;
 import com.gargoylesoftware.htmlunit.html.HtmlTextArea;
+import com.gargoylesoftware.htmlunit.util.NameValuePair;
 
 public class XPathUtils {
 	
@@ -75,6 +81,46 @@ public class XPathUtils {
 	public static List<HtmlAnchor> getAnchors(HtmlPage page, String xpath) {
 		final List<HtmlAnchor> anchors = page.getByXPath(xpath);
 		return anchors;
+	}
+	
+	public static String submitForm(HtmlPage page, String formXPath) throws IOException {
+		String[] xpaths = formXPath.split(",");
+		HtmlForm form = (HtmlForm) page.getByXPath(xpaths[0]).get(0);		
+		for (int i=1;i<xpaths.length;i++) {
+			String[] input = xpaths[i].split(":");
+			if (input.length>1) {
+				HtmlInput textInput = (HtmlInput) form.getByXPath(input[0]).get(0);
+				textInput.setValueAttribute(input[1].replaceAll("\"", ""));
+			}
+			else {
+				HtmlButton button = (HtmlButton) form.getByXPath(input[0]).get(0);
+				return button.click().getUrl().toExternalForm();
+			}
+		}
+		return "";
+	}
+	
+	/**
+	 * Fills a form from the HTML page, returning a list of (Name-Value) pairs to be used
+	 * in a HTTP POST request.
+	 * @param page the HtmlPage
+	 * @param formXPath a composed XPath containing the form location and how to fill it
+	 * @return a list of Name Value pairs
+	 * @throws IOException
+	 */
+	public static List<NameValuePair> getFormParameters(HtmlPage page, String formXPath) throws IOException {
+		String[] xpaths = formXPath.split(",");
+		HtmlForm form = (HtmlForm) page.getByXPath(xpaths[0]).get(0);
+		
+		/* Internal API... */
+		List<NameValuePair> list = new ArrayList<>(form.getParameterListForSubmit(null));
+		
+		for (int i=1;i<xpaths.length;i++) {
+			String[] input = xpaths[i].split(":");
+			HtmlInput textInput = (HtmlInput) form.getByXPath(input[0]).get(0);
+			list.add(new NameValuePair(textInput.getNameAttribute(), input[1]));
+		}
+		return list;
 	}
 	
 	/**

@@ -8,6 +8,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -16,6 +17,8 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.typesafe.config.ConfigFactory;
 
 import akka.actor.ActorSystem;
 import akka.actor.Props;
@@ -33,7 +36,9 @@ public class CrawlRepositoryTest {
 
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
-		system = ActorSystem.create("testSystem");
+		system = ActorSystem.create("testSystem", 
+				ConfigFactory.parseString("nodes { repository0 { host = \"127.0.0.1\", "
+						+ "port = 2552, system = \"CrawlSystem\" } }"));
 		domain = "http://localhost:8081";
 		mirror = "html/localhost:8081_mirror";
 		js = false;
@@ -43,7 +48,7 @@ public class CrawlRepositoryTest {
 	public static void tearDownAfterClass() throws Exception {
 	    TestKit.shutdownActorSystem(system);
 	    system = null;
-	    Files.delete(Paths.get(mirror));
+	    Files.deleteIfExists(Paths.get(mirror));
 	}
 	
 	@After
@@ -52,8 +57,38 @@ public class CrawlRepositoryTest {
 	}
 	
 	@Test
+	public void testFetchFormUrl() throws Exception {
+		FetchMsg fetch = new FetchMsg("https://olfatheque.com/olfatheque.login",
+				null, new ArrayList<>(), "login", "https://olfatheque.com", 0 ,true);
+		
+		SaveMsg save = new SaveMsg("https://olfatheque.com/olfatheque.login");
+		
+		final TestActorRef<CrawlRepository> repo = 
+				TestActorRef.create(system, Props.create(CrawlRepository.class), "repo0");
+		
+		ask(repo, fetch, Integer.MAX_VALUE);
+		ask(repo, save, Integer.MAX_VALUE);
+		
+		final CompletableFuture<Object> future = 
+				ask(repo,
+						new ExtractLinksMsg("https://olfatheque.com/olfatheque.login", 
+								new ArrayList<>(),
+								Arrays.asList("//form[@id=\"connexion_form\"],"
+										+ "./div/div/input[@type=\"text\"]:"
+										+ "yakazafuda@matchpol.net,"
+										+ "./div/div/input[@type=\"password\"]:"
+										+ "amadeus"))
+						, Integer.MAX_VALUE).toCompletableFuture();
+		
+		ExtractedLinksMsg response = (ExtractedLinksMsg) future.get();
+		Map<String, List<String>> xpath2urls = response.getLinks();
+		
+		System.out.println(xpath2urls);
+	}
+	
+	@Test
 	public void testFetchUrl() throws Exception {
-		FetchMsg fetch = new FetchMsg(domain,"home",domain,1,js);
+		FetchMsg fetch = new FetchMsg(domain,"home",domain,0,js);
 		
 		final TestActorRef<CrawlRepository> repo = 
 				TestActorRef.create(system, Props.create(CrawlRepository.class), "repoA");
@@ -68,7 +103,7 @@ public class CrawlRepositoryTest {
 	
 	@Test
 	public void testFetchUrl_multiplePages() throws Exception {
-		FetchMsg fetch1 = new FetchMsg(domain,"home",domain,1,js);
+		FetchMsg fetch1 = new FetchMsg(domain,"home",domain,0,js);
 		FetchMsg fetch2 = new FetchMsg(domain+"/directory1.html","dir1",domain,1,js);
 
 		final TestActorRef<CrawlRepository> repo = 
@@ -88,7 +123,7 @@ public class CrawlRepositoryTest {
 	
 	@Test
 	public void testSaveUrl() throws Exception {
-		FetchMsg fetch = new FetchMsg(domain,"home",domain,1,js);
+		FetchMsg fetch = new FetchMsg(domain,"home",domain,0,js);
 		SaveMsg save = new SaveMsg(domain);
 		
 		final TestActorRef<CrawlRepository> repo = 
@@ -121,8 +156,8 @@ public class CrawlRepositoryTest {
 		String url1 = domain+"/detail2.html";
 		String url2 = domain+"/detail3.html";
 
-		FetchMsg fetch1 = new FetchMsg(url1,details.getName(),domain,1,js);
-		FetchMsg fetch2 = new FetchMsg(url2,details.getName(),domain,1,js);
+		FetchMsg fetch1 = new FetchMsg(url1,details.getName(),domain,0,js);
+		FetchMsg fetch2 = new FetchMsg(url2,details.getName(),domain,0,js);
 		
 		SaveMsg save1 = new SaveMsg(url1);
 		SaveMsg save2 = new SaveMsg(url2);
@@ -158,7 +193,7 @@ public class CrawlRepositoryTest {
 		xpaths.add(detail);
 		xpaths.add(next);
 		
-		FetchMsg fetch = new FetchMsg(url,"dir1",domain,1,js);
+		FetchMsg fetch = new FetchMsg(url,"dir1",domain,0,js);
 		SaveMsg save = new SaveMsg(url);
 		ExtractLinksMsg extract = new ExtractLinksMsg(url, xpaths);
 		
@@ -196,7 +231,7 @@ public class CrawlRepositoryTest {
 		PageClass details = new PageClass("details",domain);
 		details.addData(titleXPath, "string");
 		
-		FetchMsg fetch = new FetchMsg(detail,details.getName(),domain,1,js);
+		FetchMsg fetch = new FetchMsg(detail,details.getName(),domain,0,js);
 		SaveMsg save = new SaveMsg(detail);
 		ExtractDataMsg extrData = new ExtractDataMsg(detail, details.xPathToData());
 		

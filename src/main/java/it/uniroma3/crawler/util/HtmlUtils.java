@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.logging.Level;
@@ -12,6 +13,7 @@ import org.apache.commons.io.FileUtils;
 
 import com.gargoylesoftware.htmlunit.StringWebResponse;
 import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import com.gargoylesoftware.htmlunit.html.HTMLParser;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.google.common.net.InternetDomainName;
@@ -63,6 +65,18 @@ public class HtmlUtils {
 	}
 	
 	/**
+	 * Wrapper for {@link WebClient#getPage(WebRequest)}.
+	 * @param request the WebRequest
+	 * @param client the WebWindow to load the result of the request into
+	 * @return the page returned by the server
+	 * @throws Exception if an IO error occurs
+	 */
+	public static HtmlPage getPage(WebRequest request, WebClient client) throws Exception {
+		final HtmlPage entry = client.getPage(request);
+		return entry;
+	}
+	
+	/**
 	 * Produces a {@link HtmlPage} object from the given stored HTML file 
 	 * with the given URL.
 	 * @param path the path to the html file
@@ -74,7 +88,7 @@ public class HtmlUtils {
 			throws IOException {
 		String src = new String(Files.readAllBytes(
 				Paths.get(path.replaceFirst("^/(.:/)", "$1"))), 
-				Charset.forName("UTF-8"));
+				StandardCharsets.ISO_8859_1);
 		StringWebResponse response = new StringWebResponse(src, new URL(url));
 		WebClient client = makeWebClient();
 		HtmlPage page = HTMLParser.parseHtml(response, client.getCurrentWindow());
@@ -104,8 +118,19 @@ public class HtmlUtils {
 		String path = pathBuild.toString();
 		File file = new File(path);
 		try {
-			if (images)
-				html.save(file);
+			if (images) {
+				try {
+					html.save(file);
+				} catch (IOException e) {
+					String originTitle = restorePageFromFile(path, url.toString()).getTitleText();
+					String newTitle = html.getTitleText();
+					if (!originTitle.equals(newTitle)) {
+						path = path.replace(".html", html.getTitleText()).concat(".html");
+						html.save(new File(path));
+					}
+					else return "";
+				}
+			}
 			else
 				FileUtils.writeStringToFile(file, html.asXml(), 
 						Charset.forName("UTF-8"));

@@ -69,12 +69,23 @@ public class ModelerService extends AbstractLoggingActor {
 								case "singleton":
 									pageSrc.addSingletonLink(xpath, pageDest);
 									break;
+								case "form":
+									pageSrc.addFormLink(xpath, pageDest);
+									break;
 							}
 						}
 						else pageSrc.addPageClassLink(xpath, pageDest);
 					}
 				}
-				else pageSrc.addData(xpath, type);
+				else if (type.equals("form")) {
+					pageSrc.setForm(xpath);
+				}
+				else {
+					String fieldName = reader.get(3);
+					if (fieldName == null)
+						pageSrc.addData(xpath, type);
+					else pageSrc.addData(xpath, type, fieldName);
+				}
 			}
 			reader.close();
 		} catch (IOException e) {
