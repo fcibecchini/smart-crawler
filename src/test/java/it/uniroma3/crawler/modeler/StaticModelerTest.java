@@ -26,7 +26,7 @@ public class StaticModelerTest {
 		system = ActorSystem.create("ModelerTest");
 		TestKit parent = new TestKit(system);
 		String site = "http://www.proz.com";
-		SeedConfig conf = new SeedConfig(site,file,0,false,2000,1000,2,true);
+		SeedConfig conf = new SeedConfig(site,file,null,0,false,2000,1000,2,true);
 		ActorRef modeler = parent.childActorOf(Props.create(CrawlModeler.class));
 		modeler.tell(new ModelMsg(conf), parent.getRef());
 		root = parent.expectMsgClass(parent.duration("60 seconds"), PageClass.class);

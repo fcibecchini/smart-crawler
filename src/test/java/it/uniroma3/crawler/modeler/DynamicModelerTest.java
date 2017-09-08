@@ -36,12 +36,12 @@ public class DynamicModelerTest {
 //		serv.deleteModel(site, 1);
 	}
 	
-	
+	@Test
 	public void testDynamicModeler_localhost() {
 		String site = "http://localhost:8081";		
 		
 		TestKit parent = new TestKit(system);
-		SeedConfig conf = new SeedConfig(site,null,10,false,0,0,1,true);
+		SeedConfig conf = new SeedConfig(site,null,null,10,false,0,0,1,true);
 		ActorRef modeler = parent.childActorOf(Props.create(CrawlModeler.class));
 		modeler.tell(new ModelMsg(conf), parent.getRef());
 		
@@ -60,12 +60,12 @@ public class DynamicModelerTest {
 
 	}
 	
-	@Test
+	//@Test
 	public void testXPath_finer() {
 		String site = "http://localhost:8082";	
 
 		TestKit parent = new TestKit(system);
-		SeedConfig conf = new SeedConfig(site,null,21,false,0,0,1,true);
+		SeedConfig conf = new SeedConfig(site,null,null,21,false,0,0,1,true);
 		ActorRef modeler = parent.childActorOf(Props.create(CrawlModeler.class));
 		modeler.tell(new ModelMsg(conf), parent.getRef());
 		

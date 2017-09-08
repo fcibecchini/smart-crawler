@@ -21,12 +21,11 @@ import akka.util.ByteString;
 import it.uniroma3.crawler.messages.ModelMsg;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
-import it.uniroma3.crawler.util.FileUtils;
 
 public class CrawlModeler extends AbstractLoggingActor {
 	private boolean crawl;
 	private int children;
-	private String domainName;
+	private String goldenModel;
 
 	@Override
 	public Receive createReceive() {
@@ -42,6 +41,7 @@ public class CrawlModeler extends AbstractLoggingActor {
 		SeedConfig conf = msg.getConf();
 		String addr = msg.getAddress();
 		crawl = conf.crawl;
+		goldenModel = conf.goldenModel;
 		if (conf.modelPages>0) {
 			ActorRef dynamic = dynamicModeler(conf, addr);
 			context().watch(dynamic);
@@ -63,7 +63,7 @@ public class CrawlModeler extends AbstractLoggingActor {
 			service.tell(root, self());
 			children++;
 			
-			sendGolden(root.getDomain());
+			sendGolden();
 		}
 	}
     
@@ -76,29 +76,27 @@ public class CrawlModeler extends AbstractLoggingActor {
     	return context().actorOf(p, "dynamic");
     }
     
-    private void sendGolden(String domain) {
-    	String name = FileUtils.normalizeURL(domain);
-    	Path file = Paths.get("src/main/resources/golden/"+name+".csv");
-		if (Files.exists(file)) {
+    private void sendGolden() {
+    	if (goldenModel!=null) {
 			try {
+		    	Path file = Paths.get("src/main/resources/golden/"+goldenModel);
 				byte[] byteFile = Files.readAllBytes(file);
 				ByteString msg = ByteString.fromArray(byteFile);
-				domainName = name;
 				sender().tell(msg,self());
 			} catch (IOException e) {
-				log().warning("IOException: "+e.getMessage());
+				log().warning("Could not read golden model for Evaluation: "+e.getMessage());
 				stopChild(sender());
 			}
-		}
+    	}
 		else stopChild(sender());
     }
     
     private void saveEvaluation(ByteString stats) {
 		try {
-			File file = new File("src/main/resources/evaluations/"+domainName+".csv");
+			File file = new File("src/main/resources/evaluations/"+goldenModel);
 			writeStringToFile(file, stats.utf8String(), Charset.forName("UTF-8"));
 		} catch (IOException ie) {
-			log().warning("IOException while printing Website Statistics: "+ie.getMessage());
+			log().warning("IOException while printing Evaluation: "+ie.getMessage());
 		}
 		stopChild(sender());
     }
