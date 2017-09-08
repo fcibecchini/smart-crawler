@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURLs;
@@ -11,6 +12,7 @@ import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURLs;
 import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 
 /**
  * A Page is a web page represented as a subset of the XPaths-to-link in the corresponding 
@@ -129,11 +131,18 @@ public class Page {
 	 * Groups outgoing URLs by XPaths-to-link to build the page schema.
 	 */
 	private Set<LinkCollection> pageSchema(HtmlPage html) {
-		return html.getAnchors().stream()
-			.map(XPath::new)
-			.distinct()
-			.map(xp -> new LinkCollection(this,xp,getAbsoluteURLs(html,xp.getDefault(),url)))
-			.collect(toSet());
+		Set<LinkCollection> collections = new HashSet<>();
+		for (HtmlAnchor a : html.getAnchors()) {
+			XPath xp = new XPath(a);
+			try {
+				List<String> urls = getAbsoluteURLs(html,xp.getDefault(),url);
+				LinkCollection lc = new LinkCollection(this,xp,urls);
+				collections.add(lc);
+			} catch (Exception e) {
+				//TODO .. // do not add this XPath if it cannot be parsed by getAbsoluteURLs
+			}
+		}
+		return collections;
 	}
 	
 	/**
