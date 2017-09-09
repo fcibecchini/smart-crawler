@@ -3,6 +3,8 @@ package it.uniroma3.crawler.modeler.model;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
@@ -139,7 +141,8 @@ public class Page {
 				LinkCollection lc = new LinkCollection(this,xp,urls);
 				collections.add(lc);
 			} catch (Exception e) {
-				//TODO .. // do not add this XPath if it cannot be parsed by getAbsoluteURLs
+				// do not add this XPath if it cannot be parsed by getAbsoluteURLs
+				Logger.getAnonymousLogger().log(Level.WARNING, e.getMessage());
 			}
 		}
 		return collections;
