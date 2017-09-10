@@ -15,6 +15,7 @@ import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 import static it.uniroma3.crawler.util.Commands.STOP;
 
 public class ModelerService extends AbstractLoggingActor {
+	private static final String CSV_PATH = "src/main/resources/targets/";
 	
 	@Override
 	public Receive createReceive() {
@@ -46,7 +47,7 @@ public class ModelerService extends AbstractLoggingActor {
 	private PageClass loadCSV(SeedConfig conf) {
 		PageClass root = null;
 		try {
-			CsvReader reader = new CsvReader(conf.file, '\t');
+			CsvReader reader = new CsvReader(CSV_PATH+conf.file, '\t');
 			
 			Set<PageClass> classes = getPageClasses(conf);
 			while (reader.readRecord()) {
@@ -98,7 +99,7 @@ public class ModelerService extends AbstractLoggingActor {
 	private Set<PageClass> getPageClasses(SeedConfig conf) 
 			throws IOException {
 		HashSet<PageClass> pageClasses = new HashSet<>();
-		CsvReader reader = new CsvReader(conf.file, '\t');
+		CsvReader reader = new CsvReader(CSV_PATH+conf.file, '\t');
 		while (reader.readRecord()) {
 			PageClass pClass1 = new PageClass(reader.get(0),conf);
 			PageClass pClass2 = new PageClass(reader.get(3),conf);

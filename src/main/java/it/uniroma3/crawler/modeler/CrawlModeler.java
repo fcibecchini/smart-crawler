@@ -23,6 +23,9 @@ import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 public class CrawlModeler extends AbstractLoggingActor {	
+	private static final String GOLDEN_PATH = "src/main/resources/golden/";
+	private static final String EVALUATION_PATH = "src/main/resources/evaluations/";
+	
 	private boolean crawl;
 	private int children;
 	private String goldenModel;
@@ -79,7 +82,7 @@ public class CrawlModeler extends AbstractLoggingActor {
     private void sendGolden() {
     	if (goldenModel!=null) {
 			try {
-		    	Path file = Paths.get("src/main/resources/golden/"+goldenModel);
+		    	Path file = Paths.get(GOLDEN_PATH+goldenModel);
 				byte[] byteFile = Files.readAllBytes(file);
 				ByteString msg = ByteString.fromArray(byteFile);
 				sender().tell(msg,self());
@@ -93,7 +96,7 @@ public class CrawlModeler extends AbstractLoggingActor {
     
     private void saveEvaluation(ByteString stats) {
 		try {
-			File file = new File("src/main/resources/evaluations/"+goldenModel);
+			File file = new File(EVALUATION_PATH+goldenModel);
 			writeStringToFile(file, stats.utf8String(), Charset.forName("UTF-8"));
 		} catch (IOException ie) {
 			log().warning("IOException while printing Evaluation: "+ie.getMessage());

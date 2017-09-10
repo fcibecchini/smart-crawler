@@ -5,3 +5,5 @@
 /html/
 repository.csv
 /testsite/*/.vagrant/
+src/main/resources/evaluations
+src/main/resources/master.conf.backup
