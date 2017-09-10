@@ -12,10 +12,10 @@ import it.uniroma3.crawler.model.Website;
 public class PageClassService {
 	private Session session = GraphSessionFactory.getInstance().getSession();
 	
-	public void saveModel(PageClass pclass, String domain) {
-		Website site = session.load(Website.class, domain);
-		if (site==null) site = new Website(domain);
-		site.addModel(pclass, System.currentTimeMillis());
+	public void saveModel(PageClass pclass, long timestamp) {
+		Website site = session.load(Website.class, pclass.getDomain());
+		if (site==null) site = new Website(pclass.getDomain());
+		site.addModel(pclass, timestamp);
 		session.save(site);
 	}
 	
