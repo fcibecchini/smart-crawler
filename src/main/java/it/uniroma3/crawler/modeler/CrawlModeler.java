@@ -1,6 +1,6 @@
 package it.uniroma3.crawler.modeler;
 
-import static it.uniroma3.crawler.util.Commands.STOP;
+import static it.uniroma3.crawler.util.Commands.*;
 import static org.apache.commons.io.FileUtils.writeStringToFile;
 
 import java.io.File;
@@ -22,7 +22,7 @@ import it.uniroma3.crawler.messages.ModelMsg;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
-public class CrawlModeler extends AbstractLoggingActor {
+public class CrawlModeler extends AbstractLoggingActor {	
 	private boolean crawl;
 	private int children;
 	private String goldenModel;
@@ -104,8 +104,10 @@ public class CrawlModeler extends AbstractLoggingActor {
     private void stopChild(ActorRef ref) {
     	context().unwatch(ref);
 		context().stop(ref);
-		children--;
-		if (children==0) context().stop(self());
+		if (--children==0) {
+			if (!crawl) context().parent().tell(SAVED, self());
+			context().stop(self());
+		}
     }
     
 }

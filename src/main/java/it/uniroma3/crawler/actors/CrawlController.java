@@ -17,7 +17,7 @@ import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 public class CrawlController extends AbstractLoggingActor {
 	private CrawlerSettings set;
-	private int frontiers;
+	private int frontiers, models;
 	
 	public CrawlController() {
     	set = Settings.SettingsProvider.get(context().system());
@@ -28,6 +28,7 @@ public class CrawlController extends AbstractLoggingActor {
 		return receiveBuilder()
 		.matchEquals(START, msg -> startCrawling())
 		.matchEquals(STOP, msg -> stop())
+		.matchEquals(SAVED, msg -> {if (--models==0) context().system().terminate();})
 		.match(PageClass.class, this::initFrontier)
 		.build();
 	}
@@ -43,6 +44,9 @@ public class CrawlController extends AbstractLoggingActor {
     			.get(context().system()).nodes;
 		int n = nodes.length;
 		int i = 0;
+		frontiers = (int) set.seeds.stream().filter(c -> c.crawl).count();
+		/* Check if this session will only produce models without any actual crawling */
+		if (frontiers==0) models = set.seeds.size();
     	for (SeedConfig conf : set.seeds) {
         	String name = FileUtils.normalizeURL(conf.site);
     		ActorRef modeler = 
@@ -55,7 +59,6 @@ public class CrawlController extends AbstractLoggingActor {
     private void initFrontier(PageClass root) {
     	ActorRef frontier = createFrontier(root);
     	context().watch(frontier);
-    	frontiers++;
     	frontier.tell(START, self());
     }
     
@@ -70,8 +73,7 @@ public class CrawlController extends AbstractLoggingActor {
     private void stop() {
     	context().unwatch(sender());
     	context().stop(sender());
-    	frontiers--; 
-    	if (frontiers==0)
+    	if (--frontiers==0)
     		context().system().terminate();
     }
     
