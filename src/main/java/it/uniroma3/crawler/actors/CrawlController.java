@@ -27,9 +27,15 @@ public class CrawlController extends AbstractLoggingActor {
 	public Receive createReceive() {
 		return receiveBuilder()
 		.matchEquals(START, msg -> startCrawling())
-		.matchEquals(STOP, msg -> stop())
-		.matchEquals(SAVED, msg -> {if (--models==0) context().system().terminate();})
-		.match(PageClass.class, this::initFrontier)
+		.matchEquals(STOP, msg -> {
+			context().unwatch(sender());
+			context().stop(sender());
+			stop();})
+		.matchEquals(SAVED, msg -> {
+			if (--models==0) context().system().terminate();})
+		.match(PageClass.class, msg -> {
+			if (msg.getName()!=null) initFrontier(msg);
+			else stop();})
 		.build();
 	}
     
@@ -71,8 +77,6 @@ public class CrawlController extends AbstractLoggingActor {
     }
     
     private void stop() {
-    	context().unwatch(sender());
-    	context().stop(sender());
     	if (--frontiers==0)
     		context().system().terminate();
     }
