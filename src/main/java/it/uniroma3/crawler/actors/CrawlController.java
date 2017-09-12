@@ -52,7 +52,10 @@ public class CrawlController extends AbstractLoggingActor {
 		int i = 0;
 		frontiers = (int) set.seeds.stream().filter(c -> c.crawl).count();
 		/* Check if this session will only produce models without any actual crawling */
-		if (frontiers==0) models = set.seeds.size();
+		if (frontiers==0) {
+			models = set.seeds.size();
+			if (models==0) context().system().terminate();
+		}
     	for (SeedConfig conf : set.seeds) {
         	String name = FileUtils.normalizeURL(conf.site);
     		ActorRef modeler = 
