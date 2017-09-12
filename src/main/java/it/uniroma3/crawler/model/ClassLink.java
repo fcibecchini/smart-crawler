@@ -25,8 +25,8 @@ public class ClassLink {
 		this.menuXPath = "";
 	}
 	
-	public ClassLink(PageClass source, String xpath, PageClass destination, int index) {
-		this(source,"("+xpath+")["+index+"]",destination);
+	public ClassLink(PageClass source, String xpath, PageClass destination, String href) {
+		this(source, xpath+"[@href=\""+href+"\"]",destination);
 		this.menuXPath = xpath;
 	}
 	
@@ -103,7 +103,7 @@ public class ClassLink {
 	}
 	
 	public String toString() {
-		return "["+xpath.toString()+", "+destination.getName()+"]";
+		return source.getName()+"\tlink\t"+xpath+"\t"+destination.getName()+"\t"+type;
 	}
 	
 	public int hashCode() {

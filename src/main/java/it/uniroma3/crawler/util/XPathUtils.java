@@ -132,15 +132,10 @@ public class XPathUtils {
 	 * @param url the URL to resolve the matching anchors
 	 * @return the List of absolute URLs matched by this XPath
 	 */
-	public static List<String> getAbsoluteInternalURLs(
-			HtmlPage page, 
-			String xpath, 
-			String url) {
-		return getAnchors(page, xpath).stream()
-				.map(HtmlAnchor::getHrefAttribute)
-				.filter(l -> isValidURL(url, l))
-				.map(href -> getAbsoluteURL(url, href))
-				.collect(toList());
+	public static List<String> getAbsoluteInternalURLs(HtmlPage page, String xpath, String url) {
+		List<String> hrefs = getRelativeURLs(page, xpath);
+		hrefs.removeIf(l -> !isValidURL(url, l));
+		return getAbsoluteURLs(url, hrefs);
 	}
 	
 	/**
@@ -151,24 +146,45 @@ public class XPathUtils {
 	 * @param url the URL to resolve the matching anchors
 	 * @return the List of absolute URLs matched by this XPath
 	 */
-	public static List<String> getAbsoluteURLs(
-			HtmlPage page, 
-			String xpath, 
-			String url) {
-		return getAnchors(page, xpath).stream()
-				.map(HtmlAnchor::getHrefAttribute)
-				.map(href -> getAbsoluteURL(url, href))
-				.collect(toList());
+	public static List<String> getAbsoluteURLs(HtmlPage page, String xpath, String url) {
+		return getAbsoluteURLs(url, getRelativeURLs(page, xpath));
 	}
 	
-	private static String getAbsoluteURL(String base, String relative) {
+	/**
+	 * Evaluates the specified XPath-to-link in the HtmlPage specified, 
+	 * returning the matching anchors.
+	 * @param page the html page containing the DOM
+	 * @param xpath the xpath-to-link
+	 * @return the List of anchors matched by this XPath
+	 */
+	public static List<String> getRelativeURLs(HtmlPage page, String xpath) {
+		return getAnchors(page, xpath).stream().map(a -> a.getHrefAttribute()).collect(toList());
+	}
+	
+	/**
+	 * Resolve a List of relative URLs into absolute URLs
+	 * @param url the URL to resolve the matching anchors
+	 * @param hrefs the anchors hrefs
+	 * @return the resolved URLs
+	 */
+	public static List<String> getAbsoluteURLs(String url, List<String> hrefs) {
+		return hrefs.stream().map(href -> getAbsoluteURL(url, href)).collect(toList());
+	}
+	
+	/**
+	 * Resolve a relative URL into an absolute URL
+	 * @param base the URL to resolve the relative one
+	 * @param relative
+	 * @return the resolved URL
+	 */
+	public static String getAbsoluteURL(String base, String relative) {
 		try {
 			String url = new URL(new URL(base), relative).toString();
 			return (url.endsWith("/")) ? url.substring(0, url.length()-1) : url;
 		} catch (MalformedURLException e) {
 			return "";
 		}
-}
+	}
 	
 	/*
 	public static HtmlPage setInputValue(HtmlPage page, String xpath, String value) {

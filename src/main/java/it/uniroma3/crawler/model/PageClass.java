@@ -306,15 +306,15 @@ public class PageClass {
 	/**
 	 * Adds a Menu item ClassLink to this PageClass. 
 	 * Note that the specified XPath must link the whole menu, not just one item.
-	 * The index parameter specify the Menu item index which leads to the given destination
+	 * The href parameter specify the Menu item which leads to the given destination
 	 * PageClass. 
 	 * @param xpath the XPath leading to the menu
-	 * @param index the menu item index
+	 * @param href the href attribute that identifies the menu element
 	 * @param dest the destination PageClass
 	 * @return true if the Link was added
 	 */
-	public boolean addMenuLink(String xpath, int index, PageClass dest) {
-		ClassLink link = new ClassLink(this, xpath, dest, index);
+	public boolean addMenuLink(String xpath, String href, PageClass dest) {
+		ClassLink link = new ClassLink(this, xpath, dest, href);
 		link.setTypeMenu();
 		return links.add(link);
 	}
@@ -483,7 +483,7 @@ public class PageClass {
 	}
 	
 	public String toString() {
-		return name;
+		return links.stream().map(l -> l.toString()+"\n").reduce(String::concat).orElse("");
 	}
 	
 	public int hashCode() {

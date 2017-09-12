@@ -4,7 +4,9 @@ import static it.uniroma3.crawler.util.HtmlUtils.*;
 
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
-import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURLs;
+import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
+import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURL;
+
 import static it.uniroma3.crawler.util.Commands.STOP;
 
 import java.util.ArrayList;
@@ -155,10 +157,12 @@ public class DynamicModeler extends AbstractLoggingActor {
 		String msg = "fetch";
 		
 		if (!links.isEmpty()) {
-			String url = links.poll();
+			String href = links.poll();
+			String url = getAbsoluteURL(collection.getPage().getUrl(), href);
 			Page page = visitedURLs.get(url);
 			if (page!=null) {
 				page.setLoaded();
+				page.setHref(href);
 				newPages.add(page);
 				log().info("Loaded: "+url);
 			}
@@ -166,6 +170,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 				try {
 					HtmlPage html = getPage(url, client);
 					page = new Page(url, html);
+					page.setHref(href);
 					visitedURLs.put(url, page);
 					newPages.add(page);
 					log().info("Fetched: "+url);
@@ -297,7 +302,6 @@ public class DynamicModeler extends AbstractLoggingActor {
 		
 		boolean finer = collection.isFiner();
 		Page page = collection.getPage();
-		long urls = page.urlsSize();
 		String url = page.getUrl();
 		XPath xp = collection.getXPath();
 		XPath original = new XPath(xp);
@@ -314,9 +318,9 @@ public class DynamicModeler extends AbstractLoggingActor {
 				html = HtmlUtils.restorePageFromFile(page.getTempFile(), url);			
 			
 			while (!found && xp.refine(finer)) {
-				List<String> links = getAbsoluteURLs(html, xp.get(), url);
-				int size = links.stream().distinct().mapToInt(l -> 1).sum();
-				if (!links.equals(collection.getLinks()) && size<urls) {
+				List<String> links = getRelativeURLs(html, xp.get());
+				long size = links.stream().distinct().count();
+				if (!links.equals(collection.getLinks()) && size<page.urlsSize()) {
 					collection.setLinks(links);
 					log().info("Refined XPath: "+original.get()+" -> "+xp.get());
 					found=true;

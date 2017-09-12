@@ -9,7 +9,7 @@ import java.util.logging.Logger;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
-import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURLs;
+import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
 
 import static java.util.stream.Collectors.toSet;
 
@@ -23,6 +23,7 @@ import java.util.HashSet;
  */
 public class Page {
 	private String url;
+	private String href;
 	private String tempFile;
 	private Set<LinkCollection> linkCollections;
 	private int urlsSize;
@@ -47,6 +48,14 @@ public class Page {
 	 */
 	public String getUrl() {
 		return this.url;
+	}
+	
+	public String getHref() {
+		return this.href;
+	}
+	
+	public void setHref(String href) {
+		this.href = href;
 	}
 	
 	/**
@@ -137,7 +146,7 @@ public class Page {
 		for (HtmlAnchor a : html.getAnchors()) {
 			XPath xp = new XPath(a);
 			try {
-				List<String> urls = getAbsoluteURLs(html,xp.getDefault(),url);
+				List<String> urls = getRelativeURLs(html,xp.getDefault());
 				LinkCollection lc = new LinkCollection(this,xp,urls);
 				collections.add(lc);
 			} catch (Exception e) {
