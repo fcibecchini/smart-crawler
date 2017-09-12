@@ -2,7 +2,6 @@ package it.uniroma3.crawler.modeler;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -15,7 +14,6 @@ import com.csvreader.CsvReader;
 import com.csvreader.CsvWriter;
 
 import akka.actor.AbstractLoggingActor;
-import it.uniroma3.crawler.model.ClassLink;
 import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.persistence.PageClassService;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
@@ -42,20 +40,10 @@ public class ModelerService extends AbstractLoggingActor {
 	}
 	
 	private void load(SeedConfig conf) {
-		//PageClass root = (conf.file==null) ? loadDB(conf) : loadCSV(conf);
 		PageClass root = loadCSV(conf);
 		context().parent().tell(root, self());
 		context().parent().tell(STOP, self());
 	}
-	
-	/*
-	private PageClass loadDB(SeedConfig conf) {
-		PageClassService serv = new PageClassService();
-		PageClass root = serv.getModel(conf.site);
-		setConf(root,conf);
-		return root;
-	}
-	*/
 	
 	private void saveCSV(PageClass root, long timestamp) {
 		String normUrl = normalizeURL(root.getDomain());
@@ -70,19 +58,14 @@ public class ModelerService extends AbstractLoggingActor {
 	private void saveModelCSV(PageClass root, String normalizedUrl, int version) 
 			throws IOException {
 		String file = CSV_PATH+normalizedUrl+"_target_"+version+".csv";
-		CsvWriter writer = new CsvWriter(file, '\t', Charset.defaultCharset());
+		FileWriter writer = new FileWriter(file,true);
 		
 		Queue<PageClass> queue = new LinkedList<>();
 		Set<PageClass> visited = new HashSet<>();
 		PageClass current = null;
 		queue.add(root);
 		while ((current = queue.poll()) != null) {
-			String name = current.getName();
-			for (ClassLink cl : current.getLinks()) {
-				String[] record = new String[] { name, "link", cl.getXPath(), 
-						cl.getDestination().getName(), cl.getType() };
-				writer.writeRecord(record);
-			}
+			writer.write(current.toString());
 			current.classLinks().filter(pc -> !visited.contains(pc)).forEach(queue::add);
 			visited.add(current);
 		}
@@ -194,26 +177,5 @@ public class ModelerService extends AbstractLoggingActor {
 	private PageClass getPageClass(Set<PageClass> pClasses, String name) {
 		return pClasses.stream().filter(pc -> pc.getName().equals(name)).findAny().orElse(null);
 	}
-	/*
-	private void setConf(PageClass root, SeedConfig conf) {
-		Queue<PageClass> queue = new LinkedList<>();
-		Set<String> visited = new HashSet<>();
-		
-		queue.add(root);	
-		PageClass current = null;
-		while ((current = queue.poll()) != null) {
-			current.setWaitTime(conf.wait);
-			current.setRandomPause(conf.randompause);
-			current.setMaxFetchTries(conf.maxfailures);
-			current.setJavascript(conf.javascript);
-			
-			current.classLinks()
-			.filter(pc -> !visited.contains(pc.getName()))
-			.forEach(queue::add);
-			visited.add(current.getName());
-		}
-
-	}
-	*/
 
 }
