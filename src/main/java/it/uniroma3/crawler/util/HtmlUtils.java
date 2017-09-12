@@ -159,7 +159,7 @@ public class HtmlUtils {
 	 */
 	public static boolean isValidURL(String base, String href) {
 		if (href.contains(".jpg")) return false;
-		if (href.startsWith("http")) {
+		if (href.startsWith("http") || href.startsWith("//")) {
 			try {
 				String domain1 = 
 				InternetDomainName.from(new URL(href).getHost()).topPrivateDomain().toString();
