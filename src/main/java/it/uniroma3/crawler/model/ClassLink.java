@@ -66,10 +66,6 @@ public class ClassLink {
 		this.type = "list";
 	}
 	
-	public void setTypeSingleton() {
-		this.type = "singleton";
-	}
-	
 	public void setTypeForm() {
 		this.type = "form";
 	}
@@ -87,7 +83,7 @@ public class ClassLink {
 	}
 	
 	public boolean isSingleton() {
-		return type.equals("singleton");
+		return type!=null && !(isList() || isForm() || isMenu());
 	}
 	
 	public boolean isForm() {

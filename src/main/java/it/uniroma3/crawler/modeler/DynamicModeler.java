@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
 import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURL;
+import static it.uniroma3.crawler.util.XPathUtils.getAnchorText;
 
 import static it.uniroma3.crawler.util.Commands.STOP;
 
@@ -289,8 +290,12 @@ public class DynamicModeler extends AbstractLoggingActor {
 			page.addListLink(xpath, newPages);
 		else if (collection.isMenu())
 			page.addMenuLink(xpath, newPages);
-		else if (collection.isSingleton())
-			page.addSingleLink(xpath, newPages);
+		else if (collection.isSingleton()) {
+			String text;			
+			try { text = getAnchorText(restorePage(page), xpath); }
+			catch (Exception e) { text = ""; }
+			page.addSingleLink(xpath, text, newPages);
+		}
 	}
 	
 	/*
@@ -302,21 +307,12 @@ public class DynamicModeler extends AbstractLoggingActor {
 		
 		boolean finer = collection.isFiner();
 		Page page = collection.getPage();
-		String url = page.getUrl();
 		XPath xp = collection.getXPath();
 		XPath original = new XPath(xp);
 		boolean found = false;
 
 		try {
-			HtmlPage html;
-			if (page.getTempFile()==null) {
-				html = getPage(url, client);
-				String directory = FileUtils.getTempDirectory(conf.site);
-				String path = HtmlUtils.savePage(html,directory,false);
-				page.setTempFile(path);
-			} else
-				html = HtmlUtils.restorePageFromFile(page.getTempFile(), url);			
-			
+			HtmlPage html = restorePage(page);
 			while (!found && xp.refine(finer)) {
 				List<String> links = getRelativeURLs(html, xp.get());
 				long size = links.stream().distinct().count();
@@ -337,6 +333,19 @@ public class DynamicModeler extends AbstractLoggingActor {
 		}
 		
 		self().tell(msg, self());
+	}
+	
+	private HtmlPage restorePage(Page p) throws Exception {
+		HtmlPage html;
+		String url = p.getUrl();
+		if (p.getTempFile()==null) {
+			html = getPage(url, client);
+			String directory = FileUtils.getTempDirectory(conf.site);
+			String path = HtmlUtils.savePage(html,directory,false);
+			p.setTempFile(path);
+		} else
+			html = HtmlUtils.restorePageFromFile(p.getTempFile(), url);			
+		return html;
 	}
 	
 	/*

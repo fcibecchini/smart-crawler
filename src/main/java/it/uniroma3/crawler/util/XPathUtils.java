@@ -186,6 +186,10 @@ public class XPathUtils {
 		}
 	}
 	
+	public static String getAnchorText(HtmlPage page, String xpath) {
+		return formatCsv(getAnchors(page, xpath).get(0).getTextContent());
+	}
+	
 	/*
 	public static HtmlPage setInputValue(HtmlPage page, String xpath, String value) {
 		HtmlInput input = (HtmlInput) getUniqueByXPath(page,xpath);
@@ -236,7 +240,11 @@ public class XPathUtils {
 		}
 		String value = result.toString().trim();
 		if (value.isEmpty()) return defaultValue;
-		return StringEscapeUtils.escapeCsv(value.replaceAll("(\\s)+", " ")).trim();
+		return formatCsv(value);
+	}
+	
+	private static String formatCsv(String s) {
+		return (s!=null) ? StringEscapeUtils.escapeCsv(s.replaceAll("(\\s)+", " ")).trim() : "";
 	}
 	
 }

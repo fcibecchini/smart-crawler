@@ -334,12 +334,13 @@ public class PageClass {
 	/**
 	 * Adds a Singleton ClassLink to this PageClass
 	 * @param xpath the XPath
+	 * @param text the anchor text of this link
 	 * @param dest the destination PageClass
 	 * @return true if the Link was added
 	 */
-	public boolean addSingletonLink(String xpath, PageClass dest) {
+	public boolean addSingletonLink(String xpath, String text, PageClass dest) {
 		ClassLink link = new ClassLink(this, xpath, dest);
-		link.setTypeSingleton();
+		link.setType((text.isEmpty()) ? "singleton" : text);
 		return links.add(link);
 	}
 	

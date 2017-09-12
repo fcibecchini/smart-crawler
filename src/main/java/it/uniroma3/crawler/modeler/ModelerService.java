@@ -61,13 +61,12 @@ public class ModelerService extends AbstractLoggingActor {
 		FileWriter writer = new FileWriter(file,true);
 		
 		Queue<PageClass> queue = new LinkedList<>();
-		Set<PageClass> visited = new HashSet<>();
+		Set<String> visited = new HashSet<>();
 		PageClass current = null;
 		queue.add(root);
 		while ((current = queue.poll()) != null) {
 			writer.write(current.toString());
-			current.classLinks().filter(pc -> !visited.contains(pc)).forEach(queue::add);
-			visited.add(current);
+			current.classLinks().filter(pc -> visited.add(pc.getName())).forEach(queue::add);
 		}
 		writer.close();
 	}
@@ -130,11 +129,11 @@ public class ModelerService extends AbstractLoggingActor {
 								case "list":
 									pageSrc.addListLink(xpath, pageDest);
 									break;
-								case "singleton":
-									pageSrc.addSingletonLink(xpath, pageDest);
-									break;
 								case "form":
 									pageSrc.addFormLink(xpath, pageDest);
+									break;
+								default:
+									pageSrc.addSingletonLink(xpath, subtype, pageDest);
 									break;
 							}
 						}

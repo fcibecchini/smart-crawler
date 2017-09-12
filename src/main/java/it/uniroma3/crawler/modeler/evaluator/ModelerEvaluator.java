@@ -230,7 +230,8 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 			PageClass dest = tl.getDestination().getComputedClass().getPageClass();
 			ClassLink current=null;
 			for (ClassLink pl : pLinks) {
-				if (type.equals(pl.getType()) && dest.equals(pl.getDestination())) {
+				if ((type.equals(pl.getType()) || (type.equals("singleton") && pl.isSingleton()))
+						&& dest.equals(pl.getDestination())) {
 					count++;
 					current=pl;
 					break;

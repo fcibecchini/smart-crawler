@@ -6,7 +6,6 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
@@ -98,10 +97,11 @@ public class Page {
 	 * Adds a link of type Singleton to the given XPath and destination Page
 	 * 
 	 * @param xp the xpath
+	 * @param text the anchor text of this link
 	 * @param dest the Singleton destination Page
 	 */
-	public void addSingleLink(String xp, List<Page> destinations) {
-		links.add(new SinglePageLink(xp,destinations));	
+	public void addSingleLink(String xp, String text, List<Page> destinations) {
+		links.add(new SinglePageLink(xp,text,destinations));
 	}
 	
 	/**
@@ -143,14 +143,14 @@ public class Page {
 	 */
 	private Set<LinkCollection> pageSchema(HtmlPage html) {
 		Set<LinkCollection> collections = new HashSet<>();
-		for (HtmlAnchor a : html.getAnchors()) {
-			XPath xp = new XPath(a);
+		Set<XPath> xpaths = html.getAnchors().stream().map(XPath::new).collect(toSet());
+		for (XPath xp : xpaths) {
 			try {
 				List<String> urls = getRelativeURLs(html,xp.getDefault());
 				LinkCollection lc = new LinkCollection(this,xp,urls);
 				collections.add(lc);
 			} catch (Exception e) {
-				// do not add this XPath if it cannot be parsed by getAbsoluteURLs
+				// do not add this XPath if it cannot be parsed by HtmlPage
 				Logger.getAnonymousLogger().log(Level.WARNING, e.getMessage());
 			}
 		}
