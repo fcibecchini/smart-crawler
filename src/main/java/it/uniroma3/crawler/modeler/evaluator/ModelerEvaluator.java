@@ -96,7 +96,7 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 		DecimalFormat df = new DecimalFormat("#.##");
 		String name = mpc.getPageClass().getName();
 		int size = mpc.size();
-		int linksSize = mpc.getPageClass().getLinks().size();
+		int linksSize = mpc.getPageClass().linksSize();
 		Double cohesion = cohesions.get(mpc);
 		Double purity = purities.get(mpc);
 		String cs = (cohesion!=null) ? df.format(cohesion) : "-";
@@ -222,7 +222,7 @@ public class ModelerEvaluator extends AbstractLoggingActor {
 	private void setLinksPrecisionAndRecall(TrueClass tc) {
 		double count = 0;
 		PageClass pc = tc.getComputedClass().getPageClass();
-		List<ClassLink> pLinks = new ArrayList<>(pc.getLinks());
+		List<ClassLink> pLinks = new ArrayList<>(pc.getAllLinks());
 		int pLinksSize = pLinks.size();
 		List<TrueLink> tLinks = tc.getLinks();
 		for (TrueLink tl : tLinks) {

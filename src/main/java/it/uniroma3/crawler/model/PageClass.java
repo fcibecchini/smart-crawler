@@ -1,6 +1,8 @@
 package it.uniroma3.crawler.model;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -8,9 +10,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.TreeSet;
 
 import org.neo4j.ogm.annotation.NodeEntity;
 import org.neo4j.ogm.annotation.Relationship;
@@ -21,7 +23,7 @@ import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 import static java.util.stream.Collectors.toList;
 
 @NodeEntity
-public class PageClass {
+public class PageClass implements Comparable<PageClass> {
 	private Long id;
 	
 	private String name;
@@ -34,6 +36,7 @@ public class PageClass {
 	@Transient private int randomPause;
 	@Transient private int maxFetchTries;
 	@Transient private boolean javascript;
+	@Transient private SortedSet<PageClass> descendants;
 	
 	@Relationship(type="CLASS_LINK", direction=Relationship.OUTGOING)
 	private Set<ClassLink> links;
@@ -41,9 +44,13 @@ public class PageClass {
 	@Relationship(type="DATA_LINK", direction=Relationship.OUTGOING)
 	private List<DataLink> dataLinks;
 	
+	@Relationship(type="MENU", direction=Relationship.OUTGOING)
+	private Set<Menu> menus;
+	
 	public PageClass() {
 		this.links = new HashSet<>();
 		this.dataLinks = new ArrayList<>();
+		this.menus = new HashSet<>();
 	}
 	
 	public PageClass(String name, SeedConfig conf) {
@@ -99,6 +106,10 @@ public class PageClass {
 	public void setDataLinks(List<DataLink> dataLinks) {
 		this.dataLinks = dataLinks;
 	}
+	
+	public void setMenus(Set<Menu> menus) {
+		this.menus = menus;
+	}
 
 	public void setWebsite(String website) {
 		this.website = website;
@@ -148,77 +159,58 @@ public class PageClass {
 		return randomPause;
 	}
 	
-	public Stream<PageClass> classLinks() {
-		return links.stream().map(ClassLink::getDestination);
+	public int linksSize() {
+		return links.size() + menus.stream().mapToInt(Menu::size).sum();
+	}
+	
+	public Set<ClassLink> getAllLinks() {
+		Set<ClassLink> links = new HashSet<>(this.links);
+		menus.forEach(m -> links.addAll(m.toClassLinks()));
+		return links;
 	}
 	
 	public PageClass getDescendant(String name) {
-		Queue<PageClass> queue = new LinkedList<>();
-		Set<PageClass> visited = new HashSet<>();
-		
-		PageClass current = null;
-		queue.add(this);
-		while ((current = queue.poll()) != null) {
-			if (current.getName().equals(name))
-				return current;
-			current.classLinks()
-			.filter(pc -> !visited.contains(pc))
-			.forEach(queue::add);
-			visited.add(current);
-		}
-		return null;
+		if (descendants==null) setHierarchy();
+		return descendants.stream().filter(p -> p.getName().equals(name)).findFirst().orElse(null);
+	}
+	
+	public SortedSet<PageClass> getDescendants() {
+		return descendants;
 	}
 	
 	public void setHierarchy() {
-		Queue<PageClass> queue = new LinkedList<>();
-		Set<String> visited = new HashSet<>();
-		visited.add(name);
-		queue.add(this);
-		
-		PageClass current = null;
-		while ((current = queue.poll()) != null) {
-			int depth = current.getDepth();
-			
-			current.classLinks()
-			.filter(pc -> visited.add(pc.getName()))
-			.forEach(pc -> {
-				queue.add(pc); 
-				pc.setDepth(depth+1);
-			});
+		Map<String,PageClass> name2class = new HashMap<>();
+		name2class.put(name, this);
+		Queue<PageClass> queue = new LinkedList<>(Arrays.asList(this));
+		while (!queue.isEmpty()) {
+			PageClass current = queue.poll();
+			current.getAllLinks().stream().map(ClassLink::getDestination)
+			.filter(p -> name2class.putIfAbsent(p.getName(), p)==null)
+			.forEach(p -> {p.setDepth(current.getDepth()+1); queue.add(p);});
 		}
+		this.descendants = new TreeSet<>(name2class.values());
 	}
 	
 	public void setGraphVersion(int version) {
-		Queue<PageClass> queue = new LinkedList<>();
-		Set<String> visited = new HashSet<>();
-		visited.add(name);
-		queue.add(this);
-		
-		PageClass current = null;
-		while ((current = queue.poll()) != null) {
-			current.setVersion(version);
-			current.classLinks()
-			.filter(pc -> visited.add(pc.getName()))
-			.forEach(queue::add);
-		}
+		descendants.forEach(p -> p.setVersion(version));
+	}
+	
+	public void setMenusTypes() {
+		descendants.forEach(pc -> pc.menus.forEach(Menu::setType));
 	}
 	
 	public PageClass getDestinationByXPath(String xpath) {
-		if (!links.isEmpty())
-			return links.stream()
-				.filter(l -> l.getXPath().equals(xpath))
-				.map(ClassLink::getDestination)
-				.findAny().orElse(null);
-		return null;
+		return links.stream().filter(l -> l.getXPath().equals(xpath))
+				.map(l -> l.getDestination()).findFirst()
+				.orElseGet(() -> 
+					menus.stream().map(m -> m.getDestination(xpath))
+					.filter(d -> d!=null).findFirst().orElse(null));
 	}
 	
 	public DataType getDataTypeByXPath(String xpath) {
-		if (!dataLinks.isEmpty())
-			return this.dataLinks.stream()
+		return this.dataLinks.stream()
 				.filter(link -> link.getXPath().equals(xpath))
-				.map(DataLink::getDataType)
-				.findAny().orElse(null);
-		return null;
+				.map(DataLink::getDataType).findFirst().orElse(null);
 	}
 	
 	public Map<String, DataType> xPathToData() {
@@ -247,9 +239,10 @@ public class PageClass {
 	}
 	
 	public List<String> getNavigationXPaths() {
-		return this.links.stream()
-				.filter(l -> !l.isForm())
-				.map(l -> l.getXPath()).collect(toList());
+		List<String> navList = this.links.stream()
+				.filter(l -> !l.isForm()).map(l -> l.getXPath()).collect(toList());
+		navList.addAll(getMenuXPaths());
+		return navList;
 	}
 	
 	public List<String> getFormXPaths() {
@@ -259,9 +252,7 @@ public class PageClass {
 	}
 	
 	public List<String> getMenuXPaths() {
-		return this.links.stream()
-				.filter(ClassLink::isMenu)
-				.map(ClassLink::getXPath).collect(toList());
+		return menus.stream().flatMap(m -> m.getMenuXPaths().stream()).collect(toList());
 	}
 	
 	public List<String> getListXPaths() {
@@ -292,31 +283,43 @@ public class PageClass {
 	}
 	
 	/**
-	 * Adds a Menu item ClassLink to this PageClass.
-	 * @param xpath the XPath leading to the menu item
+	 * Adds a Menu item to this PageClass.
+	 * @param href the href leading to the menu item
+	 * @param menuXPath the xpath that identifies the menu
+	 * @param type the menu type (fixed or mutable)
 	 * @param dest the destination PageClass
-	 * @return true if the Link was added
 	 */
-	public boolean addMenuLink(String xpath, PageClass dest) {
-		ClassLink link = new ClassLink(this, xpath, dest);
-		link.setTypeMenu();
-		return links.add(link);
+	public void loadMenuLink(String href, String menuXPath, String type, PageClass dest) {
+		String key = menuXPath, anchor = href;		
+		if (menuXPath.isEmpty() && href.startsWith("(")) {
+			int index = href.lastIndexOf(")");			
+			key = href.substring(1, index);
+			anchor = href.substring(index+1).replaceAll("\\[([0-9]+)\\]", "$1");
+		}
+		if (key!=null) {
+			Menu menu = findOrCreateMenu(key);
+			menu.addItem("", anchor, dest);
+			menu.setType((type!=null) ? type : "");
+		}
 	}
 	
 	/**
-	 * Adds a Menu item ClassLink to this PageClass. 
-	 * Note that the specified XPath must link the whole menu, not just one item.
-	 * The href parameter specify the Menu item which leads to the given destination
-	 * PageClass. 
+	 * Adds a Menu to this PageClass identified by the given XPath.
+	 * The hrefs list specifies the items of this menu.
 	 * @param xpath the XPath leading to the menu
-	 * @param href the href attribute that identifies the menu element
-	 * @param dest the destination PageClass
-	 * @return true if the Link was added
+	 * @param href the hrefs that identify the menu elements
+	 * @param dests the destination PageClasses
 	 */
-	public boolean addMenuLink(String xpath, String href, PageClass dest) {
-		ClassLink link = new ClassLink(this, xpath, dest, href);
-		link.setTypeMenu();
-		return links.add(link);
+	public void addMenu(String sourceUrl, String xpath, List<String> hrefs, List<PageClass> dests) {
+		Menu menu = findOrCreateMenu(xpath);
+		for (int i=0; i<dests.size(); i++) {
+			menu.addItem(sourceUrl, hrefs.get(i), dests.get(i));
+		}
+	}
+	
+	private Menu findOrCreateMenu(String xpath) {
+		return menus.stream().filter(m -> m.getXpath().equals(xpath)).findFirst()
+				.orElseGet(() -> { Menu m = new Menu(name, xpath); menus.add(m); return m; });
 	}
 	
 	/**
@@ -363,8 +366,7 @@ public class PageClass {
 	 * @return true if there is a ClassLink with this xpath
 	 */
 	public boolean hasLink(String xp) {
-		return links.stream().anyMatch(
-				l -> l.getXPath().equals(xp) || l.getMenuXPath().equals(xp));
+		return links.stream().anyMatch(l -> l.getXPath().equals(xp)) || hasMenuLink(xp);
 	}
 	
 	/**
@@ -373,7 +375,7 @@ public class PageClass {
 	 * @return true if this xpath identifies a menu
 	 */
 	public boolean hasMenuLink(String xp) {
-		return links.stream().anyMatch(l -> l.getMenuXPath().equals(xp));
+		return menus.stream().anyMatch(m -> m.getXpath().equals(xp));
 	}
 	
 	/**
@@ -399,23 +401,25 @@ public class PageClass {
 	}
 	
 	/**
-	 * Removes a single ClassLink identified by this XPath
+	 * Removes a link identified by this XPath
 	 * @param xp the xpath
 	 */
 	public void removeLink(String xp) {
-		links.stream()
-			.filter(l -> l.getXPath().equals(xp))
-			.findAny().ifPresent(links::remove);
+		if (!links.removeIf(l -> l.getXPath().equals(xp))) removeMenuLink(xp);
 	}
 	
 	/**
-	 * Removes all the ClassLinks leading to menu items identified by this XPath
+	 * Removes all the links leading to menu items identified by this XPath
 	 * @param xp the xpath leading to the menu
 	 */
 	public void removeMenuLink(String xp) {
-		List<ClassLink> toRemove = 
-			links.stream().filter(l -> l.getMenuXPath().equals(xp)).collect(Collectors.toList());
-		links.removeAll(toRemove);
+		menus.removeIf(m -> m.getXpath().equals(xp));
+	}
+	
+	public void changeDestinations(PageClass oldClass, PageClass newClass) {
+		links.stream().filter(l -> l.getDestination().equals(oldClass))
+		.forEach(l -> l.setDestination(newClass));
+		menus.forEach(m -> m.changeDestination(oldClass, newClass));
 	}
 	
 	public boolean addData(String xpath, String type, String fieldName) {
@@ -444,7 +448,7 @@ public class PageClass {
 	}
 	
 	public boolean isEndPage() {
-		return this.links.isEmpty();
+		return this.links.isEmpty() && this.menus.isEmpty();
 	}
 	
 	public boolean isDataPage() {
@@ -452,8 +456,8 @@ public class PageClass {
 	}
 	
 	public double distance(PageClass other) {
-		Set<ClassLink> links = getLinks();
-		Set<ClassLink> otherLinks = other.getLinks();
+		Set<ClassLink> links = getAllLinks();
+		Set<ClassLink> otherLinks = other.getAllLinks();
 
 		Set<ClassLink> union = new HashSet<>();
 		Set<ClassLink> diff1 = new HashSet<>();
@@ -484,14 +488,16 @@ public class PageClass {
 	}
 	
 	public String toString() {
-		return links.stream().map(l -> l.toString()+"\n").reduce(String::concat).orElse("");
+		return links.stream().map(ClassLink::toString).reduce(String::concat).orElse("")+
+			menus.stream().map(Menu::toString).reduce(String::concat).orElse("");
 	}
 	
 	public int hashCode() {
 		return Objects.hash(name, depth, website);
 	}
 
-	public boolean equals(Object obj) {
+	public boolean equals(Object obj) {		
+		if (!(obj instanceof PageClass)) return false;
 		PageClass other = (PageClass) obj;
 		return Objects.equals(name, other.getName())
 			&& depth==other.getDepth()

@@ -6,8 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Queue;
 import java.util.Set;
 
 import com.csvreader.CsvReader;
@@ -59,15 +57,8 @@ public class ModelerService extends AbstractLoggingActor {
 			throws IOException {
 		String file = CSV_PATH+normalizedUrl+"_target_"+version+".csv";
 		FileWriter writer = new FileWriter(file,true);
-		
-		Queue<PageClass> queue = new LinkedList<>();
-		Set<String> visited = new HashSet<>();
-		PageClass current = null;
-		queue.add(root);
-		while ((current = queue.poll()) != null) {
-			writer.write(current.toString());
-			current.classLinks().filter(pc -> visited.add(pc.getName())).forEach(queue::add);
-		}
+		for (PageClass p : root.getDescendants())
+			writer.write(p.toString());
 		writer.close();
 	}
 	
@@ -121,10 +112,10 @@ public class ModelerService extends AbstractLoggingActor {
 				if (type.equals("link")) {
 					if (pageDest!=null) {
 						String subtype = reader.get(4);
-						if (subtype!=null) {
+						if (!subtype.isEmpty()) {
 							switch(subtype) {
 								case "menu":
-									pageSrc.addMenuLink(xpath, pageDest);
+									pageSrc.loadMenuLink(xpath, reader.get(5), reader.get(6), pageDest);
 									break;
 								case "list":
 									pageSrc.addListLink(xpath, pageDest);
@@ -145,7 +136,7 @@ public class ModelerService extends AbstractLoggingActor {
 				}
 				else {
 					String fieldName = reader.get(3);
-					if (fieldName == null)
+					if (fieldName.isEmpty())
 						pageSrc.addData(xpath, type);
 					else pageSrc.addData(xpath, type, fieldName);
 				}

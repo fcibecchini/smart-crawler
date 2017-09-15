@@ -90,7 +90,9 @@ public class Page {
 	 * @param dest the destination Page as a menu item
 	 */
 	public void addMenuLink(String xp, List<Page> destinations) {
-		links.add(new MenuPageLink(xp, destinations));
+		MenuPageLink ml = new MenuPageLink(xp, destinations);
+		ml.setSourceUrl(url);
+		links.add(ml);
 	}
 	
 	/**

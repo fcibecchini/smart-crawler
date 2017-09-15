@@ -442,6 +442,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 		if (!model.isEmpty()) {
 			PageClass root = model.toGraph(conf);
 			root.setHierarchy();
+			root.setMenusTypes();
 			FileUtils.clearTempDirectory(conf.site);
 			log().info("END");
 			context().parent().tell(root, self());

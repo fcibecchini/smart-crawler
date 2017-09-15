@@ -113,7 +113,7 @@ public class TrueClass {
 	public String getStatistics() {
 		DecimalFormat df = new DecimalFormat("#.##");
 		String format1 = name+"\t"+computedClass.getPageClass().getName();
-		String format2 = computedClass.size()+"\t"+computedClass.getPageClass().getLinks().size();
+		String format2 = computedClass.size()+"\t"+computedClass.getPageClass().linksSize();
 		String format3 = df.format(precision)+"\t"+df.format(recall)+"\t"+df.format(fmeasure);
 		String format4 = (links.size()>0) ?
 			df.format(linksPrecision)+"\t"+df.format(linksRecall)+"\t"+df.format(linksFmeasure)

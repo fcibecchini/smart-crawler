@@ -5,14 +5,12 @@ import java.util.Objects;
 import org.neo4j.ogm.annotation.EndNode;
 import org.neo4j.ogm.annotation.RelationshipEntity;
 import org.neo4j.ogm.annotation.StartNode;
-import org.neo4j.ogm.annotation.Transient;
 
 @RelationshipEntity(type="CLASS_LINK")
 public class ClassLink {
 	private Long id;
 	private String xpath;
 	private String type;
-	@Transient private String menuXPath;
 	@StartNode private PageClass source;
 	@EndNode private PageClass destination;
 	
@@ -22,12 +20,7 @@ public class ClassLink {
 		this.source = source;
 		this.xpath = xpath;
 		this.destination = destination;
-		this.menuXPath = "";
-	}
-	
-	public ClassLink(PageClass source, String xpath, PageClass destination, String href) {
-		this(source, xpath+"[@href=\""+href+"\"]",destination);
-		this.menuXPath = xpath;
+		this.type = "";
 	}
 	
 	public Long getId() {
@@ -42,10 +35,6 @@ public class ClassLink {
 		return xpath;
 	}
 	
-	public String getMenuXPath() {
-		return menuXPath;
-	}
-	
 	public void setXpath(String xpath) {
 		this.xpath = xpath;
 	}
@@ -56,10 +45,6 @@ public class ClassLink {
 
 	public void setSource(PageClass source) {
 		this.source = source;
-	}
-
-	public void setTypeMenu() {
-		this.type = "menu";
 	}
 	
 	public void setTypeList() {
@@ -74,16 +59,12 @@ public class ClassLink {
 		return this.type;
 	}
 	
-	public boolean isMenu() {
-		return type.equals("menu");
-	}
-	
 	public boolean isList() {
 		return type.equals("list");
 	}
 	
 	public boolean isSingleton() {
-		return type!=null && !(isList() || isForm() || isMenu());
+		return !type.isEmpty() && !(isList() || isForm());
 	}
 	
 	public boolean isForm() {
@@ -99,7 +80,7 @@ public class ClassLink {
 	}
 	
 	public String toString() {
-		return source.getName()+"\tlink\t"+xpath+"\t"+destination.getName()+"\t"+type;
+		return source.getName()+"\tlink\t"+xpath+"\t"+destination.getName()+"\t"+type+"\n";
 	}
 	
 	public int hashCode() {
@@ -109,7 +90,7 @@ public class ClassLink {
 	public boolean equals(Object other) {
 		ClassLink o = (ClassLink) other;
 		return Objects.equals(xpath, o.getXPath()) 
-				&& Objects.equals(type, o.getType());
+				&& (Objects.equals(type, o.getType()) || (isSingleton() && o.isSingleton()));
 	}
 	
 }

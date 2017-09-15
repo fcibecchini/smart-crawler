@@ -124,21 +124,12 @@ public class WebsiteModel {
 					if (p1.distance(p2)<0.2) {
 						c1.collapse(c2);
 						toRemove.add(c2);
-						changeClassesDestination(p2,p1);
+						modelClasses.forEach(mc -> mc.getPageClass().changeDestinations(p2, p1));
 					}
 				}
 			}
 		}
 		modelClasses.removeAll(toRemove);
-	}
-	
-	private void changeClassesDestination(PageClass oldClass, PageClass newClass) {
-		modelClasses.stream()
-			.map(mc -> mc.getPageClass().getLinks())
-			.forEach(ll -> 
-				ll.stream()
-				.filter(l -> l.getDestination().equals(oldClass))
-				.forEach(l -> l.setDestination(newClass)));
 	}
 	
 	public String toString() {
