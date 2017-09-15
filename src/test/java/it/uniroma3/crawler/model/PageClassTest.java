@@ -2,7 +2,8 @@ package it.uniroma3.crawler.model;
 
 import static org.junit.Assert.*;
 
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
 import org.junit.Before;
@@ -103,11 +104,11 @@ public class PageClassTest {
 	}
 	
 	@Test
-	public void testgetXPaths() {
+	public void testGetXPaths() {
 		PageClass dest = new PageClass("destination",website);
 		PageClass dest2 = new PageClass("destination2",website);
 		PageClass dest3 = new PageClass("destination3",website);
-		List<String> xpaths = new ArrayList<>();
+		HashSet<String> xpaths = new HashSet<>();
 		String xpath1 = "//ul";
 		String xpath2 = "//li";
 		String xpath3 = "//a";
@@ -118,14 +119,11 @@ public class PageClassTest {
 		page.addPageClassLink(xpath2, dest2);
 		page.addPageClassLink(xpath3, dest3);
 		
-		List<String> pageXPaths = page.getNavigationXPaths();
-		for (int i=0; i<pageXPaths.size(); i++) {
-			assertEquals(xpaths.get(i), pageXPaths.get(i));
-		}
+		assertEquals(xpaths, new HashSet<>(page.getNavigationXPaths()));
 	}
 	
 	@Test
-	public void getByName() {
+	public void testGetDescendant() {
 		PageClass dest = new PageClass("destination",website);
 		PageClass dest2 = new PageClass("destination2",website);
 		PageClass dest3 = new PageClass("destination3",website);
@@ -145,5 +143,54 @@ public class PageClassTest {
 		assertEquals(dest4, page.getDescendant(dest4.getName()));
 		assertEquals(dest6, page.getDescendant(dest6.getName()));
 	}
+	
+	@Test
+	public void testAddMenu() {
+		String menuXPath = "//div[@id=\"menu\"]";
+		PageClass dest1 = new PageClass("d1",website);
+		PageClass dest2 = new PageClass("d2",website);
+		PageClass dest3 = new PageClass("d3",website);
+		
+		List<String> hrefs = Arrays.asList("/link1", "/link2", "/link3");
+		List<PageClass> dests = Arrays.asList(dest1, dest2, dest3);
+		
+		page.addMenu("http://proz.com/url1", menuXPath, hrefs, dests);
+		assertEquals(new HashSet<>(Arrays.asList(
+				"//div[@id=\"menu\"][@href=\"/link1\"]",
+				"//div[@id=\"menu\"][@href=\"/link2\"]",
+				"//div[@id=\"menu\"][@href=\"/link3\"]")), 
+				new HashSet<>(page.getNavigationXPaths()));
+	}
+	
+//	@Test
+//	public void testDistance() {
+//		String menuXPath = "//div[@id=\"menu\"]";
+//
+//		PageClass p1 = new PageClass("p1",website);
+//		PageClass p2 = new PageClass("p2",website);
+//		//PageClass p3 = new PageClass("p3",website);
+//		
+//		List<PageClass> dests = Arrays.asList(p1, p2);
+//
+//		page.addMenu("http://proz.com/url1", menuXPath, Arrays.asList("/link1", "/link2"), dests);
+//		page.addMenu("http://proz.com/url2", menuXPath, Arrays.asList("/link1", "/link3"), dests);
+//		
+//		page.addListLink("//div/ul/a[@title]", p1);
+//		
+//		//p1.addMenu("http://proz.com/url2", menuXPath, hrefs, dests);
+//		//p1.addSingletonLink("//ul/div/div/a", "singleton", p2);
+//		//System.out.println(page.distance(p1));
+//		
+//		System.out.println(page);
+//
+//		page.changeDestinations(p1, p2);
+//		//p1.changeDestinations(p1, p2);
+//		page.setHierarchy();
+//		page.setMenusTypes();
+//		
+//		
+//		
+//		System.out.println(page);
+//	}
 
 }
