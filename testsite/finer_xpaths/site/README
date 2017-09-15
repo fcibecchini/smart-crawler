@@ -1,0 +1,11 @@
+PageClass:
+
+Homepage	1 pagina
+Directory	5 pagine
+Prop	20 pagine
+
+Navigazione:
+
+Homepage -> (menu) Directory, (menu) External link1, (menu) External link2, (menu) External link3
+Directory -> (list) Directory, (list) Prop, (singleton) Home
+Prop -> (menu) Directory, (menu) Home

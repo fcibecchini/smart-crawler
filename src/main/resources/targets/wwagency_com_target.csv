@@ -1,4 +1,3 @@
-http://www.wwagency.com
 class1	link	(//nav[@id='nav-header']/ul/li/a[@title])[2]	class5	menu
 class1	link	(//nav[@id='nav-header']/ul/li/a[@title])[4]	class8	menu
 class1	link	(//nav[@id='nav-header']/ul/li/a[@title])[5]	class8	menu

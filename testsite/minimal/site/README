@@ -1,0 +1,15 @@
+PageClass:
+
+Homepage	1 pagina
+Directory1	2 pagine
+Directory2	1 pagina
+Detail	4 pagine
+About	1 pagina
+Table	1 pagina
+
+Navigazione:
+
+Homepage -> Directory1, Directory2, About, Table
+Directory1 -> Directory1, Detail
+Directory2 -> Detail
+Detail -> Directory1, Directory2

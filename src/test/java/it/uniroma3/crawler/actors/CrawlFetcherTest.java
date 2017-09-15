@@ -13,14 +13,12 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.javadsl.TestKit;
-import it.uniroma3.crawler.CrawlController;
 import it.uniroma3.crawler.actors.CrawlFetcher;
-import it.uniroma3.crawler.actors.frontier.BFSFrontier;
+import it.uniroma3.crawler.actors.frontier.CrawlFrontier;
 import it.uniroma3.crawler.factories.CrawlURLFactory;
 import it.uniroma3.crawler.model.CrawlURL;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.modeler.StaticModeler;
-import it.uniroma3.crawler.modeler.WebsiteModeler;
+import it.uniroma3.crawler.modeler.ModelerService;
 import it.uniroma3.crawler.settings.CrawlerSettings;
 import it.uniroma3.crawler.settings.Settings;
 
@@ -28,7 +26,6 @@ public class CrawlFetcherTest {
 	private static ActorSystem system;
 	private static CrawlController controller;
 	private static PageClass entryClass;
-	private static WebsiteModeler modeler;
 
 //	@BeforeClass
 //	public static void setUpBeforeClass() throws Exception {

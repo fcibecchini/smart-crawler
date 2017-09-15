@@ -1,14 +1,13 @@
-http://www.proz.com
 homepage	link	//li[@class='dropdown menu-jobs-directories']//a[text()='Companies']	companies	singleton
 companies	link	//div[@style='background-color:#E2E1C5;']//div[@id='pager_string']/font//a[contains(., ' Next ')]	companies	singleton
 companies	link	//tr/td[@colspan='2']//h2/a	detailsPage	list
 detailsPage	link	//tr/td[@align='right']/a	profilePage	singleton
-detailsPage	string	//h1/text()	
-detailsPage	string	//div[@class='rdbx']/div[@class='contact_column']/div[@style='padding-left:5px;']/text()	
-detailsPage	string	//div[@class='rdbx']//div[@style='padding-left:10px;']/text()	
-detailsPage	url	//div[@class='rdbx']/div[@class='contact_column']/a[@target]	
-detailsPage	string	//div[@class='rdbx']/div[@class='contact_column']/text()[contains(.,'employees')]	
-detailsPage	string	//div[@class='rdbx']/div[@class='contact_column']/text()[contains(.,'languages supported')]	
-detailsPage	img	//img[@alt='logo']	
-profilePage	string	//font[@size='4']/strong/text()	
-profilePage	url	//td[text()=' Website']/../td[2]//a
+detailsPage	string	//h1/text()	company name
+detailsPage	string	//div[@class='rdbx']/div[@class='contact_column']/div[@style='padding-left:5px;']/text()	city
+detailsPage	string	//div[@class='rdbx']//div[@style='padding-left:10px;']/text()	website
+detailsPage	url	//div[@class='rdbx']/div[@class='contact_column']/a[@target]	url
+detailsPage	string	//div[@class='rdbx']/div[@class='contact_column']/text()[contains(.,'employees')]	employees
+detailsPage	string	//div[@class='rdbx']/div[@class='contact_column']/text()[contains(.,'languages supported')]	languages
+detailsPage	img	//img[@alt='logo']	logo
+profilePage	string	//font[@size='4']/strong/text()	company name
+profilePage	url	//td[text()=' Website']/../td[2]//a	url

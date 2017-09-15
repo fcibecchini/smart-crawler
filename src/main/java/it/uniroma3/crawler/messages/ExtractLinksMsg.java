@@ -1,37 +1,32 @@
 package it.uniroma3.crawler.messages;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class ExtractLinksMsg {
 	
 	private final String url;
-	private final String htmlPath;
-	private final String baseUrl;
-	private final String mirror;
 	private final List<String> navigationXPaths;
+	private final List<String> formXPaths;
 	
-	public ExtractLinksMsg(String url, String htmlPath, String baseUrl, String mirror, List<String> navigationXPaths) {
+	public ExtractLinksMsg(String url, List<String> navigationXPaths) {
 		this.url = url;
-		this.htmlPath = htmlPath;
-		this.baseUrl = baseUrl;
-		this.mirror = mirror;
 		this.navigationXPaths = navigationXPaths;
+		this.formXPaths = new ArrayList<>();
+	}
+	
+	public ExtractLinksMsg(String url, List<String> navigationXPaths, List<String> formXPaths) {
+		this.url = url;
+		this.navigationXPaths = navigationXPaths;
+		this.formXPaths = formXPaths;
 	}
 	
 	public List<String> getNavXPaths() {
 		return this.navigationXPaths;
 	}
 	
-	public String getMirror() {
-		return this.mirror;
-	}
-
-	public String getHtmlPath() {
-		return htmlPath;
-	}
-
-	public String getBaseUrl() {
-		return baseUrl;
+	public List<String> getFormXPaths() {
+		return formXPaths;
 	}
 
 	public String getUrl() {

@@ -1,8 +1,9 @@
 /target/
-result*.csv
 .project
 .classpath
 /.settings/
 /html/
-/backup/
-/sites_navigation/
+repository.csv
+/testsite/*/.vagrant/
+src/main/resources/evaluations
+src/main/resources/master.conf.backup

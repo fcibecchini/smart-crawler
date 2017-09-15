@@ -1,0 +1,37 @@
+Vagrant.configure(2) do |config|
+
+    config.vm.box = "ubuntu/trusty64"
+
+    config.vm.define "mutablemenu" do |node|
+        node.vm.hostname = "mutablemenu"    
+        
+        node.vm.synced_folder "./site", "/home/vagrant/site", :mount_options => ["dmode=777", "fmode=777"]
+
+        node.vm.provider "virtualbox" do |v| 
+            v.memory = 1024
+            v.cpus = 2 
+        end 
+
+        node.vm.network "forwarded_port", guest: 22, host: 2231, id: 'ssh', auto_correct: true
+	node.vm.network "forwarded_port", guest: 80, host: 8083
+        node.ssh.forward_agent = true
+        
+        node.vm.provision :shell, inline: "sudo apt-get update"        
+
+        # Update Augeas
+        node.vm.provision :shell, :path => "../scripts/bootstrap_augeas.sh"
+        
+        # Puppet provisioning
+        node.vm.provision "puppet" do |puppet|
+            puppet.manifests_path = "../puppet/manifests"
+            puppet.manifest_file = "site.pp"
+            puppet.module_path = "../puppet/modules"
+        end
+
+        node.vm.provision :shell, inline: "sudo /etc/init.d/apache2 restart", run: "always"
+
+        node.vm.provision :shell, inline: "echo  'test site available at http://localhost:8083'"
+
+    end
+
+end

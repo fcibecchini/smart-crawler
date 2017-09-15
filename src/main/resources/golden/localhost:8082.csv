@@ -1,0 +1,10 @@
+home	http://localhost:8082/?$
+dir	http://localhost:8082/directory/.*
+detail	http://localhost:8082/prop/.*
+
+home	singleton	dir
+dir	list	dir
+dir	list	detail
+dir	singleton	home
+detail	singleton	home
+detail	singleton	dir

@@ -1,0 +1,17 @@
+home	http://localhost:8081/?$
+dir1	http://localhost:8081/directory1.*
+dir2	http://localhost:8081/directory2.*
+table	http://localhost:8081/table.*
+about	http://localhost:8081/about.*
+detail	http://localhost:8081/detail.*
+
+home	menu	dir1
+home	menu	dir2
+home	menu	table
+home	menu	about
+table	singleton	home
+dir1	list	detail
+dir1	singleton	dir1
+dir2	list	detail
+detail	menu	dir1
+detail	menu	dir2

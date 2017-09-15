@@ -3,41 +3,40 @@ package it.uniroma3.crawler.actors;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Address;
+import akka.actor.AddressFromURIString;
 import akka.actor.Deploy;
 import akka.actor.Props;
-import akka.japi.Creator;
 import akka.remote.RemoteScope;
 import it.uniroma3.crawler.messages.*;
+import it.uniroma3.crawler.settings.AddressSettings;
+import it.uniroma3.crawler.util.FileUtils;
+
+import static it.uniroma3.crawler.util.Commands.SAVE;
+
 import scala.Option;
 
 public class CrawlRepository extends AbstractActor {
-	private boolean useJs;
 	private final ActorRef csvCache;
+	private final String[] nodes;
 	
-	public static Props props(String csv, boolean js) {
-		return Props.create(CrawlRepository.class, () -> new CrawlRepository(csv, js));
-	}
-	
-	public CrawlRepository(String csvFile, boolean useJs) {
-		this.useJs = useJs;
-		this.csvCache = context().actorOf(CrawlUrlClass.props(csvFile), "csvcache");
+	public CrawlRepository() {
+		this.csvCache = context().actorOf(Props.create(CrawlUrlClass.class), "csvcache");
 		context().watch(csvCache);
+		this.nodes = AddressSettings.SettingsProvider.get(context().system()).nodes;
 	}
 	
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
 		.match(FetchMsg.class, msg -> 
-			findOrCreate(msg.getUrl()).forward(msg, context()))
+			findOrCreate(msg.getUrl(), msg.getId()).forward(msg, context()))
 		.match(SaveMsg.class, msg -> 
-			find(msg.getUrl()).forward(msg, context()))
+			find(msg.getUrl()).tell(SAVE, sender()))
 		.match(ExtractLinksMsg.class, msg -> 
-			findOrCreate(msg.getUrl()).forward(msg, context()))
+			find(msg.getUrl()).forward(msg, context()))
 		.match(ExtractDataMsg.class, msg -> 
-			findOrCreate(msg.getUrl()).forward(msg, context()))
+			find(msg.getUrl()).forward(msg, context()))
 		.match(SaveCacheMsg.class, 
-			msg -> csvCache.forward(msg, context()))
-		.match(ResolveLinksMsg.class,
 			msg -> csvCache.forward(msg, context()))
 		.match(StopMsg.class, this::stopChildPage)
 		.build();
@@ -49,30 +48,26 @@ public class CrawlRepository extends AbstractActor {
 		context().stop(child);
 	}
 	
-	private ActorRef findOrCreate(String url) {
+	private ActorRef findOrCreate(String url, int id) {
 		ActorRef child = find(url);
-		if (child==null) child = create(url);
+		if (child==null) child = create(url, id);
 		return child;
 	}
 	
 	private ActorRef find(String url) {
-		String name = formatUrl(url);
+		String name = FileUtils.normalizeURL(url);
 		Option<ActorRef> option = context().child(name);
-		return (option.isEmpty()) ? null : option.get();
+		ActorRef ref = (option.isEmpty()) ? null : option.get();
+		return ref;
 	}
 	
-	private ActorRef create(String url) {
-		/* TODO: Map each Id to a different host */
-		//Address addr = new Address("akka.tcp", "CrawlSystem", "host", 2552);
-		String name = formatUrl(url);
-		ActorRef child = context().actorOf(
-				CrawlPage.props(useJs), name);
-				//.withDeploy(new Deploy(new RemoteScope(addr))), name);
+	private ActorRef create(String url, int id) {	
+		String name = FileUtils.normalizeURL(url);
+		Address addr = AddressFromURIString.parse(nodes[id]);
+		Props props = Props.create(CrawlPage.class).withDeploy(new Deploy(new RemoteScope(addr)));
+		ActorRef child = context().actorOf(props, name);		
 		context().watch(child);
 		return child;
 	}
 	
-	private String formatUrl(String id) {
-		return id.replaceAll("/", "_").replaceAll("\\?", "-");
-	}
 }

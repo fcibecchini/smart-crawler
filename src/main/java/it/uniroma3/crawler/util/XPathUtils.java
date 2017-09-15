@@ -1,14 +1,29 @@
 package it.uniroma3.crawler.util;
 
+import static it.uniroma3.crawler.util.HtmlUtils.isValidURL;
+import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.StringEscapeUtils;
-import org.w3c.dom.NamedNodeMap;
 
-import com.gargoylesoftware.htmlunit.html.*;
+import com.gargoylesoftware.htmlunit.html.DomNode;
+import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
+import com.gargoylesoftware.htmlunit.html.HtmlButton;
+import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlInput;
+import com.gargoylesoftware.htmlunit.html.HtmlOption;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.html.HtmlRadioButtonInput;
+import com.gargoylesoftware.htmlunit.html.HtmlSelect;
+import com.gargoylesoftware.htmlunit.html.HtmlTextArea;
+import com.gargoylesoftware.htmlunit.util.NameValuePair;
 
 public class XPathUtils {
 	
@@ -68,6 +83,113 @@ public class XPathUtils {
 		return anchors;
 	}
 	
+	public static String submitForm(HtmlPage page, String formXPath) throws IOException {
+		String[] xpaths = formXPath.split(",");
+		HtmlForm form = (HtmlForm) page.getByXPath(xpaths[0]).get(0);		
+		for (int i=1;i<xpaths.length;i++) {
+			String[] input = xpaths[i].split(":");
+			if (input.length>1) {
+				HtmlInput textInput = (HtmlInput) form.getByXPath(input[0]).get(0);
+				textInput.setValueAttribute(input[1].replaceAll("\"", ""));
+			}
+			else {
+				HtmlButton button = (HtmlButton) form.getByXPath(input[0]).get(0);
+				return button.click().getUrl().toExternalForm();
+			}
+		}
+		return "";
+	}
+	
+	/**
+	 * Fills a form from the HTML page, returning a list of (Name-Value) pairs to be used
+	 * in a HTTP POST request.
+	 * @param page the HtmlPage
+	 * @param formXPath a composed XPath containing the form location and how to fill it
+	 * @return a list of Name Value pairs
+	 * @throws IOException
+	 */
+	public static List<NameValuePair> getFormParameters(HtmlPage page, String formXPath) throws IOException {
+		String[] xpaths = formXPath.split(",");
+		HtmlForm form = (HtmlForm) page.getByXPath(xpaths[0]).get(0);
+		
+		/* Internal API... */
+		List<NameValuePair> list = new ArrayList<>(form.getParameterListForSubmit(null));
+		
+		for (int i=1;i<xpaths.length;i++) {
+			String[] input = xpaths[i].split(":");
+			HtmlInput textInput = (HtmlInput) form.getByXPath(input[0]).get(0);
+			list.add(new NameValuePair(textInput.getNameAttribute(), input[1]));
+		}
+		return list;
+	}
+	
+	/**
+	 * Evaluates the specified XPath-to-link in the HtmlPage specified, 
+	 * returning the matching absolute URLs, resolved with the given absolute URL.<br>
+	 * URLs not in the same domain as the URL given are also omitted.
+	 * @param page the html page containing the DOM
+	 * @param xpath the xpath-to-link
+	 * @param url the URL to resolve the matching anchors
+	 * @return the List of absolute URLs matched by this XPath
+	 */
+	public static List<String> getAbsoluteInternalURLs(HtmlPage page, String xpath, String url) {
+		List<String> hrefs = getRelativeURLs(page, xpath);
+		hrefs.removeIf(l -> !isValidURL(url, l));
+		return getAbsoluteURLs(url, hrefs);
+	}
+	
+	/**
+	 * Evaluates the specified XPath-to-link in the HtmlPage specified, 
+	 * returning the matching absolute URLs, resolved with the given absolute URL.
+	 * @param page the html page containing the DOM
+	 * @param xpath the xpath-to-link
+	 * @param url the URL to resolve the matching anchors
+	 * @return the List of absolute URLs matched by this XPath
+	 */
+	public static List<String> getAbsoluteURLs(HtmlPage page, String xpath, String url) {
+		return getAbsoluteURLs(url, getRelativeURLs(page, xpath));
+	}
+	
+	/**
+	 * Evaluates the specified XPath-to-link in the HtmlPage specified, 
+	 * returning the matching anchors.
+	 * @param page the html page containing the DOM
+	 * @param xpath the xpath-to-link
+	 * @return the List of anchors matched by this XPath
+	 */
+	public static List<String> getRelativeURLs(HtmlPage page, String xpath) {
+		return getAnchors(page, xpath).stream().map(a -> a.getHrefAttribute()).collect(toList());
+	}
+	
+	/**
+	 * Resolve a List of relative URLs into absolute URLs
+	 * @param url the URL to resolve the matching anchors
+	 * @param hrefs the anchors hrefs
+	 * @return the resolved URLs
+	 */
+	public static List<String> getAbsoluteURLs(String url, List<String> hrefs) {
+		return hrefs.stream().map(href -> getAbsoluteURL(url, href)).collect(toList());
+	}
+	
+	/**
+	 * Resolve a relative URL into an absolute URL
+	 * @param base the URL to resolve the relative one
+	 * @param relative
+	 * @return the resolved URL
+	 */
+	public static String getAbsoluteURL(String base, String relative) {
+		try {
+			String url = new URL(new URL(base), relative).toString();
+			return (url.endsWith("/")) ? url.substring(0, url.length()-1) : url;
+		} catch (MalformedURLException e) {
+			return "";
+		}
+	}
+	
+	public static String getAnchorText(HtmlPage page, String xpath) {
+		return formatCsv(getAnchors(page, xpath).get(0).getTextContent());
+	}
+	
 	/*
 	public static HtmlPage setInputValue(HtmlPage page, String xpath, String value) {
 		HtmlInput input = (HtmlInput) getUniqueByXPath(page,xpath);
@@ -118,49 +240,11 @@ public class XPathUtils {
 		}
 		String value = result.toString().trim();
 		if (value.isEmpty()) return defaultValue;
-		return StringEscapeUtils.escapeCsv(value.replaceAll("(\\s)+", " ")).trim();
+		return formatCsv(value);
 	}
 	
-	public static String getXPathTo(HtmlAnchor link) {
-		String xpath = "a";
-		String anchorQuery = "";
-		NamedNodeMap linkAttributes = link.getAttributes();
-		if (linkAttributes.getLength()>1) { // escape anchors with href only
-			for (int i=0; i<=linkAttributes.getLength()-1; i++) {
-				org.w3c.dom.Node lattr = linkAttributes.item(i);
-				String lAttrName = lattr.getNodeName();
-				if (!lAttrName.equals("href") && !lAttrName.contains(":")) {
-					if (lAttrName.equals("id")) {
-						String lattrValue = lattr.getNodeValue();
-						return "//"+xpath+"[@"+lAttrName+"='"+lattrValue+"'"+"]";
-					}
-					else anchorQuery += "@"+lAttrName+" and ";
-				}
-			}
-		}
-		if (!anchorQuery.isEmpty())
-			xpath += "["+anchorQuery.substring(0, anchorQuery.length()-5)+"]";
-		
-		DomNode current=link.getParentNode();
-		boolean stop = false;
-		while (current.getNodeName()!="#document" && !stop) {
-			String currentQuery = current.getNodeName();
-			NamedNodeMap attributes = current.getAttributes();
-			if (attributes.getLength()>0 && !currentQuery.equals("html")) {
-				org.w3c.dom.Node attr = attributes.item(0);
-				String attrName = attr.getNodeName();
-				if (attrName.equals("id")) {
-					stop = true;
-					String attrValue = attr.getNodeValue();
-					currentQuery += "[@"+attrName+"='"+attrValue+"'"+"]";
-				}
-				else currentQuery += "[@"+attrName+"]";
-			}
-			xpath = currentQuery+"/"+xpath;
-			current = current.getParentNode();
-		}
-		xpath = (stop) ? "//"+xpath : "/"+xpath;
-		return xpath;
-	}	
+	private static String formatCsv(String s) {
+		return (s!=null) ? StringEscapeUtils.escapeCsv(s.replaceAll("(\\s)+", " ")).trim() : "";
+	}
 	
 }
