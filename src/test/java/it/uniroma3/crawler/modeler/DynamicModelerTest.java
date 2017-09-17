@@ -13,7 +13,6 @@ import akka.actor.Props;
 import akka.testkit.javadsl.TestKit;
 import it.uniroma3.crawler.messages.ModelMsg;
 import it.uniroma3.crawler.model.PageClass;
-import it.uniroma3.crawler.persistence.PageClassService;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 public class DynamicModelerTest {
@@ -60,7 +59,7 @@ public class DynamicModelerTest {
 
 	}
 	
-	//@Test
+	/*@Test
 	public void testXPath_finer() {
 		String site = "http://localhost:8082";	
 
@@ -71,6 +70,6 @@ public class DynamicModelerTest {
 		
 		PageClass home = parent.expectMsgClass(parent.duration("60 seconds"), PageClass.class);
 
-	}
+	}*/
 
 }
