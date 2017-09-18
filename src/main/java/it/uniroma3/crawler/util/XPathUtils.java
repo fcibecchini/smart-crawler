@@ -67,20 +67,20 @@ public class XPathUtils {
 	}
 	
 	public static List<?> getByMatchingXPath(HtmlPage page, String xpath) {
-		final List<?> nodes = page.getByXPath(xpath);
-		if (nodes==null) return nodes;
-		/*
-		assertNotNull(nodes);		
-		assertFalse(nodes.isEmpty());
-		/*for(Object node : nodes) {
-			assertNotNull(node);
-		}*/
-		return nodes;
+		try {
+			return page.getByXPath(xpath);
+		} catch (Exception e) {
+			return new ArrayList<>();
+		}
 	}
 	
 	public static List<HtmlAnchor> getAnchors(HtmlPage page, String xpath) {
-		final List<HtmlAnchor> anchors = page.getByXPath(xpath);
-		return anchors;
+		try {
+			final List<HtmlAnchor> anchors = page.getByXPath(xpath);
+			return anchors;
+		} catch (Exception e) {
+			return new ArrayList<>();
+		}
 	}
 	
 	public static String submitForm(HtmlPage page, String formXPath) throws IOException {
@@ -190,6 +190,19 @@ public class XPathUtils {
 		return formatCsv(getAnchors(page, xpath).get(0).getTextContent());
 	}
 	
+	/**
+	 * Returns a List of DomNodes containing non empty text.
+	 * @param page the html page
+	 * @param lengthLimit limit of the text length in the nodes
+	 * @return the matching nodes
+	 */
+	public static List<DomNode> getTextNodes(HtmlPage page, int lengthLimit) {
+		final String findTexts = "//*[not(self::a)][text()]"
+				+ "[string-length(.)>0 and string-length(.)<"+lengthLimit+"]";
+		List<DomNode> texts = page.getByXPath(findTexts);
+		return texts;
+	}
+	
 	/*
 	public static HtmlPage setInputValue(HtmlPage page, String xpath, String value) {
 		HtmlInput input = (HtmlInput) getUniqueByXPath(page,xpath);
@@ -236,7 +249,7 @@ public class XPathUtils {
 		StringBuilder result = new StringBuilder();
 		for(Object node : nodes) {
 			result.append(node.toString());
-			result.append(" ");
+			result.append(", ");
 		}
 		String value = result.toString().trim();
 		if (value.isEmpty()) return defaultValue;

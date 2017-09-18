@@ -18,7 +18,7 @@ public class XPathTag implements Comparable<XPathTag> {
 	/**
 	 * Constructs a new XPathTag with the given name and index.<br>
 	 * @param name the name of this tag
-	 * @param index index of this tag in traversal order from the anchor to the
+	 * @param index index of this tag in traversal order from the last node to the
 	 * root
 	 */
 	public XPathTag(String name, int index) {
@@ -39,7 +39,7 @@ public class XPathTag implements Comparable<XPathTag> {
 	
 	/**
 	 * 
-	 * @return the position of this tag in the path from anchor to root
+	 * @return the position of this tag in the path from a node to the root
 	 */
 	public int getIndex() {
 		return index;
@@ -55,14 +55,6 @@ public class XPathTag implements Comparable<XPathTag> {
 	
 	public List<XPathAttribute> getAttributes() {
 		return attributes;
-	}
-	
-	/**
-	 * 
-	 * @return true if this tag represent the anchor.
-	 */
-	public boolean isAnchor() {
-		return index==0;
 	}
 	
 	/**

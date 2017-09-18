@@ -6,4 +6,6 @@
 repository.csv
 /testsite/*/.vagrant/
 src/main/resources/evaluations
+src/main/resources/golden
+src/main/resources/targets
 src/main/resources/master.conf.backup

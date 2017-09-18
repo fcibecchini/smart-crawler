@@ -10,11 +10,11 @@ import org.w3c.dom.Node;
 import com.gargoylesoftware.htmlunit.html.DomNode;
 
 /**
- * The XPath class represent a Root-to-link path that matches anchors 
+ * The XPath class represents a Root-to-link or Root-to-text path that matches nodes 
  * in a webpage. Every XPath stores a list of {@link XPathTag} 
  * with {@link XPathAttribute}s and a version of that path currently in use.<br>
  * Different versions of the same path can be defined in terms of attributes and
- * tags used in the generated XPath-to-link: i.e., an XPath can be 
+ * tags used in the generated XPath: i.e., an XPath can be 
  * refined at runtime by simply adding/removing attributes and tags in the path.  
  *
  */
@@ -24,10 +24,10 @@ public class XPath {
 	private SortedSet<XPathTag> tags;
 	
 	/**
-	 * Creates a new XPath matching the given anchor.<br>
+	 * Creates a new XPath matching the given node.<br>
 	 * The default, initial version of the XPath starts from a unique element
 	 * in the current DOM, such as a node with an "id" attribute or the 
-	 * HTML root node.<br> For the anchor node, the default includes 
+	 * HTML root node.<br> For the last node, the default includes 
 	 * all its attributes names, or just the id attribute and value if present.
 	 * For parent nodes, it includes the first attribute name, or 
 	 * just the id attribute and value if present. <br>
@@ -54,10 +54,10 @@ public class XPath {
 	 * </pre>
 	 * will produce the initial version: 
 	 * {@code //div[@id='content']/ul[@class]/li/a[@class]}
-	 * @param anchor the anchor node to create a Root-to-link path
+	 * @param node the node to create a Root-to-node path
 	 */
-	public XPath(DomNode anchor) {
-		build(anchor);
+	public XPath(DomNode node) {
+		build(node);
 		path = "";
 		defaultPath = get();
 	}
@@ -103,7 +103,7 @@ public class XPath {
 	/**
 	 * Refines this XPath by adding a tag or attribute starting
 	 * from the last tag, so that the
-	 * resulting new version is expected to match a smaller collection of links.
+	 * resulting new version is expected to match a smaller collection of nodes.
 	 * A single invocation of this method will result in only one refinement of a
 	 * tag or attribute. If a refinement cannot be applied (i.e. this is 
 	 * the finest XPath) an empty string is returned. 
@@ -132,7 +132,7 @@ public class XPath {
 	/**
 	 * Produce a more general version of this XPath by removing a tag or attribute
 	 * starting from the first tag, so that the resulting new version 
-	 * is expected to match a larger collection of links. 
+	 * is expected to match a larger collection of nodes. 
 	 * A single invocation of this method will result 
 	 * in only one generalization of a tag or attribute. 
 	 * If a generalization cannot be applied (i.e. this is the most general XPath) 

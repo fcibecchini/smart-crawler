@@ -479,6 +479,13 @@ public class PageClass implements Comparable<PageClass> {
 		return (double) unionDiff.size() / (double) union.size();
 	}
 	
+	public boolean isSubSet(PageClass other) {
+		Set<ClassLink> links = getAllLinks();
+		Set<ClassLink> otherLinks = other.getAllLinks();
+		return !links.isEmpty() && ! otherLinks.isEmpty() && 
+				(links.containsAll(otherLinks) || otherLinks.containsAll(links));
+	}
+	
 	public int compareTo(PageClass pc2) {
 		int cmpdepth = depth - pc2.getDepth();
 		if (cmpdepth!=0) return cmpdepth;

@@ -1,18 +1,20 @@
 package it.uniroma3.crawler.modeler.model;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
+import static it.uniroma3.crawler.util.XPathUtils.getTextNodes;
+import static it.uniroma3.crawler.util.XPathUtils.getByMatchingXPath;
 
 import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 
 /**
@@ -25,7 +27,8 @@ public class Page {
 	private String href;
 	private String tempFile;
 	private Set<LinkCollection> linkCollections;
-	private int urlsSize;
+	private Map<XPath, Integer> textXPaths;
+	private Set<String> urls;
 	private List<PageLink> links;
 	private boolean loaded, classified;
 	
@@ -38,6 +41,7 @@ public class Page {
 	public Page(String url, HtmlPage html) {
 		this.url = url;
 		this.linkCollections = pageSchema(html);
+		this.textXPaths = textSchema(html);
 		this.links = new ArrayList<>();
 	}
 	
@@ -138,25 +142,34 @@ public class Page {
 	public boolean isClassified() {
 		return classified;
 	}
-
+	
 	/*
 	 * INTERNAL API 
 	 * Groups outgoing URLs by XPaths-to-link to build the page schema.
 	 */
 	private Set<LinkCollection> pageSchema(HtmlPage html) {
+		this.urls = new HashSet<>();
 		Set<LinkCollection> collections = new HashSet<>();
 		Set<XPath> xpaths = html.getAnchors().stream().map(XPath::new).collect(toSet());
 		for (XPath xp : xpaths) {
-			try {
-				List<String> urls = getRelativeURLs(html,xp.getDefault());
+			List<String> urls = getRelativeURLs(html,xp.getDefault());
+			if (!urls.isEmpty()) {
+				this.urls.addAll(urls);
 				LinkCollection lc = new LinkCollection(this,xp,urls);
 				collections.add(lc);
-			} catch (Exception e) {
-				// do not add this XPath if it cannot be parsed by HtmlPage
-				Logger.getAnonymousLogger().log(Level.WARNING, e.getMessage());
 			}
 		}
 		return collections;
+	}
+	
+	private Map<XPath, Integer> textSchema(HtmlPage html) {
+		Map<XPath, Integer> textXPaths = new HashMap<>();
+		Set<XPath> xpaths = getTextNodes(html,16).stream().map(XPath::new).collect(toSet());
+		for (XPath xp : xpaths) {
+			int texts = getByMatchingXPath(html, xp.getDefault()).size();
+			textXPaths.put(xp, texts);
+		}
+		return textXPaths;
 	}
 	
 	/**
@@ -164,12 +177,14 @@ public class Page {
 	 * A page schema is an abstraction of a page consisting of a set 
 	 * of DOM {@link XPath}s.<br> A page schema is computed simply from the 
 	 * page's DOM tree by considering  only the set of paths starting 
-	 * from the root (or from a tag with an ID value) and ending in link tags.<br>
+	 * from the root (or from a tag with an ID value) and ending in link and text tags.<br>
 	 * Schema could change over time due to XPaths granularity updates.
 	 * @return the page schema
 	 */
 	public Set<XPath> getSchema() {
-		return linkCollections.stream().map(LinkCollection::getXPath).collect(toSet());
+		Set<XPath> xpaths = linkCollections.stream().map(LinkCollection::getXPath).collect(toSet());
+		xpaths.addAll(textXPaths.keySet());
+		return xpaths;
 	}
 	
 	/**
@@ -179,12 +194,10 @@ public class Page {
 	 * @return the default page schema
 	 */
 	public Set<String> getDefaultSchema() {
-		return linkCollections.stream().map(LinkCollection::getXPath)
+		Set<String> xpaths = linkCollections.stream().map(LinkCollection::getXPath)
 				.map(XPath::getDefault).collect(toSet());
-	}
-	
-	public void printSchema() {
-		linkCollections.forEach(System.out::println);
+		textXPaths.keySet().forEach(xp -> xpaths.add(xp.getDefault()));
+		return xpaths;
 	}
 	
 	public Set<LinkCollection> getLinkCollections() {
@@ -196,26 +209,15 @@ public class Page {
 	 * @return the outgoing URLs set
 	 */
 	public Set<String> getDiscoveredUrls() {
-		return linkCollections.stream()
-				.map(LinkCollection::getLinks)
-				.flatMap(List::stream)
-				.distinct()
-				.collect(toSet());
+		return urls;
 	}
 	
 	/**
 	 * Returns the total number of outgoing URLs of this Page.
 	 * @return the number of outgoing URLs
 	 */
-	public long urlsSize() {
-		if (urlsSize==0)
-			urlsSize = linkCollections.stream()
-				.map(LinkCollection::getLinks)
-				.flatMap(List::stream)
-				.distinct()
-				.mapToInt(u -> 1)
-				.sum();
-		return urlsSize;
+	public int urlsSize() {
+		return urls.size();
 	}
 	
 	/**
@@ -224,14 +226,16 @@ public class Page {
 	 * @return number of elements matched
 	 */
 	public int getXPathFrequency(XPath path) {
-		return linkCollections.stream()
+		Integer freq = textXPaths.get(path);
+		return (freq!=null) ? freq : linkCollections.stream()
 				.filter(lc -> lc.getXPath().equals(path))
 				.map(LinkCollection::size)
 				.findFirst().orElse(0);
 	}
 	
 	public boolean containsXPath(XPath path) {
-		return linkCollections.stream().anyMatch(lc -> lc.getXPath().equals(path));
+		return textXPaths.containsKey(path) || 
+				linkCollections.stream().anyMatch(lc -> lc.getXPath().equals(path));
 	}
 	
 	public String toString() {
