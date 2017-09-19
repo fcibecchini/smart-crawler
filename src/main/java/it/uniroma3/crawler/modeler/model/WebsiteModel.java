@@ -119,7 +119,7 @@ public class WebsiteModel {
 				PageClass p1 = c1.getPageClass();
 				PageClass p2 = c2.getPageClass();
 				if (!toRemove.contains(c1) && !toRemove.contains(c2)) {
-					if (p1.distance(p2)<0.2 || p1.isSubSet(p2)) {
+					if (c1.distance(c2)<0.2 || p1.distance(p2)<0.2 || p1.isSubSet(p2)) {
 						c1.collapse(c2);
 						toRemove.add(c2);
 					}
