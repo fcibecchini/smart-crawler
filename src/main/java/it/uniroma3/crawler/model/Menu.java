@@ -90,17 +90,6 @@ public class Menu implements Comparable<Menu> {
 		this.items = items;
 	}
 	
-	public void changeDestination(PageClass oldClass, PageClass newClass) {
-		items.stream().filter(i -> i.getDestination().equals(oldClass)).findFirst()
-		.ifPresent(old -> {
-			MenuItem newItem = items.stream().filter(i -> i.getDestination().equals(newClass))
-				.findFirst().orElse(new MenuItem(this, newClass));
-			items.remove(old);
-			newItem.collapse(old);
-			items.add(newItem);
-		});
-	}
-	
 	public int size() {
 		return items.stream().mapToInt(MenuItem::size).sum();
 	}

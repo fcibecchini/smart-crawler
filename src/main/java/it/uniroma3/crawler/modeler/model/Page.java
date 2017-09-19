@@ -233,6 +233,17 @@ public class Page {
 				.findFirst().orElse(0);
 	}
 	
+	/**
+	 * Returns the numbers of XPaths in the specified Set that are not included in this
+	 * page schema.
+	 * @param xpaths
+	 * @return the missing xpaths count
+	 */
+	public int missingXPaths(Set<XPath> xpaths) {
+		Set<XPath> schema = getSchema();
+		return (int) xpaths.stream().filter(xp -> !schema.contains(xp)).count();
+	}
+	
 	public boolean containsXPath(XPath path) {
 		return textXPaths.containsKey(path) || 
 				linkCollections.stream().anyMatch(lc -> lc.getXPath().equals(path));

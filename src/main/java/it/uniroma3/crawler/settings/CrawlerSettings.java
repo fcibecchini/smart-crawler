@@ -20,14 +20,14 @@ public class CrawlerSettings implements Extension {
 		public final String file;
 		public final String goldenModel;
 		public final int modelPages;
-		public final boolean javascript,crawl;
+		public final boolean javascript,crawl,savepages;
 		public final int wait;
 		public final int randompause;
 		public final int maxfailures;
 				
 		public SeedConfig(String site, String file, String goldenModel, int pages, 
 				boolean js, int wait, int pause, int maxfailures, 
-				boolean crawl) {
+				boolean crawl, boolean savepages) {
 			this.site = site;
 			this.file = file;
 			this.goldenModel = goldenModel;
@@ -37,6 +37,20 @@ public class CrawlerSettings implements Extension {
 			this.randompause = pause;
 			this.maxfailures = maxfailures;
 			this.crawl = crawl;
+			this.savepages = savepages;
+		}
+		
+		public SeedConfig(String site, String file) {
+			this.site = site;
+			this.file = file;
+			this.goldenModel = null;
+			this.modelPages = 0;
+			this.javascript = false;
+			this.wait = 2000;
+			this.randompause = 1000;
+			this.maxfailures = 1;
+			this.crawl = false;
+			this.savepages = false;
 		}
 	}
 
@@ -58,6 +72,7 @@ public class CrawlerSettings implements Extension {
 		String randomp = "crawler.modeler."+key+".randompause";
 		String failuresp = "crawler.modeler."+key+".maxfailures";
 		String crawlp = "crawler.modeler."+key+".crawl";
+		String savepagesp = "crawler.modeler."+key+".savepages";
 		
 		String file = (conf.hasPath(filep)) ? conf.getString(filep) : null;
 		String goldenModel = (conf.hasPath(goldenModelp)) ? conf.getString(goldenModelp) : null;
@@ -67,8 +82,9 @@ public class CrawlerSettings implements Extension {
 		int random = (conf.hasPath(randomp)) ? conf.getInt(randomp) : 1000;
 		int failures = (conf.hasPath(failuresp)) ? conf.getInt(failuresp) : 1;
 		boolean crawl = (conf.hasPath(crawlp)) ? conf.getBoolean(crawlp) : false;
+		boolean savepages = (conf.hasPath(savepagesp)) ? conf.getBoolean(savepagesp) : false;
 		
-		return new SeedConfig(site,file,goldenModel,pages,js,wait,random,failures,crawl);
+		return new SeedConfig(site,file,goldenModel,pages,js,wait,random,failures,crawl,savepages);
 	}
 
 }

@@ -92,11 +92,6 @@ public class MenuItem {
 		this.page2hrefs.computeIfAbsent(sourceUrl, k -> new ArrayList<>()).add(href);
 	}
 	
-	public void collapse(MenuItem other) {
-		other.page2hrefs.entrySet()
-		.forEach(e -> e.getValue().forEach(h -> this.addHref(e.getKey(), h)));
-	}
-	
 	public int size() {
 		return (int) page2hrefs.values().stream().flatMap(List::stream).distinct().count();
 	}

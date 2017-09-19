@@ -4,6 +4,7 @@ import static it.uniroma3.crawler.util.HtmlUtils.*;
 
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
 import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURL;
 import static it.uniroma3.crawler.util.XPathUtils.getAnchorText;
@@ -12,7 +13,6 @@ import static it.uniroma3.crawler.util.Commands.STOP;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -172,6 +172,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 					HtmlPage html = getPage(url, client);
 					page = new Page(url, html);
 					page.setHref(href);
+					savePage(html, page);
 					visitedURLs.put(url, page);
 					newPages.add(page);
 					log().info("Fetched: "+url);
@@ -340,12 +341,16 @@ public class DynamicModeler extends AbstractLoggingActor {
 		String url = p.getUrl();
 		if (p.getTempFile()==null) {
 			html = getPage(url, client);
-			String directory = FileUtils.getTempDirectory(conf.site);
-			String path = HtmlUtils.savePage(html,directory,false);
-			p.setTempFile(path);
+			savePage(html, p);
 		} else
 			html = HtmlUtils.restorePageFromFile(p.getTempFile(), url);			
 		return html;
+	}
+	
+	private void savePage(HtmlPage html, Page p) {
+		String directory = FileUtils.getTempDirectory(conf.site);
+		String path = HtmlUtils.savePage(html,directory,false);
+		p.setTempFile(path);
 	}
 	
 	/*
@@ -377,63 +382,39 @@ public class DynamicModeler extends AbstractLoggingActor {
 		}
 	}
 	
-	/*
-	 * Map XPath -> IDF value
-	 */
+	/* Map XPath -> IDF value */
 	private Map<XPath,Double> getXPathIDFs() {
-		Map<XPath,Double> xp2idf = new HashMap<>();
-		Collection<Page> pages = visitedURLs.values();
-		int totalPages = visitedURLs.size();
-		for (Page page : pages) {
-			for (XPath xp : page.getSchema()) {
-				int df = pages.stream()
-					.filter(p -> p.containsXPath(xp))
-					.mapToInt(p -> 1)
-					.sum();
-				double idf = Math.log((double) totalPages / (double) df);
-				xp2idf.put(xp, idf);
-			}
-		}
-		return xp2idf;
+		return visitedURLs.values().stream().flatMap(p -> p.getSchema().stream()).distinct()
+				.collect(toMap(xp -> xp, this::idf));
 	}
 	
-	/*
-	 * Calculates the Minimum Description Length cost of this model
-	 */
+	/* Inverse XPath frequency */
+	private double idf(XPath xp) {
+		double df=(double)visitedURLs.values().stream().filter(p -> p.containsXPath(xp)).count();
+		return Math.log(visitedURLs.size() / df);
+	}
+	
+	/* Calculates the Minimum Description Length cost of this model */
 	private double cost(WebsiteModel model) {
-		double modelCost = 0;
-		double dataCost = 0;
+		double cost = 0;
 		for (ModelPageClass c : model.getClasses()) {
 			Set<XPath> classSchema = c.getSchema();
-			modelCost += classSchema.size();
-			
+			cost += classSchema.size();
 			for (Page p : c.getPages()) {
-				dataCost += pageCost(p,c,classSchema);
+				cost += pageCost(p,classSchema);
 			}
 		}
-		return modelCost+dataCost;
-	}
-	
-	private double pageCost(Page p, ModelPageClass c, Set<XPath> classSchema) {
-		double xpathWeigths = 0;
-		for (XPath xp : classSchema) {
-			xpathWeigths += scoreCost(xp, p);
-		}
-		Set<XPath> pageSchema = p.getSchema();
-		long cDifferenceP = classSchema.stream().filter(xp -> !pageSchema.contains(xp)).count();
-		double pageCost = xpathWeigths*0.8 + p.urlsSize() + cDifferenceP;
-		return pageCost;
-	}
-	
-	/*
-	 * TF-IDF of XPath in Page
-	 */
-	private double scoreCost(XPath xp, Page p) {
-		int frequencyInPage = p.getXPathFrequency(xp);
-		double idf = xpath2IDF.get(xp);
-		double score = 1 + (frequencyInPage * idf);
-		double cost = 1 / score;
 		return cost;
+	}
+	
+	private double pageCost(Page p, Set<XPath> classSchema) {
+		double xpathWeigths = classSchema.stream().mapToDouble(xp -> scoreCost(xp,p)).sum();
+		return xpathWeigths*0.8 + p.urlsSize() + p.missingXPaths(classSchema);
+	}
+	
+	/* TF-IDF of XPath in Page */
+	private double scoreCost(XPath xp, Page p) {
+		return 1 / (1 + (p.getXPathFrequency(xp) * xpath2IDF.get(xp)));
 	}
 	
 	public void finalizeModel() {
@@ -443,7 +424,10 @@ public class DynamicModeler extends AbstractLoggingActor {
 			PageClass root = model.toGraph(conf);
 			root.setHierarchy();
 			root.setMenusTypes();
-			FileUtils.clearTempDirectory(conf.site);
+			if (conf.savepages)
+				model.setPagesClassification();
+			else
+				FileUtils.clearTempDirectory(conf.site);
 			log().info("END");
 			context().parent().tell(root, self());
 		}

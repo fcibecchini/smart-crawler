@@ -26,8 +26,8 @@ public class StaticModelerTest {
 
 	@BeforeClass
 	public static void setup() {
-		SeedConfig conf = new SeedConfig("http://www.proz.com","target_test.csv",null,0,false,2000,1000,2,true);
-		SeedConfig conf2 = new SeedConfig("http://localhost:8081","localhost:8081_target_2.csv",null,0,false,0,0,1,true);
+		SeedConfig conf = new SeedConfig("http://www.proz.com","target_test.csv",null,0,false,2000,1000,2,true,false);
+		SeedConfig conf2 = new SeedConfig("http://localhost:8081","localhost:8081_target_2.csv",null,0,false,0,0,1,true,false);
 //		SeedConfig conf3 = new SeedConfig("http://agency.com","wwagency_com_target.csv",null,0,false,0,0,1,true);
 		
 		system = ActorSystem.create("ModelerTest");

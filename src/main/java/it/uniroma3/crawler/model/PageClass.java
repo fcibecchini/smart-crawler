@@ -37,6 +37,7 @@ public class PageClass implements Comparable<PageClass> {
 	@Transient private int maxFetchTries;
 	@Transient private boolean javascript;
 	@Transient private SortedSet<PageClass> descendants;
+	@Transient private String modelClassification;
 	
 	@Relationship(type="CLASS_LINK", direction=Relationship.OUTGOING)
 	private Set<ClassLink> links;
@@ -157,6 +158,14 @@ public class PageClass implements Comparable<PageClass> {
 	
 	public int getPause() {
 		return randomPause;
+	}
+	
+	public void setModelClassification(String mc) {
+		this.modelClassification = mc;
+	}
+	
+	public String getModelClassification() {
+		return modelClassification;
 	}
 	
 	public int linksSize() {
@@ -414,12 +423,6 @@ public class PageClass implements Comparable<PageClass> {
 	 */
 	public void removeMenuLink(String xp) {
 		menus.removeIf(m -> m.getXpath().equals(xp));
-	}
-	
-	public void changeDestinations(PageClass oldClass, PageClass newClass) {
-		links.stream().filter(l -> l.getDestination().equals(oldClass))
-		.forEach(l -> l.setDestination(newClass));
-		menus.forEach(m -> m.changeDestination(oldClass, newClass));
 	}
 	
 	public boolean addData(String xpath, String type, String fieldName) {

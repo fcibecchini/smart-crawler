@@ -98,6 +98,16 @@ public class WebsiteModel {
 		return modelClasses.first().getPageClass();
 	}
 	
+	public void setPagesClassification() {
+		for (ModelPageClass mpc : modelClasses) {
+			PageClass pc = mpc.getPageClass();
+			String desc = mpc.getPages().stream()
+					.map(p -> p.getUrl()+"\t"+p.getTempFile()+"\t"+pc.getName()+"\n")
+					.reduce(String::concat).orElse("");
+			pc.setModelClassification(desc);
+		}
+	}
+	
 	private void collapsePageClasses() {		
 		List<ModelPageClass> classList = new ArrayList<>(modelClasses);
 		List<ModelPageClass> toRemove = new ArrayList<>();

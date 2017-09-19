@@ -40,7 +40,7 @@ public class DynamicModelerTest {
 		String site = "http://localhost:8081";		
 		
 		TestKit parent = new TestKit(system);
-		SeedConfig conf = new SeedConfig(site,null,null,10,false,0,0,1,true);
+		SeedConfig conf = new SeedConfig(site,null,null,10,false,0,0,1,true,false);
 		ActorRef modeler = parent.childActorOf(Props.create(CrawlModeler.class));
 		modeler.tell(new ModelMsg(conf), parent.getRef());
 		

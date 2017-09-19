@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.csvreader.CsvReader;
@@ -18,6 +19,8 @@ import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 import static it.uniroma3.crawler.util.FileUtils.normalizeURL;
 import static it.uniroma3.crawler.util.Commands.STOP;
+
+import static java.util.stream.Collectors.toList;
 
 public class ModelerService extends AbstractLoggingActor {
 	private static final String CSV_PATH = "src/main/resources/targets/";
@@ -32,8 +35,11 @@ public class ModelerService extends AbstractLoggingActor {
 	
 	private void save(PageClass root) {
 		long timestamp = System.currentTimeMillis();
-		saveCSV(root, timestamp);
-		new PageClassService().saveModel(root, timestamp);
+		String modelFile = saveCSV(root, timestamp);
+		if (!modelFile.isEmpty()) {
+			PageClass rootCopy = loadCSV(new SeedConfig(root.getDomain(), modelFile));
+			new PageClassService().saveModel(rootCopy, timestamp);
+		}
 		context().parent().tell(STOP, self());
 	}
 	
@@ -43,23 +49,33 @@ public class ModelerService extends AbstractLoggingActor {
 		context().parent().tell(STOP, self());
 	}
 	
-	private void saveCSV(PageClass root, long timestamp) {
+	private String saveCSV(PageClass root, long timestamp) {
 		String normUrl = normalizeURL(root.getDomain());
 		try {
 			int version = saveWebsiteCSV(root.getDomain(), normUrl, timestamp);
-			saveModelCSV(root, normUrl, version);
+			String modelFile = saveToFile(
+					root.getDescendants().stream().map(p->p.toString()).collect(toList()), 
+					"_target_", normUrl, version);
+			if (!root.getModelClassification().isEmpty())
+				saveToFile(
+					root.getDescendants().stream()
+					.map(p->p.getModelClassification()).collect(toList()), 
+					"_classification_", normUrl, version);
+			return modelFile;
 		} catch (IOException e) {
 			log().error("IOException while saving CSV Model: "+e.getMessage());
+			return "";
 		}
 	}
 	
-	private void saveModelCSV(PageClass root, String normalizedUrl, int version) 
+	private String saveToFile(List<String> texts, String title, String normUrl, int version)
 			throws IOException {
-		String file = CSV_PATH+normalizedUrl+"_target_"+version+".csv";
-		FileWriter writer = new FileWriter(file,true);
-		for (PageClass p : root.getDescendants())
-			writer.write(p.toString());
+		String file = normUrl+title+version+".csv";
+		FileWriter writer = new FileWriter(CSV_PATH+file,true);
+		for (String text : texts)
+			writer.write(text);
 		writer.close();
+		return file;
 	}
 	
 	private int saveWebsiteCSV(String domain, String normalizedDomain, long timestamp) 
