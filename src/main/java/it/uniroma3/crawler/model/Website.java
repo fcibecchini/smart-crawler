@@ -54,8 +54,7 @@ public class Website implements Comparable<Website>{
 	}
 	
 	public boolean addModel(PageClass root, long timestamp) {
-		root.setGraphVersion(++lastVersion);
-		return models.add(new ModelLink(this,root,timestamp,lastVersion));
+		return models.add(new ModelLink(this,root,timestamp,++lastVersion));
 	}
 	
 	public PageClass getNewestModel() {

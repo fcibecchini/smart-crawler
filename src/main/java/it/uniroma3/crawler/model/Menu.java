@@ -1,15 +1,16 @@
 package it.uniroma3.crawler.model;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import static java.util.stream.Collectors.toSet;
+
+import java.util.ArrayList;
+
 import static java.util.stream.Collectors.toList;
 
 import org.neo4j.ogm.annotation.NodeEntity;
 import org.neo4j.ogm.annotation.Relationship;
-import org.neo4j.ogm.annotation.Transient;
 
 @NodeEntity
 public class Menu implements Comparable<Menu> {
@@ -18,18 +19,16 @@ public class Menu implements Comparable<Menu> {
 	private Long id;	
 	private String xpath;
 	private String type;
-	@Transient private String className;
 	
 	@Relationship(type="MENU_LINK", direction=Relationship.OUTGOING)
-	private Set<MenuItem> items;
+	private List<MenuItem> items;
 	
 	public Menu() {
-		this.items = new HashSet<>();
+		this.items = new ArrayList<>();
 	}
 	
 	public Menu(String className, String xpath) {
 		this();
-		this.className = className;
 		this.xpath = xpath;
 	}
 	
@@ -39,14 +38,6 @@ public class Menu implements Comparable<Menu> {
 	
 	public void setId(Long id) {
 		this.id = id;
-	}
-	
-	public String getClassName() {
-		return className;
-	}
-
-	public void setClassName(String className) {
-		this.className = className;
 	}
 
 	public String getType() {
@@ -58,7 +49,13 @@ public class Menu implements Comparable<Menu> {
 	}
 	
 	public void setType() {
-		this.type = (items.stream().anyMatch(MenuItem::isMutable)) ? MUTABLE : FIXED;		
+		this.type = (items.stream().anyMatch(MenuItem::isMutable)) ? MUTABLE : FIXED;
+		if (isMutable()) {
+			int index = 1;
+			for (MenuItem it : items) {
+				index = it.useIndexes(index);
+			}
+		}
 	}
 	
 	public boolean isMutable() {
@@ -86,7 +83,13 @@ public class Menu implements Comparable<Menu> {
 				.map(MenuItem::getDestination).findFirst().orElse(null);
 	}
 	
-	public void setItems(Set<MenuItem> items) {
+	public Set<String> getMenuKey() {
+		Set<String> key = items.stream().map(i -> i.getDestination().getName()).collect(toSet());
+		key.add(xpath);
+		return key;
+	}
+	
+	public void setItems(List<MenuItem> items) {
 		this.items = items;
 	}
 	
@@ -106,9 +109,8 @@ public class Menu implements Comparable<Menu> {
 	
 	public void addItem(String sourceUrl, String href, PageClass dest) {
 		MenuItem item = items.stream().filter(i -> i.getDestination().equals(dest))
-				.findFirst().orElse(new MenuItem(this,dest));
+		.findFirst().orElseGet(() -> {MenuItem i = new MenuItem(this,dest);items.add(i);return i;});
 		item.addHref(sourceUrl, href);
-		items.add(item);
 	}
 	
 	public String toString() {

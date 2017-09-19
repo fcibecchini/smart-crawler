@@ -35,11 +35,8 @@ public class ModelerService extends AbstractLoggingActor {
 	
 	private void save(PageClass root) {
 		long timestamp = System.currentTimeMillis();
-		String modelFile = saveCSV(root, timestamp);
-		if (!modelFile.isEmpty()) {
-			PageClass rootCopy = loadCSV(new SeedConfig(root.getDomain(), modelFile));
-			new PageClassService().saveModel(rootCopy, timestamp);
-		}
+		saveCSV(root, timestamp);
+		new PageClassService().saveModel(root, timestamp);
 		context().parent().tell(STOP, self());
 	}
 	
@@ -49,33 +46,27 @@ public class ModelerService extends AbstractLoggingActor {
 		context().parent().tell(STOP, self());
 	}
 	
-	private String saveCSV(PageClass root, long timestamp) {
+	private void saveCSV(PageClass root, long timestamp) {
 		String normUrl = normalizeURL(root.getDomain());
 		try {
 			int version = saveWebsiteCSV(root.getDomain(), normUrl, timestamp);
-			String modelFile = saveToFile(
-					root.getDescendants().stream().map(p->p.toString()).collect(toList()), 
+			saveToFile(root.getDescendants().stream().map(p->p.toString()).collect(toList()), 
 					"_target_", normUrl, version);
-			if (!root.getModelClassification().isEmpty())
-				saveToFile(
-					root.getDescendants().stream()
+			if (root.getModelClassification()!=null)
+				saveToFile(root.getDescendants().stream()
 					.map(p->p.getModelClassification()).collect(toList()), 
 					"_classification_", normUrl, version);
-			return modelFile;
 		} catch (IOException e) {
 			log().error("IOException while saving CSV Model: "+e.getMessage());
-			return "";
 		}
 	}
 	
-	private String saveToFile(List<String> texts, String title, String normUrl, int version)
+	private void saveToFile(List<String> texts, String title, String normUrl, int version)
 			throws IOException {
-		String file = normUrl+title+version+".csv";
-		FileWriter writer = new FileWriter(CSV_PATH+file,true);
+		FileWriter writer = new FileWriter(CSV_PATH+normUrl+title+version+".csv",true);
 		for (String text : texts)
 			writer.write(text);
 		writer.close();
-		return file;
 	}
 	
 	private int saveWebsiteCSV(String domain, String normalizedDomain, long timestamp) 

@@ -21,6 +21,7 @@ import org.neo4j.ogm.annotation.Transient;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.groupingBy;
 
 @NodeEntity
 public class PageClass implements Comparable<PageClass> {
@@ -30,7 +31,6 @@ public class PageClass implements Comparable<PageClass> {
 	private String form;
 	private String website;
 	private int depth;
-	private int version;
 	
 	@Transient private int waitTime;
 	@Transient private int randomPause;
@@ -139,14 +139,6 @@ public class PageClass implements Comparable<PageClass> {
 	public int getDepth() {
 		return this.depth;
 	}
-	
-	public void setVersion(int version) {
-		this.version = version;
-	}
-	
-	public int getVersion() {
-		return this.version;
-	}
 
 	public boolean useJavaScript() {
 		return javascript;
@@ -200,12 +192,14 @@ public class PageClass implements Comparable<PageClass> {
 		this.descendants = new TreeSet<>(name2class.values());
 	}
 	
-	public void setGraphVersion(int version) {
-		descendants.forEach(p -> p.setVersion(version));
-	}
-	
 	public void setMenusTypes() {
-		descendants.forEach(pc -> pc.menus.forEach(Menu::setType));
+		descendants.forEach(pc -> pc.menus.forEach(m -> m.setType()));
+		descendants.stream().flatMap(d -> new ArrayList<>(d.menus).stream())
+		.collect(groupingBy(Menu::getMenuKey)).entrySet().stream()
+		.filter(e -> e.getValue().size()>1).forEach(e -> {
+			Menu menu = e.getValue().get(0);
+			descendants.stream().filter(d -> d.hasMenuLink(menu.getXpath()))
+			.forEach(d -> { d.removeMenuLink(menu.getXpath()); d.menus.add(menu);});});
 	}
 	
 	public PageClass getDestinationByXPath(String xpath) {
@@ -499,7 +493,10 @@ public class PageClass implements Comparable<PageClass> {
 	
 	public String toString() {
 		return links.stream().map(ClassLink::toString).reduce(String::concat).orElse("")+
-			menus.stream().map(Menu::toString).reduce(String::concat).orElse("");
+			menus.stream().map(Menu::toString)
+			.map(s -> Arrays.asList(s.split("\n")).stream()
+					.map(l -> name+"\t"+l+"\n").reduce(String::concat).orElse(""))
+			.reduce(String::concat).orElse("");
 	}
 	
 	public int hashCode() {

@@ -96,6 +96,14 @@ public class MenuItem {
 		return (int) page2hrefs.values().stream().flatMap(List::stream).distinct().count();
 	}
 	
+	public int useIndexes(int start) {
+		int end = start+page2hrefs.values().iterator().next().size();
+		page2hrefs.clear();
+		for (int i=start; i<end; i++)
+			addHref("", Integer.toString(i));
+		return end;
+	}
+	
 	public String getXpath(String href) {
 		return (!href.matches("[0-9]+")) ? hrefXPath(href) : indexXPath(href);
 	}
@@ -109,8 +117,7 @@ public class MenuItem {
 	}
 	
 	public String getRecord(String href) {
-		return menuSource.getClassName()+"\t"+
-				"link\t"+
+		return "link\t"+
 				href+"\t"+
 				destination.getName()+"\t"+
 				"menu\t"+
