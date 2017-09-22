@@ -145,6 +145,20 @@ public class ModelCostCalculator {
 				unionSize(schema1,schema2);
 	}
 		
+	/**
+	 * The distance between the page class schemas is defined as
+	 * the normalized cardinality of the <b>weighted</b> symmetric 
+	 * set difference between the two schemas.<br>
+	 * Namely, let Gi and Gj be the weighted schemas of groups i and j; then:<br>
+	 * <b>distance(Gi,Gj) = [w(Gi-Gj) + w(Gj-Gi)] / w(Gi U Gj)</b> <br>
+	 * Note that if Gi = Gj (identical schemas), then distance(Gi,Gj) = 0;<br>
+	 * conversely, if Gi ∩ Gj = empty (the schemas are disjoint), 
+	 * then distance(Gi,Gj) = 1 <br>
+	 * <b>weight(G) = sum of w(xp) for each xp in Gi<br>
+	 * w(xp) = tf-idf(xp,c1) + tf-idf(xp,c2)</b>
+	 * @return the weighted distance between the two classes
+	 * @see {@link ModelCostCalculator#tfIdf(XPath, ModelPageClass)}
+	 */
 	public double weightedDistance(ModelPageClass c1, ModelPageClass c2) {
 		Set<XPath> schema1 = c1.getSchema();
 		Set<XPath> schema2 = c2.getSchema();
@@ -157,7 +171,7 @@ public class ModelCostCalculator {
 		double union = concat(schema1.stream(), schema2.stream()).distinct()
 				.mapToDouble(xp -> tfIdf(xp,c1)+tfIdf(xp,c2)).sum();
 					
-		return (diff>0 && union>0) ? diff/union : 0;
+		return (union>0) ? diff/union : 0;
 	}
 	
 	public static double distanceLinks(ModelPageClass c1, ModelPageClass c2) {

@@ -193,6 +193,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * Collapse classes with similar structure
 	 */
 	public void cluster() {		
+		ModelCostCalculator calc = new ModelCostCalculator(visitedURLs.values());
 		candidates = newPages.stream()
 			.collect(groupingBy(Page::getDefaultSchema)).values().stream()
 			.map(groupedPages -> new ModelPageClass((++id),groupedPages))
@@ -205,7 +206,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 				ModelPageClass ci = candidates.get(i);
 				ModelPageClass cj = candidates.get(j);
 				if (!deleted.contains(ci) && !deleted.contains(cj)) {
-					if (ModelCostCalculator.distance(ci, cj) < 0.2) {
+					if (calc.weightedDistance(ci, cj) < 0.2) {
 						ci.collapse(cj);
 						deleted.add(cj);
 					}
