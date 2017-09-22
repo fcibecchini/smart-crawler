@@ -4,7 +4,6 @@ import static it.uniroma3.crawler.util.HtmlUtils.*;
 
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
 import static it.uniroma3.crawler.util.XPathUtils.getAbsoluteURL;
 import static it.uniroma3.crawler.util.XPathUtils.getAnchorText;
@@ -34,6 +33,7 @@ import it.uniroma3.crawler.modeler.model.LinkCollection;
 import it.uniroma3.crawler.modeler.model.Page;
 import it.uniroma3.crawler.modeler.model.WebsiteModel;
 import it.uniroma3.crawler.modeler.model.XPath;
+import it.uniroma3.crawler.modeler.util.ModelCostCalculator;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 import it.uniroma3.crawler.util.FileUtils;
 import it.uniroma3.crawler.util.HtmlUtils;
@@ -85,11 +85,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * current list of candidate clusters
 	 */
 	private List<ModelPageClass> candidates;
-	
-	/**
-	 * map of inverse document frequency value for each XPath 
-	 */
-	private Map<XPath,Double> xpath2IDF;
+
 	
 	@Override
 	public Receive createReceive() {
@@ -196,7 +192,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * Candidate classes selection
 	 * Collapse classes with similar structure
 	 */
-	public void cluster() {
+	public void cluster() {		
 		candidates = newPages.stream()
 			.collect(groupingBy(Page::getDefaultSchema)).values().stream()
 			.map(groupedPages -> new ModelPageClass((++id),groupedPages))
@@ -209,7 +205,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 				ModelPageClass ci = candidates.get(i);
 				ModelPageClass cj = candidates.get(j);
 				if (!deleted.contains(ci) && !deleted.contains(cj)) {
-					if (ci.distance(cj) < 0.2) {
+					if (ModelCostCalculator.distance(ci, cj) < 0.2) {
 						ci.collapse(cj);
 						deleted.add(cj);
 					}
@@ -222,7 +218,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 	}
 	
 	/*
-	 * Inspect the candidates and take actions on the base of:
+	 * Inspect the candidates and take actions on the basis of:
 	 * - Number of newPages fetched
 	 * - Number of clusters created
 	 */
@@ -357,64 +353,20 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * Update Model merging candidates to existing classes
 	 * or creating new ones.
 	 */
-	private void updateModel(List<ModelPageClass> candidates) {		
-		xpath2IDF = getXPathIDFs();
+	private void updateModel(List<ModelPageClass> candidates) {
+		ModelCostCalculator calc = new ModelCostCalculator(visitedURLs.values());
 		for (ModelPageClass candidate : candidates) {
-			WebsiteModel merged = null;
-			double mergedCost = Double.MAX_VALUE;
+			WebsiteModel min = new WebsiteModel(model);
+			min.addClass(candidate);
 			for (ModelPageClass c : model.getClasses()) {
-				WebsiteModel temp = new WebsiteModel(model);
-				temp.removeClass(c);
-
-				ModelPageClass union = new ModelPageClass(c);
-				union.collapse(candidate);
-				temp.addClass(union);
-				
-				double cost = cost(temp);
-				if (mergedCost>cost) {
-					merged = temp;
-					mergedCost = cost;
-				}
+				WebsiteModel merged = new WebsiteModel(model);
+				merged.removeClass(c);
+				merged.addClass(new ModelPageClass(c, candidate));
+				if (calc.cost(min)>calc.cost(merged))
+					min = merged;
 			}
-			WebsiteModel mNew = new WebsiteModel(model);
-			mNew.addClass(candidate);
-			model.copy((mergedCost < cost(mNew)) ? merged : mNew);
+			model.copy(min);
 		}
-	}
-	
-	/* Map XPath -> IDF value */
-	private Map<XPath,Double> getXPathIDFs() {
-		return visitedURLs.values().stream().flatMap(p -> p.getSchema().stream()).distinct()
-				.collect(toMap(xp -> xp, this::idf));
-	}
-	
-	/* Inverse XPath frequency */
-	private double idf(XPath xp) {
-		double df=(double)visitedURLs.values().stream().filter(p -> p.containsXPath(xp)).count();
-		return Math.log(visitedURLs.size() / df);
-	}
-	
-	/* Calculates the Minimum Description Length cost of this model */
-	private double cost(WebsiteModel model) {
-		double cost = 0;
-		for (ModelPageClass c : model.getClasses()) {
-			Set<XPath> classSchema = c.getSchema();
-			cost += classSchema.size();
-			for (Page p : c.getPages()) {
-				cost += pageCost(p,classSchema);
-			}
-		}
-		return cost;
-	}
-	
-	private double pageCost(Page p, Set<XPath> classSchema) {
-		double xpathWeigths = classSchema.stream().mapToDouble(xp -> scoreCost(xp,p)).sum();
-		return xpathWeigths*0.8 + p.urlsSize() + p.missingXPaths(classSchema);
-	}
-	
-	/* TF-IDF of XPath in Page */
-	private double scoreCost(XPath xp, Page p) {
-		return 1 / (1 + (p.getXPathFrequency(xp) * xpath2IDF.get(xp)));
 	}
 	
 	public void finalizeModel() {

@@ -452,37 +452,6 @@ public class PageClass implements Comparable<PageClass> {
 		return !this.dataLinks.isEmpty();
 	}
 	
-	public double distance(PageClass other) {
-		Set<ClassLink> links = getAllLinks();
-		Set<ClassLink> otherLinks = other.getAllLinks();
-
-		Set<ClassLink> union = new HashSet<>();
-		Set<ClassLink> diff1 = new HashSet<>();
-		Set<ClassLink> diff2 = new HashSet<>();
-		Set<ClassLink> unionDiff = new HashSet<>();
-		
-		union.addAll(links);
-		union.addAll(otherLinks);
-		
-		diff1.addAll(links);
-		diff1.removeAll(otherLinks);
-
-		diff2.addAll(otherLinks);
-		diff2.removeAll(links);
-		
-		unionDiff.addAll(diff1);
-		unionDiff.addAll(diff2);
-		
-		return (double) unionDiff.size() / (double) union.size();
-	}
-	
-	public boolean isSubSet(PageClass other) {
-		Set<ClassLink> links = getAllLinks();
-		Set<ClassLink> otherLinks = other.getAllLinks();
-		return !links.isEmpty() && ! otherLinks.isEmpty() && 
-				(links.containsAll(otherLinks) || otherLinks.containsAll(links));
-	}
-	
 	public int compareTo(PageClass pc2) {
 		int cmpdepth = depth - pc2.getDepth();
 		if (cmpdepth!=0) return cmpdepth;

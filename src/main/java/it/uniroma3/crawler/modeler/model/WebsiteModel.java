@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import it.uniroma3.crawler.model.PageClass;
+import static it.uniroma3.crawler.modeler.util.ModelCostCalculator.distance;
+import static it.uniroma3.crawler.modeler.util.ModelCostCalculator.distanceLinks;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 /**
@@ -116,10 +118,8 @@ public class WebsiteModel {
 			for (int j = classList.size() - 1; j > i; j--) {
 				ModelPageClass c1 = classList.get(i);
 				ModelPageClass c2 = classList.get(j);
-				PageClass p1 = c1.getPageClass();
-				PageClass p2 = c2.getPageClass();
 				if (!toRemove.contains(c1) && !toRemove.contains(c2)) {
-					if (c1.distance(c2)<0.2 || p1.distance(p2)<0.2 || p1.isSubSet(p2)) {
+					if (distance(c1,c2)<0.2 || distanceLinks(c1, c2)<0.2) {
 						c1.collapse(c2);
 						toRemove.add(c2);
 					}

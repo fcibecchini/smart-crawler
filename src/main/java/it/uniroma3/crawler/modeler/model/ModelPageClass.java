@@ -3,7 +3,8 @@ package it.uniroma3.crawler.modeler.model;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toSet;
 
 import it.uniroma3.crawler.model.PageClass;
 
@@ -19,7 +20,6 @@ import java.util.Objects;
 public class ModelPageClass implements Comparable<ModelPageClass> {
 	private int id;
 	private Set<Page> pages;
-	
 	private PageClass pageClass;
 
 	/**
@@ -39,12 +39,19 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 */
 	public ModelPageClass(int id, List<Page> pages) {
 		this(id);
-		pages.forEach(this::addPageToClass);
+		this.pages.addAll(pages);
 	}
 	
-	public ModelPageClass(ModelPageClass copy) {
-		this(copy.getId());
-		collapse(copy);
+	/**
+	 * Constructs a new ModelPageClass as the union of
+	 * the two given ModelPageClasses. <br>
+	 * @param c1
+	 * @param c2
+	 */
+	public ModelPageClass(ModelPageClass c1, ModelPageClass c2) {
+		this(c1.getId());
+		collapse(c1);
+		collapse(c2);
 	}
 	
 	public int getId() {
@@ -52,26 +59,16 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	}
 	
 	/**
-	 * Adds a {@link Page} to the current schema of this ModelPageClass. <br>
-	 * The page schema of this page is added to the page class schema.
-	 * @param p the Page to add
-	 */
-	public void addPageToClass(Page p) {
-	//	if (pages.add(p))
-	//		schema.addAll(p.getSchema());
-		pages.add(p);
-	}
-	
-	/**
 	 * 
 	 * @return the set of XPaths of this schema
 	 */
 	public Set<XPath> getSchema() {
-		return pages.stream().map(Page::getSchema)
-				.flatMap(Set::stream)
-				.collect(Collectors.toSet());
+		return pages.stream().flatMap(p->p.getSchema().stream()).collect(toSet());
 	}
 	
+	/**
+	 * @return the pages of this class
+	 */
 	public Set<Page> getPages() {
 		return pages;
 	}
@@ -97,7 +94,7 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @param candidate the ModelPageClass to collapse
 	 */
 	public void collapse(ModelPageClass candidate) {
-		candidate.getPages().forEach(this::addPageToClass);
+		pages.addAll(candidate.getPages());
 	}
 	
 	/**
@@ -121,6 +118,10 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 				.distinct().count();
 	}
 	
+	public double xPathFrequency(XPath xp) {
+		return pages.stream().filter(p -> p.containsXPath(xp)).count();
+	}
+	
 	/**
 	 * Returns the total number of {@link Page}s in this ModelPageClass
 	 * @return the number of pages
@@ -139,42 +140,6 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 
 	public void setPageClass(PageClass pageClass) {
 		this.pageClass = pageClass;
-	}
-
-	/**
-	 * The distance between the page class schemas is defined as
-	 * the normalized cardinality of the symmetric 
-	 * set difference between the two schemas.<br>
-	 * Namely, let Gi and Gj be the schemas of groups i and j; then:<br>
-	 * distance(Gi,Gj) = |(Gi-Gj) U (Gj-Gi)| / |(Gi U Gj)| <br>
-	 * Note that if Gi = Gj (identical schemas), then distance(Gi,Gj) = 0;<br>
-	 * conversely, if Gi ∩ Gj = empty (the schemas are disjoint), 
-	 * then distance(Gi,Gj) = 1
-	 * @param other the ModelPageClass to be compared
-	 * @return the distance between this ModelPageClass and the other
-	 */
-	public double distance(ModelPageClass other) {
-		Set<XPath> schema = getSchema();
-		Set<XPath> otherSchema = other.getSchema();
-
-		Set<XPath> union = new HashSet<>();
-		Set<XPath> diff1 = new HashSet<>();
-		Set<XPath> diff2 = new HashSet<>();
-		Set<XPath> unionDiff = new HashSet<>();
-		
-		union.addAll(schema);
-		union.addAll(otherSchema);
-		
-		diff1.addAll(schema);
-		diff1.removeAll(otherSchema);
-				
-		diff2.addAll(otherSchema);
-		diff2.removeAll(schema);
-		
-		unionDiff.addAll(diff1);
-		unionDiff.addAll(diff2);
-		
-		return (double) unionDiff.size() / (double) union.size();
 	}
 	
 	public int compareTo(ModelPageClass other) {

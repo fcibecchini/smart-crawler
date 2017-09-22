@@ -1,20 +1,18 @@
 package it.uniroma3.crawler.modeler.model;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
-import static it.uniroma3.crawler.util.XPathUtils.getTextNodes;
-import static it.uniroma3.crawler.util.XPathUtils.getByMatchingXPath;
 
 import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 
 /**
@@ -27,8 +25,7 @@ public class Page {
 	private String href;
 	private String tempFile;
 	private Set<LinkCollection> linkCollections;
-	private Map<XPath, Integer> textXPaths;
-	private Set<String> urls;
+	private int urlsSize;
 	private List<PageLink> links;
 	private boolean loaded, classified;
 	
@@ -41,7 +38,6 @@ public class Page {
 	public Page(String url, HtmlPage html) {
 		this.url = url;
 		this.linkCollections = pageSchema(html);
-		this.textXPaths = textSchema(html);
 		this.links = new ArrayList<>();
 	}
 	
@@ -148,28 +144,19 @@ public class Page {
 	 * Groups outgoing URLs by XPaths-to-link to build the page schema.
 	 */
 	private Set<LinkCollection> pageSchema(HtmlPage html) {
-		this.urls = new HashSet<>();
 		Set<LinkCollection> collections = new HashSet<>();
 		Set<XPath> xpaths = html.getAnchors().stream().map(XPath::new).collect(toSet());
 		for (XPath xp : xpaths) {
-			List<String> urls = getRelativeURLs(html,xp.getDefault());
-			if (!urls.isEmpty()) {
-				this.urls.addAll(urls);
+			try {
+				List<String> urls = getRelativeURLs(html,xp.getDefault());
 				LinkCollection lc = new LinkCollection(this,xp,urls);
 				collections.add(lc);
+			} catch (Exception e) {
+				// do not add this XPath if it cannot be parsed by HtmlPage
+				Logger.getAnonymousLogger().log(Level.WARNING, e.getMessage());
 			}
 		}
 		return collections;
-	}
-	
-	private Map<XPath, Integer> textSchema(HtmlPage html) {
-		Map<XPath, Integer> textXPaths = new HashMap<>();
-		Set<XPath> xpaths = getTextNodes(html,16).stream().map(XPath::new).collect(toSet());
-		for (XPath xp : xpaths) {
-			int texts = getByMatchingXPath(html, xp.getDefault()).size();
-			textXPaths.put(xp, texts);
-		}
-		return textXPaths;
 	}
 	
 	/**
@@ -182,9 +169,7 @@ public class Page {
 	 * @return the page schema
 	 */
 	public Set<XPath> getSchema() {
-		Set<XPath> xpaths = linkCollections.stream().map(LinkCollection::getXPath).collect(toSet());
-		xpaths.addAll(textXPaths.keySet());
-		return xpaths;
+		return linkCollections.stream().map(LinkCollection::getXPath).collect(toSet());
 	}
 	
 	/**
@@ -194,10 +179,8 @@ public class Page {
 	 * @return the default page schema
 	 */
 	public Set<String> getDefaultSchema() {
-		Set<String> xpaths = linkCollections.stream().map(LinkCollection::getXPath)
+		return linkCollections.stream().map(LinkCollection::getXPath)
 				.map(XPath::getDefault).collect(toSet());
-		textXPaths.keySet().forEach(xp -> xpaths.add(xp.getDefault()));
-		return xpaths;
 	}
 	
 	public Set<LinkCollection> getLinkCollections() {
@@ -209,7 +192,11 @@ public class Page {
 	 * @return the outgoing URLs set
 	 */
 	public Set<String> getDiscoveredUrls() {
-		return urls;
+		return linkCollections.stream()
+				.map(LinkCollection::getLinks)
+				.flatMap(List::stream)
+				.distinct()
+				.collect(toSet());	
 	}
 	
 	/**
@@ -217,7 +204,14 @@ public class Page {
 	 * @return the number of outgoing URLs
 	 */
 	public int urlsSize() {
-		return urls.size();
+		if (urlsSize==0)
+			urlsSize = linkCollections.stream()
+				.map(LinkCollection::getLinks)
+				.flatMap(List::stream)
+				.distinct()
+				.mapToInt(u -> 1)
+				.sum();
+		return urlsSize;
 	}
 	
 	/**
@@ -226,27 +220,14 @@ public class Page {
 	 * @return number of elements matched
 	 */
 	public int getXPathFrequency(XPath path) {
-		Integer freq = textXPaths.get(path);
-		return (freq!=null) ? freq : linkCollections.stream()
+		return linkCollections.stream()
 				.filter(lc -> lc.getXPath().equals(path))
 				.map(LinkCollection::size)
 				.findFirst().orElse(0);
 	}
 	
-	/**
-	 * Returns the numbers of XPaths in the specified Set that are not included in this
-	 * page schema.
-	 * @param xpaths
-	 * @return the missing xpaths count
-	 */
-	public int missingXPaths(Set<XPath> xpaths) {
-		Set<XPath> schema = getSchema();
-		return (int) xpaths.stream().filter(xp -> !schema.contains(xp)).count();
-	}
-	
 	public boolean containsXPath(XPath path) {
-		return textXPaths.containsKey(path) || 
-				linkCollections.stream().anyMatch(lc -> lc.getXPath().equals(path));
+		return linkCollections.stream().anyMatch(lc -> lc.getXPath().equals(path));
 	}
 	
 	public String toString() {

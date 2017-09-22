@@ -66,21 +66,31 @@ public class XPathUtils {
 		return domNode.getTextContent();
 	}
 	
-	public static List<?> getByMatchingXPath(HtmlPage page, String xpath) {
-		try {
-			return page.getByXPath(xpath);
-		} catch (Exception e) {
-			return new ArrayList<>();
+	public static List<String> getByXPathString(HtmlPage page, String xpath) {
+		List<String> result = new ArrayList<>();
+		List<?> nodes = getByMatchingXPath(page, xpath);
+		for (Object n : nodes) {
+			DomNode node = (DomNode) n;
+			result.add(formatCsv(node.getTextContent()));
 		}
+		return result;
+	}
+	
+	public static List<?> getByMatchingXPath(HtmlPage page, String xpath) {
+		final List<?> nodes = page.getByXPath(xpath);
+		if (nodes==null) return nodes;
+		/*
+		assertNotNull(nodes);		
+		assertFalse(nodes.isEmpty());
+		/*for(Object node : nodes) {
+			assertNotNull(node);
+		}*/
+		return nodes;
 	}
 	
 	public static List<HtmlAnchor> getAnchors(HtmlPage page, String xpath) {
-		try {
-			final List<HtmlAnchor> anchors = page.getByXPath(xpath);
-			return anchors;
-		} catch (Exception e) {
-			return new ArrayList<>();
-		}
+		final List<HtmlAnchor> anchors = page.getByXPath(xpath);
+		return anchors;
 	}
 	
 	public static String submitForm(HtmlPage page, String formXPath) throws IOException {
@@ -197,9 +207,10 @@ public class XPathUtils {
 	 * @return the matching nodes
 	 */
 	public static List<DomNode> getTextNodes(HtmlPage page, int lengthLimit) {
-		final String findTexts = "//*[not(self::a)][text()]"
-				+ "[string-length(.)>0 and string-length(.)<"+lengthLimit+"]";
-		List<DomNode> texts = page.getByXPath(findTexts);
+		final String findTexts = 
+			"//text()[string-length(normalize-space(.))>0 and "
+			+ "string-length(normalize-space(.))<"+lengthLimit+"]/parent::*[not(self::a)]";
+		List<DomNode> texts = page.getByXPath(findTexts);	
 		return texts;
 	}
 	
