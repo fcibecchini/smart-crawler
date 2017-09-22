@@ -72,7 +72,7 @@ public class ModelCostCalculator {
 	 * urlsSize = sum of URLs in p <br>
 	 * missing =  sum of XPaths present in C but missing in p <br>
 	 * <br>
-	 * weight(xp|c) = tf-idf score of an XPath of C (the more the score, the less the weight) 
+	 * weight(xp|p) = tf-idf score of an XPath of p (the more the score, the less the weight) 
 	 * @param p the page
 	 * @param classSchema the schema of the class of p
 	 * @return cost(p|c)
@@ -80,9 +80,8 @@ public class ModelCostCalculator {
 	public double pageCost(Page p, ModelPageClass c, Set<XPath> classSchema) {
 		Set<XPath> pageSchema = p.getSchema();
 		double indexes = pageSchema.stream().mapToDouble(xp -> C_I*pageWeight(xp,p)).sum();
-		double missing = classSchema.stream().filter(xp -> !pageSchema.contains(xp))
-				.mapToDouble(xp -> C_MISS*classWeight(xp,c)).sum();		
-		return indexes + C_U*p.urlsSize() + missing;
+		double missing = classSchema.stream().filter(xp -> !pageSchema.contains(xp)).count();		
+		return indexes + C_U*p.urlsSize() + C_MISS*missing;
 	}
 
 	/**
