@@ -1,7 +1,7 @@
 package it.uniroma3.crawler.modeler;
 
 import static it.uniroma3.crawler.util.HtmlUtils.*;
-
+import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
@@ -12,6 +12,7 @@ import static it.uniroma3.crawler.util.Commands.STOP;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -34,6 +35,7 @@ import it.uniroma3.crawler.modeler.model.Page;
 import it.uniroma3.crawler.modeler.model.WebsiteModel;
 import it.uniroma3.crawler.modeler.model.XPath;
 import it.uniroma3.crawler.modeler.util.ModelCostCalculator;
+import static it.uniroma3.crawler.modeler.util.ModelCostCalculator.distance;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 import it.uniroma3.crawler.util.FileUtils;
 import it.uniroma3.crawler.util.HtmlUtils;
@@ -193,12 +195,8 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * Collapse classes with similar structure
 	 */
 	public void cluster() {		
-		ModelCostCalculator calc = new ModelCostCalculator(visitedURLs.values());
 		candidates = newPages.stream()
-			.collect(groupingBy(Page::getDefaultSchema)).values().stream()
-			.map(groupedPages -> new ModelPageClass((++id),groupedPages))
-			.sorted((c1,c2) -> c2.size()-c1.size())
-			.collect(toList());
+			.collect(collectingAndThen(groupingBy(Page::getDefaultSchema), this::toCandidates));
 		
 		Set<ModelPageClass> deleted = new HashSet<>();
 		for (int i = 0; i < candidates.size(); i++) {
@@ -206,7 +204,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 				ModelPageClass ci = candidates.get(i);
 				ModelPageClass cj = candidates.get(j);
 				if (!deleted.contains(ci) && !deleted.contains(cj)) {
-					if (calc.weightedDistance(ci, cj) < 0.2) {
+					if (distance(ci, cj) < 0.2) {
 						ci.collapse(cj);
 						deleted.add(cj);
 					}
@@ -216,6 +214,27 @@ public class DynamicModeler extends AbstractLoggingActor {
 		candidates.removeAll(deleted);
 		
 		inspect();
+	}
+	
+	private List<ModelPageClass> toCandidates(Map<Set<String>, List<Page>> map) {
+		List<ModelPageClass> classes = 
+			map.values().stream().map(ps->new ModelPageClass((++id),ps)).collect(toList());
+		
+		List<ModelPageClass> splitted = new ArrayList<>();
+		for (ModelPageClass c : classes) {
+			Set<XPath> labels = c.getLabelSchema();
+			List<Page> removed = new ArrayList<>();
+			for (Page p : c.getPages()) {
+				Set<XPath> pLabels = p.getLabelSchema();
+				if (!pLabels.isEmpty() && !pLabels.containsAll(labels))
+					removed.add(p);
+			}
+			removed.forEach(c::removePage);
+			if (!removed.isEmpty()) splitted.add(new ModelPageClass(++id, removed));
+		}
+		classes.addAll(splitted);
+		Collections.sort(classes, (c1,c2) -> c2.size()-c1.size());
+		return classes;
 	}
 	
 	/*

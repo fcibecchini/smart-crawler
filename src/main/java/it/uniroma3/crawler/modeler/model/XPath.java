@@ -223,6 +223,11 @@ public class XPath {
 	}
 	
 	@Override
+	public String toString() {
+		return get();
+	}
+	
+	@Override
 	public int hashCode() {
 		return get().hashCode();
 	}

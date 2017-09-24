@@ -1,18 +1,23 @@
 package it.uniroma3.crawler.modeler.model;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
+import static it.uniroma3.crawler.util.XPathUtils.getUniqueByXPath;
+import static it.uniroma3.crawler.util.XPathUtils.getSingleWords;
 import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
 
 import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 
 /**
@@ -25,6 +30,7 @@ public class Page {
 	private String href;
 	private String tempFile;
 	private Set<LinkCollection> linkCollections;
+	private final Map<XPath,Set<String>> textCollections;
 	private int urlsSize;
 	private List<PageLink> links;
 	private boolean loaded, classified;
@@ -38,6 +44,7 @@ public class Page {
 	public Page(String url, HtmlPage html) {
 		this.url = url;
 		this.linkCollections = pageSchema(html);
+		this.textCollections = labelsSchema(html);
 		this.links = new ArrayList<>();
 	}
 	
@@ -159,6 +166,21 @@ public class Page {
 		return collections;
 	}
 	
+	/*
+	 * Groups nodes containing single and unique words in XPath-to-nodes
+	 */
+	private Map<XPath,Set<String>> labelsSchema(HtmlPage html) {
+		Map<XPath,Set<String>> xp2text = new HashMap<>();		
+		getSingleWords(html,16).forEach(w -> 
+			getUniqueByXPath(html,"//*[normalize-space(text())='"+w+"']").map(XPath::new)
+			.ifPresent(xp -> xp2text.computeIfAbsent(xp, k->new HashSet<>()).add(w)));
+		return xp2text;
+	}
+	
+	public Set<String> getLabels(XPath xp) {
+		return textCollections.get(xp);
+	}
+	
 	/**
 	 * Returns the <i>page schema</i> of this Page.<br>
 	 * A page schema is an abstraction of a page consisting of a set 
@@ -169,7 +191,19 @@ public class Page {
 	 * @return the page schema
 	 */
 	public Set<XPath> getSchema() {
-		return linkCollections.stream().map(LinkCollection::getXPath).collect(toSet());
+		return Stream.concat(linksStream(), getLabelSchema().stream()).collect(toSet());
+	}
+	
+	public Set<XPath> getLinkSchema() {
+		return linksStream().collect(toSet());
+	}
+
+	private Stream<XPath> linksStream() {
+		return linkCollections.stream().map(LinkCollection::getXPath);
+	}
+	
+	public Set<XPath> getLabelSchema() {
+		return textCollections.keySet();
 	}
 	
 	/**
@@ -179,8 +213,7 @@ public class Page {
 	 * @return the default page schema
 	 */
 	public Set<String> getDefaultSchema() {
-		return linkCollections.stream().map(LinkCollection::getXPath)
-				.map(XPath::getDefault).collect(toSet());
+		return linksStream().map(XPath::getDefault).collect(toSet());
 	}
 	
 	public Set<LinkCollection> getLinkCollections() {
@@ -212,22 +245,6 @@ public class Page {
 				.mapToInt(u -> 1)
 				.sum();
 		return urlsSize;
-	}
-	
-	/**
-	 * Returns the number of elements matched by the given XPath in this page.
-	 * @param path the XPath
-	 * @return number of elements matched
-	 */
-	public int getXPathFrequency(XPath path) {
-		return linkCollections.stream()
-				.filter(lc -> lc.getXPath().equals(path))
-				.map(LinkCollection::size)
-				.findFirst().orElse(0);
-	}
-	
-	public boolean containsXPath(XPath path) {
-		return linkCollections.stream().anyMatch(lc -> lc.getXPath().equals(path));
 	}
 	
 	public String toString() {

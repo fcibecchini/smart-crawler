@@ -2,7 +2,7 @@ package it.uniroma3.crawler.util;
 
 import static it.uniroma3.crawler.util.HtmlUtils.isValidURL;
 import static java.util.stream.Collectors.toList;
-import static org.junit.Assert.*;
+import static java.util.stream.Collectors.toSet;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -10,12 +10,13 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.gargoylesoftware.htmlunit.html.DomNode;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
-import com.gargoylesoftware.htmlunit.html.HtmlButton;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlOption;
@@ -31,83 +32,22 @@ public class XPathUtils {
 		return !page.getByXPath(xpath).isEmpty();
 	}
 
-	public static HtmlAnchor getAnchorByXPath(HtmlPage page, String xpath) {
-		final List<?> anchors = page.getByXPath(xpath);
-		assertNotNull(anchors);
-		if (anchors.isEmpty()) return null;
-		HtmlAnchor firstAnchor = (HtmlAnchor) anchors.get(0);
-		assertNotNull(firstAnchor);
-		return firstAnchor;
-	}
-
-	public static HtmlAnchor getUniqueAnchorByXPath(HtmlPage page, String xpath) {
-		final List<?> anchors = page.getByXPath(xpath);
-		assertNotNull(anchors);
-		assertFalse(anchors.isEmpty());
-		HtmlAnchor firstAnchor = (HtmlAnchor) anchors.get(0);
-		assertNotNull(firstAnchor);
-		return firstAnchor;
-	}
-
 	public static DomNode getFirstByXPath(HtmlPage page, String xpath) {
-		return (DomNode) getByMatchingXPath(page, xpath).get(0);
+		return getByMatchingXPath(page, xpath).get(0);
 	}
 
-	public static DomNode getUniqueByXPath(HtmlPage page, String xpath) {
-		final List<?> nodes = page.getByXPath(xpath);
-		assertEquals(1, nodes.size());
-		return (DomNode) nodes.get(0);
-	}
-
-	public static String getUniqueByXPathString(HtmlPage page, String xpath) {
-		final List<?> nodes = page.getByXPath(xpath);
-		assertEquals(1, nodes.size());
-		final DomNode domNode = (DomNode) nodes.get(0);
-		return domNode.getTextContent();
+	public static Optional<DomNode> getUniqueByXPath(HtmlPage page, String xpath) {
+		final List<DomNode> nodes = getByMatchingXPath(page, xpath);
+		return (nodes.size()==1) ? Optional.of(nodes.get(0)) : Optional.empty();
 	}
 	
-	public static List<String> getByXPathString(HtmlPage page, String xpath) {
-		List<String> result = new ArrayList<>();
-		List<?> nodes = getByMatchingXPath(page, xpath);
-		for (Object n : nodes) {
-			DomNode node = (DomNode) n;
-			result.add(formatCsv(node.getTextContent()));
-		}
-		return result;
-	}
-	
-	public static List<?> getByMatchingXPath(HtmlPage page, String xpath) {
-		final List<?> nodes = page.getByXPath(xpath);
-		if (nodes==null) return nodes;
-		/*
-		assertNotNull(nodes);		
-		assertFalse(nodes.isEmpty());
-		/*for(Object node : nodes) {
-			assertNotNull(node);
-		}*/
-		return nodes;
+	public static List<DomNode> getByMatchingXPath(HtmlPage page, String xpath) {
+		return page.getByXPath(xpath);
 	}
 	
 	public static List<HtmlAnchor> getAnchors(HtmlPage page, String xpath) {
 		final List<HtmlAnchor> anchors = page.getByXPath(xpath);
 		return anchors;
-	}
-	
-	public static String submitForm(HtmlPage page, String formXPath) throws IOException {
-		String[] xpaths = formXPath.split(",");
-		HtmlForm form = (HtmlForm) page.getByXPath(xpaths[0]).get(0);		
-		for (int i=1;i<xpaths.length;i++) {
-			String[] input = xpaths[i].split(":");
-			if (input.length>1) {
-				HtmlInput textInput = (HtmlInput) form.getByXPath(input[0]).get(0);
-				textInput.setValueAttribute(input[1].replaceAll("\"", ""));
-			}
-			else {
-				HtmlButton button = (HtmlButton) form.getByXPath(input[0]).get(0);
-				return button.click().getUrl().toExternalForm();
-			}
-		}
-		return "";
 	}
 	
 	/**
@@ -201,40 +141,49 @@ public class XPathUtils {
 	}
 	
 	/**
-	 * Returns a List of DomNodes containing non empty text.
+	 * Returns a Set of single words contained in nodes of the DOM.
 	 * @param page the html page
-	 * @param lengthLimit limit of the text length in the nodes
-	 * @return the matching nodes
+	 * @param lengthLimit limit of the word length
+	 * @return the matching strings
 	 */
-	public static List<DomNode> getTextNodes(HtmlPage page, int lengthLimit) {
+	public static Set<String> getSingleWords(HtmlPage page, int lengthLimit) {
 		final String findTexts = 
-			"//text()[string-length(normalize-space(.))>0 and "
-			+ "string-length(normalize-space(.))<"+lengthLimit+"]/parent::*[not(self::a)]";
-		List<DomNode> texts = page.getByXPath(findTexts);	
-		return texts;
+				"//*[not(self::a) and not(parent::a)][text()]"
+				+ "[string-length(normalize-space(text()))>0 and"
+				+ " string-length(normalize-space(text()))<"+lengthLimit+"]"
+				+ "[not(contains(normalize-space(text()),' '))]";
+		return getByMatchingXPath(page,findTexts).stream()
+				.map(n -> formatCsv(n.getTextContent())).collect(toSet());
 	}
 	
-	/*
 	public static HtmlPage setInputValue(HtmlPage page, String xpath, String value) {
-		HtmlInput input = (HtmlInput) getUniqueByXPath(page,xpath);
-		return (HtmlPage) input.setValueAttribute(value);
+		getUniqueByXPath(page,xpath).ifPresent(n -> {
+			HtmlInput input = (HtmlInput) n;
+			input.setValueAttribute(value);
+		});
+		return page;
 	}
-	*/
 	
 	public static HtmlPage selectOption(HtmlPage page, String xpath, String value) {
-		HtmlSelect select = (HtmlSelect) getUniqueByXPath(page, xpath);
-		HtmlOption option = (HtmlOption) select.getOptionByValue(value);
-		return select.setSelectedAttribute(option,true);
+		return getUniqueByXPath(page, xpath).map(n -> {
+			HtmlSelect select = (HtmlSelect) n;
+			HtmlOption option = (HtmlOption) select.getOptionByValue(value);
+			return (HtmlPage) select.setSelectedAttribute(option,true);
+		}).orElse(page);
 	}
 
 	public static HtmlPage checkRadio(HtmlPage page, String xpath) {
-		HtmlRadioButtonInput radio = (HtmlRadioButtonInput) getUniqueByXPath(page, xpath);
-		return (HtmlPage) radio.setChecked(true);
+		return getUniqueByXPath(page, xpath).map(n -> {
+			HtmlRadioButtonInput radio = (HtmlRadioButtonInput) n;
+			return (HtmlPage) radio.setChecked(true);
+		}).orElse(page);
 	}
 
 	public static HtmlPage setTextArea(HtmlPage page, String xpath, String value) {
-		HtmlTextArea area = (HtmlTextArea) getUniqueByXPath(page, xpath);
-		area.setText(value);
+		getUniqueByXPath(page, xpath).ifPresent(n -> {
+			HtmlTextArea area = (HtmlTextArea) n;
+			area.setText(value);
+		});
 		return page;	
 	}
 
@@ -260,7 +209,7 @@ public class XPathUtils {
 		StringBuilder result = new StringBuilder();
 		for(Object node : nodes) {
 			result.append(node.toString());
-			result.append(", ");
+			result.append(" ");
 		}
 		String value = result.toString().trim();
 		if (value.isEmpty()) return defaultValue;

@@ -3,8 +3,10 @@ package it.uniroma3.crawler.modeler.model;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toSet;
+import static java.util.stream.Collectors.toList;
 
 import it.uniroma3.crawler.model.PageClass;
 
@@ -60,12 +62,43 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	
 	/**
 	 * 
-	 * @return the set of XPaths of this schema
+	 * @return the set of XPaths of this class
 	 */
 	public Set<XPath> getSchema() {
-		return pages.stream().flatMap(p->p.getSchema().stream()).collect(toSet());
+		return Stream.concat(linksStream(),textsStream()).collect(toSet());
 	}
 	
+	/**
+	 * 
+	 * @return the set of XPaths-to-link of this class
+	 */
+	public Set<XPath> getLinkSchema() {
+		return linksStream().collect(toSet()); 
+	}
+
+	private Stream<XPath> linksStream() {
+		return pages.stream().flatMap(p->p.getLinkSchema().stream());
+	}
+	
+	/**
+	 * 
+	 * @return the set of XPaths-to-label of this class
+	 */
+	public Set<XPath> getLabelSchema() {
+		return textsStream().collect(toSet());
+	}
+	
+	private Stream<XPath> textsStream() {
+		return pages.stream().flatMap(p->p.getLabelSchema().stream()).distinct()
+				.filter(this::isLabelXPath);
+	}
+	
+	private boolean isLabelXPath(XPath xp) {
+		List<Set<String>> wList = 
+			pages.stream().map(p->p.getLabels(xp)).filter(xpp->xpp!=null).collect(toList());
+		return wList.size()>=2 && wList.stream().distinct().count()==1;
+	}
+
 	/**
 	 * @return the pages of this class
 	 */
@@ -116,10 +149,6 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 				.map(Page::getDiscoveredUrls)
 				.flatMap(Set::stream)
 				.distinct().count();
-	}
-	
-	public double xPathFrequency(XPath xp) {
-		return pages.stream().filter(p -> p.containsXPath(xp)).count();
 	}
 	
 	/**
