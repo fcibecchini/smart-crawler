@@ -37,8 +37,12 @@ public class XPathUtils {
 	}
 
 	public static Optional<DomNode> getUniqueByXPath(HtmlPage page, String xpath) {
-		final List<DomNode> nodes = getByMatchingXPath(page, xpath);
-		return (nodes.size()==1) ? Optional.of(nodes.get(0)) : Optional.empty();
+		try {
+			final List<DomNode> nodes = getByMatchingXPath(page, xpath);
+			return (nodes.size()==1) ? Optional.of(nodes.get(0)) : Optional.empty();
+		} catch (Exception e) {
+			return Optional.empty();
+		}
 	}
 	
 	public static List<DomNode> getByMatchingXPath(HtmlPage page, String xpath) {
