@@ -157,7 +157,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 		
 		if (!links.isEmpty()) {
 			String href = links.poll();
-			String url = getAbsoluteURL(collection.getPage().getUrl(), href);
+			String url = getAbsoluteURL(conf.site, href);
 			Page page = visitedURLs.get(url);
 			if (page!=null) {
 				page.setLoaded();
