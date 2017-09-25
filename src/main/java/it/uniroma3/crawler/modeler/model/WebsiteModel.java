@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import it.uniroma3.crawler.model.PageClass;
+
 import static it.uniroma3.crawler.modeler.util.ModelCostCalculator.distance;
 import static it.uniroma3.crawler.modeler.util.ModelCostCalculator.distanceLinks;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
@@ -71,8 +72,7 @@ public class WebsiteModel {
 	 * @return the ModelPageClass identified by this id, otherwise null
 	 */
 	public ModelPageClass getCandidateFromId(int id) {
-		return modelClasses.stream()
-				.filter(c -> c.getId()==id).findAny().orElse(null);
+		return modelClasses.stream().filter(c -> c.getId()==id).findAny().orElse(null);
 	}
 	
 	/**
@@ -83,8 +83,7 @@ public class WebsiteModel {
 	 * otherwise null
 	 */
 	public ModelPageClass getClassOfPage(Page page) {
-		return modelClasses.stream()
-				.filter(c -> c.containsPage(page)).findAny().orElse(null);
+		return modelClasses.stream().filter(c -> c.containsPage(page)).findAny().orElse(null);
 	}
 	
 	/**
@@ -104,7 +103,7 @@ public class WebsiteModel {
 		for (ModelPageClass mpc : modelClasses) {
 			PageClass pc = mpc.getPageClass();
 			String desc = mpc.getPages().stream()
-					.map(p -> p.getUrl()+"\t"+p.getTempFile()+"\t"+pc.getName()+"\n")
+					.map(p -> pc.getName()+"\t"+p.getUrl()+"\t"+p.getTempFile()+"\n")
 					.reduce(String::concat).orElse("");
 			pc.setModelClassification(desc);
 		}
@@ -131,17 +130,18 @@ public class WebsiteModel {
 	
 	private void buildLinks(SeedConfig conf) {
 		modelClasses.forEach(c -> c.setPageClass(new PageClass(c.name(),conf)));
-		for (ModelPageClass mpc : modelClasses) {
-			PageClass src = mpc.getPageClass();
-			for (Page p : mpc.getPages()) {
-				for (PageLink link : p.getLinks()) {
-					List<PageClass> dests = 
-						link.getDestinations().stream()
-						.map(d -> getClassOfPage(d).getPageClass()).collect(toList());
-					link.linkToPageClass(src, dests);
-				}
-			}
-		}
+		modelClasses.forEach(c -> {
+			PageClass src = c.getPageClass();
+			c.getPages().stream().flatMap(p->p.getLinks().stream())
+			.forEach(link -> {
+				List<PageClass> dests = 
+					link.getDestinations().stream()
+					.map(this::getClassOfPage)
+					.map(ModelPageClass::getPageClass)
+					.collect(toList());
+				link.linkToPageClass(src, dests);
+			});
+		});
 	}
 	
 	public String toString() {

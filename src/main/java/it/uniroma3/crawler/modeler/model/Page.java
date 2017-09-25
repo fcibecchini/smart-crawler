@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
 import static it.uniroma3.crawler.util.XPathUtils.getUniqueByXPath;
-import static it.uniroma3.crawler.util.XPathUtils.getSingleWords;
+import static it.uniroma3.crawler.util.XPathUtils.getTexts;
 import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
 
 import static java.util.stream.Collectors.toSet;
@@ -27,6 +27,7 @@ import java.util.HashSet;
  */
 public class Page {
 	private String url;
+	private String title;
 	private String href;
 	private String tempFile;
 	private Set<LinkCollection> linkCollections;
@@ -43,8 +44,9 @@ public class Page {
 	 */
 	public Page(String url, HtmlPage html) {
 		this.url = url;
+		this.title = html.getTitleText();
 		this.linkCollections = pageSchema(html);
-		this.textCollections = labelsSchema(html);
+		this.textCollections = labelsSchema(html,60);
 		this.links = new ArrayList<>();
 	}
 	
@@ -54,6 +56,10 @@ public class Page {
 	 */
 	public String getUrl() {
 		return this.url;
+	}
+	
+	public String getTitle() {
+		return this.title;
 	}
 	
 	public String getHref() {
@@ -167,11 +173,11 @@ public class Page {
 	}
 	
 	/*
-	 * Groups nodes containing single and unique words in XPath-to-nodes
+	 * Groups nodes containing single and unique strings in XPath-to-nodes
 	 */
-	private Map<XPath,Set<String>> labelsSchema(HtmlPage html) {
+	private Map<XPath,Set<String>> labelsSchema(HtmlPage html, int limit) {
 		Map<XPath,Set<String>> xp2text = new HashMap<>();		
-		getSingleWords(html,16).forEach(w -> 
+		getTexts(html,limit).forEach(w -> 
 			getUniqueByXPath(html,"//*[normalize-space(text())='"+w+"']").map(XPath::new)
 			.ifPresent(xp -> xp2text.computeIfAbsent(xp, k->new HashSet<>()).add(w)));
 		return xp2text;

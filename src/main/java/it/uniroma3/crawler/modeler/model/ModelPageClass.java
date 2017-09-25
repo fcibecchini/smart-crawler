@@ -1,7 +1,5 @@
 package it.uniroma3.crawler.modeler.model;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -108,17 +106,14 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	
 	/**
 	 * Format a name for this ModelPageClass, consisting of the concatenation
-	 * of at most three Page local-URLs belonging to this class	 
+	 * of at most three Page titles belonging to this class	 
 	 *  
-	 * @return the class name as a three URLs concatenation
+	 * @return the class name as a three titles concatenation
 	 */
 	public String name() {
-		return pages.stream().limit(3)
-		.map(Page::getUrl)
-		.map(Paths::get)
-		.map(url -> url.subpath((url.getNameCount()>2) ? 2 : 1, url.getNameCount()))
-		.map(Path::toString)
-		.reduce((u1,u2) -> u1+","+u2).get();
+		return id+"_"+pages.stream().limit(3).map(Page::getTitle)
+				.map(t -> (t.length()<=20) ? t : t.substring(0, 20))
+				.reduce((t1,t2)->t1+", "+t2).orElse("");
 	}
 	
 	/**

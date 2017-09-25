@@ -145,17 +145,17 @@ public class XPathUtils {
 	}
 	
 	/**
-	 * Returns a Set of single words contained in nodes of the DOM.
+	 * Returns a Set of strings contained in nodes of the DOM.
 	 * @param page the html page
-	 * @param lengthLimit limit of the word length
+	 * @param lengthLimit max text length
 	 * @return the matching strings
 	 */
-	public static Set<String> getSingleWords(HtmlPage page, int lengthLimit) {
+	public static Set<String> getTexts(HtmlPage page, int lengthLimit) {
 		final String findTexts = 
 				"//*[not(self::a) and not(parent::a)][text()]"
 				+ "[string-length(normalize-space(text()))>0 and"
-				+ " string-length(normalize-space(text()))<"+lengthLimit+"]"
-				+ "[not(contains(normalize-space(text()),' '))]";
+				+ " string-length(normalize-space(text()))<"+lengthLimit+"]";
+				//+ "[not(contains(normalize-space(text()),' '))]";
 		return getByMatchingXPath(page,findTexts).stream()
 				.map(n -> formatCsv(n.getTextContent())).collect(toSet());
 	}
