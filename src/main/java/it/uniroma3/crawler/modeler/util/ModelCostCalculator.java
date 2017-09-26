@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import it.uniroma3.crawler.model.ClassLink;
+import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.modeler.model.ModelPageClass;
 import it.uniroma3.crawler.modeler.model.Page;
 import it.uniroma3.crawler.modeler.model.WebsiteModel;
@@ -172,16 +173,16 @@ public class ModelCostCalculator {
 				unionSize(schema1,schema2);
 	}
 	
-	public static double distanceLinks(ModelPageClass c1, ModelPageClass c2) {
-		Set<ClassLink> links1 = c1.getPageClass().getAllLinks();
-		Set<ClassLink> links2 = c2.getPageClass().getAllLinks();
+	public static double distanceLinks(PageClass c1, PageClass c2) {
+		Set<ClassLink> links1 = c1.getAllLinks();
+		Set<ClassLink> links2 = c2.getAllLinks();
 		return (differenceSize(links1,links2)+differenceSize(links2,links1)) /
 				unionSize(links1,links2);
 	}
 	
-	public static boolean isSubSet(ModelPageClass c1, ModelPageClass c2) {
-		Set<ClassLink> links1 = c1.getPageClass().getAllLinks();
-		Set<ClassLink> links2 = c2.getPageClass().getAllLinks();
+	public static boolean isSubSet(PageClass c1, PageClass c2) {
+		Set<ClassLink> links1 = c1.getAllLinks();
+		Set<ClassLink> links2 = c2.getAllLinks();
 		return !links1.isEmpty() && !links2.isEmpty() && 
 				(links1.containsAll(links2) || links2.containsAll(links1));
 	}

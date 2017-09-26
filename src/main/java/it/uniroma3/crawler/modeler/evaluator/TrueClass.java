@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
+import it.uniroma3.crawler.model.PageClass;
 import it.uniroma3.crawler.modeler.model.ModelPageClass;
 
 public class TrueClass {
@@ -14,6 +15,7 @@ public class TrueClass {
 	private List<TrueLink> links;
 	
 	private ModelPageClass computedClass;
+	private PageClass computedPClass;
 	
 	private int size;
 	private double precision, recall, fmeasure;
@@ -52,6 +54,14 @@ public class TrueClass {
 	
 	public ModelPageClass getComputedClass() {
 		return computedClass;
+	}
+	
+	public void setPageClass(PageClass pc) {
+		this.computedPClass = pc;
+	}
+	
+	public PageClass getPageClass() {
+		return computedPClass;
 	}
 	
 	public void setPrecision(double p) {
@@ -112,12 +122,13 @@ public class TrueClass {
 
 	public String getStatistics() {
 		DecimalFormat df = new DecimalFormat("#.##");
-		String format1 = name+"\t"+computedClass.getPageClass().getName();
-		String format2 = computedClass.size()+"\t"+computedClass.getPageClass().linksSize();
+		String format1 = name+"\t"+computedPClass.getName();
+		String format2 = computedClass.size()+"\t"+computedPClass.linksSize();
 		String format3 = df.format(precision)+"\t"+df.format(recall)+"\t"+df.format(fmeasure);
-		String format4 = (links.size()>0) ?
-			df.format(linksPrecision)+"\t"+df.format(linksRecall)+"\t"+df.format(linksFmeasure)
-			: "-\t-\t-";
+//		String format4 = (links.size()>0) ?
+//			df.format(linksPrecision)+"\t"+df.format(linksRecall)+"\t"+df.format(linksFmeasure)
+//			: "-\t-\t-";
+		String format4 = (links.size()>0) ? df.format(linksRecall) : "-";
 		return format1+"\t"+format2+"\t"+format3+"\t"+format4;
 	}
 

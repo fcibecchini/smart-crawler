@@ -12,6 +12,7 @@ import static it.uniroma3.crawler.util.Commands.STOP;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -192,17 +193,24 @@ public class DynamicModeler extends AbstractLoggingActor {
 	
 	/* 
 	 * Candidate classes selection
-	 * Collapse classes with similar structure
 	 */
 	public void cluster() {		
 		candidates = newPages.stream()
 			.collect(collectingAndThen(groupingBy(Page::getDefaultSchema), this::toCandidates));
-		
+		candidates.removeAll(collapsed(candidates));
+		inspect();
+	}
+	
+	/*
+	 * Collapses classes with similar structure
+	 */
+	private Set<ModelPageClass> collapsed(Collection<ModelPageClass> classes) {
+		List<ModelPageClass> list = new ArrayList<>(classes);
 		Set<ModelPageClass> deleted = new HashSet<>();
-		for (int i = 0; i < candidates.size(); i++) {
-			for (int j = candidates.size() - 1; j > i; j--) {
-				ModelPageClass ci = candidates.get(i);
-				ModelPageClass cj = candidates.get(j);
+		for (int i = 0; i < list.size(); i++) {
+			for (int j = list.size() - 1; j > i; j--) {
+				ModelPageClass ci = list.get(i);
+				ModelPageClass cj = list.get(j);
 				if (!deleted.contains(ci) && !deleted.contains(cj)) {
 					if (distance(ci, cj) < 0.2) {
 						ci.collapse(cj);
@@ -211,11 +219,12 @@ public class DynamicModeler extends AbstractLoggingActor {
 				}
 			}
 		}
-		candidates.removeAll(deleted);
-		
-		inspect();
+		return deleted;
 	}
 	
+	/*
+	 * Groups pages with same link and label schema
+	 */
 	private List<ModelPageClass> toCandidates(Map<Set<String>, List<Page>> map) {
 		List<ModelPageClass> classes = 
 			map.values().stream().map(ps->new ModelPageClass((++id),ps)).collect(toList());
@@ -393,6 +402,8 @@ public class DynamicModeler extends AbstractLoggingActor {
 		log().info("FINALIZING MODEL...");
 		client.close();
 		if (!model.isEmpty()) {
+			Set<ModelPageClass> collapsed = collapsed(model.getClasses());
+			model.removeAll(collapsed);
 			PageClass root = model.toGraph(conf);
 			root.setHierarchy();
 			root.setMenusTypes();

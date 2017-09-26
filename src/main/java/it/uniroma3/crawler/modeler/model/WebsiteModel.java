@@ -1,15 +1,16 @@
 package it.uniroma3.crawler.modeler.model;
 
 import java.util.TreeSet;
-import static java.util.stream.Collectors.toList;
 
-import java.util.ArrayList;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
+
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import it.uniroma3.crawler.model.PageClass;
 
-import static it.uniroma3.crawler.modeler.util.ModelCostCalculator.distance;
-import static it.uniroma3.crawler.modeler.util.ModelCostCalculator.distanceLinks;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 
 /**
@@ -19,6 +20,7 @@ import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
  */
 public class WebsiteModel {
 	private TreeSet<ModelPageClass> modelClasses;
+	private Map<ModelPageClass,PageClass> model2Class;
 	
 	/**
 	 * Constructs a new, empty Website model.
@@ -66,6 +68,10 @@ public class WebsiteModel {
 		return modelClasses;
 	}
 	
+	public void removeAll(Set<ModelPageClass> classes) {
+		modelClasses.removeAll(classes);
+	}
+	
 	/**
 	 * Returns the ModelPageClass of this model with the given id
 	 * @param id
@@ -86,6 +92,10 @@ public class WebsiteModel {
 		return modelClasses.stream().filter(c -> c.containsPage(page)).findAny().orElse(null);
 	}
 	
+	public PageClass getPageClass(ModelPageClass c) {
+		return model2Class.get(c);
+	}
+	
 	/**
 	 * Turns this WebsiteModel into a {@link PageClass} graph ready for crawling and storage.
 	 * 
@@ -93,15 +103,14 @@ public class WebsiteModel {
 	 * @return the root (homepage) PageClass of the navigation graph
 	 */
 	public PageClass toGraph(SeedConfig conf) {		
+		model2Class = modelClasses.stream().collect(toMap(c->c, c->new PageClass(c.name(),conf)));
 		buildLinks(conf);
-		collapsePageClasses();
-		buildLinks(conf);
-		return modelClasses.first().getPageClass();
+		return getPageClass(modelClasses.first());
 	}
 	
 	public void setPagesClassification() {
 		for (ModelPageClass mpc : modelClasses) {
-			PageClass pc = mpc.getPageClass();
+			PageClass pc = getPageClass(mpc);
 			String desc = mpc.getPages().stream()
 					.map(p -> pc.getName()+"\t"+p.getUrl()+"\t"+p.getTempFile()+"\n")
 					.reduce(String::concat).orElse("");
@@ -109,35 +118,15 @@ public class WebsiteModel {
 		}
 	}
 	
-	private void collapsePageClasses() {		
-		List<ModelPageClass> classList = new ArrayList<>(modelClasses);
-		List<ModelPageClass> toRemove = new ArrayList<>();
-		
-		for (int i = 0; i < classList.size(); i++) {
-			for (int j = classList.size() - 1; j > i; j--) {
-				ModelPageClass c1 = classList.get(i);
-				ModelPageClass c2 = classList.get(j);
-				if (!toRemove.contains(c1) && !toRemove.contains(c2)) {
-					if (distance(c1,c2)<0.2 || distanceLinks(c1, c2)<0.2) {
-						c1.collapse(c2);
-						toRemove.add(c2);
-					}
-				}
-			}
-		}
-		modelClasses.removeAll(toRemove);
-	}
-	
 	private void buildLinks(SeedConfig conf) {
-		modelClasses.forEach(c -> c.setPageClass(new PageClass(c.name(),conf)));
 		modelClasses.forEach(c -> {
-			PageClass src = c.getPageClass();
+			PageClass src = getPageClass(c);
 			c.getPages().stream().flatMap(p->p.getLinks().stream())
 			.forEach(link -> {
 				List<PageClass> dests = 
 					link.getDestinations().stream()
 					.map(this::getClassOfPage)
-					.map(ModelPageClass::getPageClass)
+					.map(this::getPageClass)
 					.collect(toList());
 				link.linkToPageClass(src, dests);
 			});

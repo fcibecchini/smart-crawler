@@ -6,8 +6,6 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Collectors.toList;
 
-import it.uniroma3.crawler.model.PageClass;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -15,12 +13,11 @@ import java.util.Objects;
 /**
  * A ModelPageClass is a collection of pages with the same <i>page class schema</i> 
  * as the union of the individual page schemas, i.e.,
- * the union of the XPaths-to-link of the pages participating the collection.
+ * the union of the XPaths-to-link and XPath-to-labels of the pages participating the collection.
  */
 public class ModelPageClass implements Comparable<ModelPageClass> {
 	private int id;
 	private Set<Page> pages;
-	private PageClass pageClass;
 
 	/**
 	 * Constructs a new ModelPageClass with the given id
@@ -156,14 +153,6 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	
 	public void removePage(Page p) {
 		pages.remove(p);
-	}
-	
-	public PageClass getPageClass() {
-		return pageClass;
-	}
-
-	public void setPageClass(PageClass pageClass) {
-		this.pageClass = pageClass;
 	}
 	
 	public int compareTo(ModelPageClass other) {
