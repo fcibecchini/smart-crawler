@@ -20,6 +20,11 @@ public class FileUtils {
 				.replaceAll("\\.|/|\\?|\\(|\\)", "_");
 	}
 	
+	public static String getRelativeUrl(String url) {
+		Path path = Paths.get(url);
+		return path.subpath((path.getNameCount()>2) ? 2 : 1, path.getNameCount()).toString();
+	}
+	
     /**
      * Returns the path to the record directory assigned to this website.<br>
      * The Record directory contains any record extracted from 

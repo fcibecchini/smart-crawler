@@ -10,10 +10,12 @@ import java.util.logging.Logger;
 
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 
+import it.uniroma3.crawler.model.PageClass;
+
 import static it.uniroma3.crawler.util.XPathUtils.getUniqueByXPath;
 import static it.uniroma3.crawler.util.XPathUtils.getTexts;
 import static it.uniroma3.crawler.util.XPathUtils.getRelativeURLs;
-
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
@@ -208,6 +210,10 @@ public class Page {
 		return linkCollections.stream().map(LinkCollection::getXPath);
 	}
 	
+	private Stream<String> getUrls() {
+		return linkCollections.stream().flatMap(l->l.getLinks().stream()).distinct();
+	}
+	
 	public Set<XPath> getLabelSchema() {
 		return textCollections.keySet();
 	}
@@ -231,11 +237,7 @@ public class Page {
 	 * @return the outgoing URLs set
 	 */
 	public Set<String> getDiscoveredUrls() {
-		return linkCollections.stream()
-				.map(LinkCollection::getLinks)
-				.flatMap(List::stream)
-				.distinct()
-				.collect(toSet());	
+		return getUrls().collect(toSet());
 	}
 	
 	/**
@@ -243,14 +245,19 @@ public class Page {
 	 * @return the number of outgoing URLs
 	 */
 	public int urlsSize() {
-		if (urlsSize==0)
-			urlsSize = linkCollections.stream()
-				.map(LinkCollection::getLinks)
-				.flatMap(List::stream)
-				.distinct()
-				.mapToInt(u -> 1)
-				.sum();
+		if (urlsSize==0) 
+			urlsSize = getUrls().mapToInt(__->1).sum();
 		return urlsSize;
+	}
+	
+	public void buildLinks(PageClass src, WebsiteModel m) {
+		for (PageLink l : links) {
+			List<PageClass> dest = l.getDestinations().stream()
+					.map(m::getClassOfPage).map(m::getPageClass).collect(toList());
+			PageLink newL = ((l instanceof MenuPageLink) && dest.stream().distinct().count()==1) ?
+					new ListPageLink(l.getXpath(), l.getDestinations()) : l;
+			newL.linkToPageClass(src, dest);
+		}
 	}
 	
 	public String toString() {

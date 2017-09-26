@@ -173,16 +173,20 @@ public class ModelCostCalculator {
 				unionSize(schema1,schema2);
 	}
 	
-	public static double distanceLinks(PageClass c1, PageClass c2) {
-		Set<ClassLink> links1 = c1.getAllLinks();
-		Set<ClassLink> links2 = c2.getAllLinks();
+	public static double distanceLinks(PageClass p1, PageClass p2, PageClass root) {
+		Set<ClassLink> links1 = p1.getAllLinks();
+		links1.addAll(root.getLinksFor(p1));
+		
+		Set<ClassLink> links2 = p2.getAllLinks();
+		links2.addAll(root.getLinksFor(p2));
+				
 		return (differenceSize(links1,links2)+differenceSize(links2,links1)) /
 				unionSize(links1,links2);
 	}
 	
-	public static boolean isSubSet(PageClass c1, PageClass c2) {
-		Set<ClassLink> links1 = c1.getAllLinks();
-		Set<ClassLink> links2 = c2.getAllLinks();
+	public static boolean isSubSet(PageClass p1, PageClass p2) {
+		Set<ClassLink> links1 = p1.getAllLinks();
+		Set<ClassLink> links2 = p2.getAllLinks();
 		return !links1.isEmpty() && !links2.isEmpty() && 
 				(links1.containsAll(links2) || links2.containsAll(links1));
 	}

@@ -22,6 +22,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiPredicate;
 
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
@@ -37,12 +38,14 @@ import it.uniroma3.crawler.modeler.model.WebsiteModel;
 import it.uniroma3.crawler.modeler.model.XPath;
 import it.uniroma3.crawler.modeler.util.ModelCostCalculator;
 import static it.uniroma3.crawler.modeler.util.ModelCostCalculator.distance;
+import static it.uniroma3.crawler.modeler.util.ModelCostCalculator.distanceLinks;
 import it.uniroma3.crawler.settings.CrawlerSettings.SeedConfig;
 import it.uniroma3.crawler.util.FileUtils;
 import it.uniroma3.crawler.util.HtmlUtils;
 import scala.concurrent.duration.Duration;
 
 public class DynamicModeler extends AbstractLoggingActor {
+	private final static double MIN_DISTANCE = 0.2;
 	
 	private SeedConfig conf; // website configuration
 
@@ -196,15 +199,16 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 */
 	public void cluster() {		
 		candidates = newPages.stream()
-			.collect(collectingAndThen(groupingBy(Page::getDefaultSchema), this::toCandidates));
-		candidates.removeAll(collapsed(candidates));
+			.collect(collectingAndThen(groupingBy(Page::getDefaultSchema),this::toCandidates));
+		candidates.removeAll(collapsed(candidates, (c1,c2)->distance(c1,c2) < MIN_DISTANCE));
 		inspect();
 	}
 	
 	/*
-	 * Collapses classes with similar structure
+	 * Collapses classes applying the given function to all the pair of classes
 	 */
-	private Set<ModelPageClass> collapsed(Collection<ModelPageClass> classes) {
+	private Set<ModelPageClass> collapsed(Collection<ModelPageClass> classes, 
+			BiPredicate<ModelPageClass,ModelPageClass> f) {
 		List<ModelPageClass> list = new ArrayList<>(classes);
 		Set<ModelPageClass> deleted = new HashSet<>();
 		for (int i = 0; i < list.size(); i++) {
@@ -212,7 +216,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 				ModelPageClass ci = list.get(i);
 				ModelPageClass cj = list.get(j);
 				if (!deleted.contains(ci) && !deleted.contains(cj)) {
-					if (distance(ci, cj) < 0.2) {
+					if (f.test(ci, cj)) {
 						ci.collapse(cj);
 						deleted.add(cj);
 					}
@@ -398,15 +402,23 @@ public class DynamicModeler extends AbstractLoggingActor {
 		}
 	}
 	
+	/*
+	 * Tries to collapse the final model classes exploring distances between both schemas
+	 * and graph links
+	 */
+	private void finalUpdate(WebsiteModel model) {
+		model.removeAll(collapsed(model.getClasses(),(c1,c2) -> distance(c1,c2)<MIN_DISTANCE));
+		PageClass root = model.toGraph(conf);					
+		model.removeAll(collapsed(model.getClasses(), 
+		(c1,c2) -> distanceLinks(model.getPageClass(c1),model.getPageClass(c2),root)<MIN_DISTANCE));
+	}
+	
 	public void finalizeModel() {
 		log().info("FINALIZING MODEL...");
 		client.close();
 		if (!model.isEmpty()) {
-			Set<ModelPageClass> collapsed = collapsed(model.getClasses());
-			model.removeAll(collapsed);
+			finalUpdate(model);
 			PageClass root = model.toGraph(conf);
-			root.setHierarchy();
-			root.setMenusTypes();
 			if (conf.savepages)
 				model.setPagesClassification();
 			else

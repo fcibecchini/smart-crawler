@@ -3,6 +3,9 @@ package it.uniroma3.crawler.modeler.model;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import it.uniroma3.crawler.model.PageClass;
+import static it.uniroma3.crawler.util.FileUtils.getRelativeUrl;
+
 import static java.util.stream.Collectors.toSet;
 import static java.util.stream.Collectors.toList;
 
@@ -108,7 +111,8 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	 * @return the class name as a three titles concatenation
 	 */
 	public String name() {
-		return id+"_"+pages.stream().limit(3).map(Page::getTitle)
+		return id+"_"+pages.stream().limit(3)
+				.map(p -> (p.getTitle().isEmpty()) ? getRelativeUrl(p.getUrl()) : p.getTitle())
 				.map(t -> (t.length()<=20) ? t : t.substring(0, 20))
 				.reduce((t1,t2)->t1+", "+t2).orElse("");
 	}
@@ -131,16 +135,17 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 		return pages.contains(page);
 	}
 	
+	public void buildLinks(PageClass src, WebsiteModel model) {
+		pages.forEach(p -> p.buildLinks(src, model));
+	}
+	
 	/**
 	 * Returns the total number of outgoing URLs associated 
 	 * with this ModelPageClass
 	 * @return the count of URLs in this candidate page class
 	 */
 	public long outgoingURLs() {
-		return pages.stream()
-				.map(Page::getDiscoveredUrls)
-				.flatMap(Set::stream)
-				.distinct().count();
+		return pages.stream().flatMap(p->p.getDiscoveredUrls().stream()).distinct().count();
 	}
 	
 	/**
@@ -153,6 +158,12 @@ public class ModelPageClass implements Comparable<ModelPageClass> {
 	
 	public void removePage(Page p) {
 		pages.remove(p);
+	}
+	
+	public String classDescription() {
+		String name = name();
+		return pages.stream().map(p -> name+"\t"+p.getUrl()+"\t"+p.getTempFile()+"\n")
+				.reduce(String::concat).orElse("");
 	}
 	
 	public int compareTo(ModelPageClass other) {

@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.neo4j.ogm.annotation.NodeEntity;
 import org.neo4j.ogm.annotation.Relationship;
@@ -52,6 +53,7 @@ public class PageClass implements Comparable<PageClass> {
 		this.links = new HashSet<>();
 		this.dataLinks = new ArrayList<>();
 		this.menus = new HashSet<>();
+		this.descendants = new TreeSet<>();
 	}
 	
 	public PageClass(String name, SeedConfig conf) {
@@ -170,8 +172,13 @@ public class PageClass implements Comparable<PageClass> {
 		return links;
 	}
 	
+	public Set<ClassLink> getLinksFor(PageClass dest) {
+		return descendants.stream().flatMap(p -> p.getAllLinks().stream())
+		.filter(cl -> cl.getDestination().getName().equals(dest.getName()))
+		.collect(Collectors.toSet());
+	}
+	
 	public PageClass getDescendant(String name) {
-		if (descendants==null) setHierarchy();
 		return descendants.stream().filter(p -> p.getName().equals(name)).findFirst().orElse(null);
 	}
 	
@@ -189,7 +196,7 @@ public class PageClass implements Comparable<PageClass> {
 			.filter(p -> name2class.putIfAbsent(p.getName(), p)==null)
 			.forEach(p -> {p.setDepth(current.getDepth()+1); queue.add(p);});
 		}
-		this.descendants = new TreeSet<>(name2class.values());
+		this.descendants.addAll(name2class.values());
 	}
 	
 	public void setMenusTypes() {

@@ -2,10 +2,8 @@ package it.uniroma3.crawler.modeler.model;
 
 import java.util.TreeSet;
 
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -73,15 +71,6 @@ public class WebsiteModel {
 	}
 	
 	/**
-	 * Returns the ModelPageClass of this model with the given id
-	 * @param id
-	 * @return the ModelPageClass identified by this id, otherwise null
-	 */
-	public ModelPageClass getCandidateFromId(int id) {
-		return modelClasses.stream().filter(c -> c.getId()==id).findAny().orElse(null);
-	}
-	
-	/**
 	 * Returns a reference to the ModelPageClass containing the
 	 * given {@link Page}.
 	 * @param page
@@ -104,33 +93,15 @@ public class WebsiteModel {
 	 */
 	public PageClass toGraph(SeedConfig conf) {		
 		model2Class = modelClasses.stream().collect(toMap(c->c, c->new PageClass(c.name(),conf)));
-		buildLinks(conf);
-		return getPageClass(modelClasses.first());
+		modelClasses.forEach(c -> c.buildLinks(getPageClass(c), this));
+		PageClass root = getPageClass(modelClasses.first());
+		root.setHierarchy();
+		root.setMenusTypes();
+		return root;
 	}
 	
 	public void setPagesClassification() {
-		for (ModelPageClass mpc : modelClasses) {
-			PageClass pc = getPageClass(mpc);
-			String desc = mpc.getPages().stream()
-					.map(p -> pc.getName()+"\t"+p.getUrl()+"\t"+p.getTempFile()+"\n")
-					.reduce(String::concat).orElse("");
-			pc.setModelClassification(desc);
-		}
-	}
-	
-	private void buildLinks(SeedConfig conf) {
-		modelClasses.forEach(c -> {
-			PageClass src = getPageClass(c);
-			c.getPages().stream().flatMap(p->p.getLinks().stream())
-			.forEach(link -> {
-				List<PageClass> dests = 
-					link.getDestinations().stream()
-					.map(this::getClassOfPage)
-					.map(this::getPageClass)
-					.collect(toList());
-				link.linkToPageClass(src, dests);
-			});
-		});
+		modelClasses.forEach(c -> getPageClass(c).setModelClassification(c.classDescription()));
 	}
 	
 	public String toString() {
