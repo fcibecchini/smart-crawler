@@ -121,7 +121,8 @@ public class ModelCostCalculator {
 	 */
 	public double tfIdf(XPath xp, ModelPageClass c) {
 		double tf = 
-			c.getPages().stream().filter(p->page2schema.get(p).contains(xp)).count() / c.size();
+			(double) c.getPages().stream().filter(p->page2schema.get(p).contains(xp)).count() / 
+			(double) c.size();
 		return tf * xpath2IDF.get(xp);
 	}
 		
