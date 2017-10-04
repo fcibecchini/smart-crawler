@@ -45,7 +45,7 @@ public class TrueClass {
 	}
 	
 	public boolean belongsToClass(String url) {
-		return patterns.stream().anyMatch(p -> p.matcher(url).find());
+		return patterns.stream().anyMatch(p -> p.matcher(url).matches());
 	}
 	
 	public void setComputedClass(ModelPageClass mpc) {
