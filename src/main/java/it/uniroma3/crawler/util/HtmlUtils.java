@@ -49,6 +49,7 @@ public class HtmlUtils {
 		}
 		webClient.getOptions().setCssEnabled(false);
 		webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
+		webClient.getCookieManager().setCookiesEnabled(false);
 		java.util.logging.Logger.getLogger("com.gargoylesoftware").setLevel(Level.OFF);
 		return webClient;
 	}
