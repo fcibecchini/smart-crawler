@@ -209,7 +209,7 @@ public class XPath {
 			}
 			if (!idFound) {
 				if (tag.hasId()) {
-					tag.setIdOnly();
+					tag.setId();
 					idFound = true;
 				}
 				else if (index==0) tag.setAllAttributes();

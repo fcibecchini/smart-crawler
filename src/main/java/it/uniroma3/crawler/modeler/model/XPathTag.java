@@ -154,9 +154,18 @@ public class XPathTag implements Comparable<XPathTag> {
 	 * Set this tag to use only the id attribute and its value.<br>
 	 * e.g. : <code>div -> div[@id="value"]</code>
 	 */
-	public void setIdOnly() {
+	public void setIdAndValue() {
 		attributes.stream().filter(a -> a.is("id"))
 		.findFirst().ifPresent(XPathAttribute::setFinest);
+	}
+	
+	/**
+	 * Set this tag to use only the id attribute and its value.<br>
+	 * e.g. : <code>div -> div[@id]</code>
+	 */
+	public void setId() {
+		attributes.stream().filter(a -> a.is("id"))
+		.findFirst().ifPresent(XPathAttribute::setAttribute);
 	}
 	
 	/**
