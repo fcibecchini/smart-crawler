@@ -160,7 +160,7 @@ public class XPathTag implements Comparable<XPathTag> {
 	}
 	
 	/**
-	 * Set this tag to use only the id attribute and its value.<br>
+	 * Set this tag to use only the id attribute.<br>
 	 * e.g. : <code>div -> div[@id]</code>
 	 */
 	public void setId() {
