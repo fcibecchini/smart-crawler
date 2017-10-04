@@ -159,27 +159,21 @@ public class HtmlUtils {
 	 * @return true if the url is valid
 	 */
 	public static boolean isValidURL(String base, String href) {
-		if (href.contains(".jpg")) return false;
-		if (href.startsWith("http") || href.startsWith("//")) {
+		String link = (href.startsWith("//")) ? "http:"+href : href;
+		if (link.startsWith("http")) {
 			try {
-				String domain1 = 
-				InternetDomainName.from(new URL(href).getHost()).topPrivateDomain().toString();
-				String domain2 = 
-				InternetDomainName.from(new URL(base).getHost()).topPrivateDomain().toString();
-				if (!domain1.equals(domain2)) 
+				if (!InternetDomainName.from(new URL(link).getHost()).parts()
+					.equals(InternetDomainName.from(new URL(base).getHost()).parts())) 
 					return false;
 			} catch (Exception e) {
-				/* If any exception occurs while resolving domains, 
-				 * check if they are localhost urls 
-				 */
-				if (!(base.contains("localhost") && href.contains("localhost")))
-					return false;
+				return false;
 			}
 		}
-		return !href.contains("javascript") 
-				&& !href.contains("crawler") 
-				&& !href.contains("@") 
-				&& !href.contains("#");
+		return !link.contains("javascript") 
+				&& !link.contains("crawler") 
+				&& !link.contains("@") 
+				&& !link.contains("#")
+				&& !link.contains(".jpg");
 	}
 
 }
