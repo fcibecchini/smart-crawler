@@ -138,6 +138,7 @@ public class PageClassTest {
 		dest2.addPageClassLink("//li", dest6);
 		dest4.addPageClassLink("//ul", dest5);
 		dest4.addPageClassLink("//a", dest4);
+		page.setHierarchy();
 		
 		assertEquals(dest5, page.getDescendant(dest5.getName()));
 		assertEquals(dest4, page.getDescendant(dest4.getName()));
