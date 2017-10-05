@@ -118,6 +118,7 @@ public class DynamicModeler extends AbstractLoggingActor {
 	public void start(SeedConfig sc) {
 		conf = sc;
 		client = makeWebClient(sc.javascript);
+		client.getCookieManager().setCookiesEnabled(false);
 
 		// Init. site
 		try {
@@ -282,11 +283,16 @@ public class DynamicModeler extends AbstractLoggingActor {
 				} else
 					collection.setList();
 			} else {
-				collection.setMenu();
-				int totalSize = collection.size();
-				if (totalSize>3 && collection.getMaxFetches()==3) {
-					collection.setMaxFetches(totalSize);
-					msg = "getLinks";
+				if (collection.isRefinable()) {
+					collection.setFiner(true);
+					msg = "refine";
+				} else {
+					collection.setMenu();
+					int totalSize = collection.size();
+					if (totalSize>3 && collection.getMaxFetches()==3) {
+						collection.setMaxFetches(totalSize);
+						msg = "getLinks";
+					}
 				}
 			}
 		} else if (pages==2) {
