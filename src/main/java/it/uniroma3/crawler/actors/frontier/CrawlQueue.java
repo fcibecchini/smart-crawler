@@ -96,7 +96,7 @@ public class CrawlQueue {
 	public boolean add(String url, String className) {
 		PageClass pclass = root.getDescendant(className);
 		CrawlURL curl = getCrawlUrl(url, pclass);
-		return this.add(curl);
+		return (curl!=null) ? this.add(curl) : false;
 	}
 	
 	/**
