@@ -49,7 +49,6 @@ public class HtmlUtils {
 		}
 		webClient.getOptions().setCssEnabled(false);
 		webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
-		webClient.getCookieManager().setCookiesEnabled(false);
 		java.util.logging.Logger.getLogger("com.gargoylesoftware").setLevel(Level.OFF);
 		return webClient;
 	}
@@ -130,14 +129,14 @@ public class HtmlUtils {
 						path = path.replace(".html", html.getTitleText()).concat(".html");
 						html.save(new File(path));
 					}
-					else return "";
+					else return path;
 				}
 			}
 			else
 				FileUtils.writeStringToFile(file, html.asXml(), 
 						Charset.forName("UTF-8"));
 		} catch (IOException e) {
-			return "";
+			return path;
 		}
 		return path;
 	}
