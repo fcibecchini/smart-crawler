@@ -66,6 +66,10 @@ public class DynamicModeler extends AbstractLoggingActor {
 	 * map of visited pages
 	 */
 	private Map<String,Page> visitedURLs = new HashMap<>();
+	
+	private Map<String,String> redirects = new HashMap<>();
+	
+	private int fetched;
 			
 	/**
 	 * current id of last created {@link ModelPageClass}
@@ -162,22 +166,31 @@ public class DynamicModeler extends AbstractLoggingActor {
 		if (!links.isEmpty()) {
 			String href = links.poll();
 			String url = getAbsoluteURL(conf.site, href);
-			Page page = visitedURLs.get(url);
+			Page page = visitedURLs.get(redirects.get(url));
 			if (page!=null) {
 				page.setLoaded();
 				page.setHref(href);
 				newPages.add(page);
 				log().info("Loaded: "+url);
 			}
-			else if (visitedURLs.size()<conf.modelPages) {
+			else if (fetched<conf.modelPages) {
 				try {
 					HtmlPage html = getPage(url, client);
-					page = new Page(url, html);
+					fetched++;
+					/* Check if it's a redirect.. */
+					String realURL = html.getUrl().toString();
+					page = visitedURLs.get(realURL);
+					if (page!=null)
+						page.setLoaded();
+					else {
+						page = new Page(realURL, html);
+						savePage(html, page);
+						visitedURLs.put(realURL, page);
+					}
+					redirects.put(url, realURL);
 					page.setHref(href);
-					savePage(html, page);
-					visitedURLs.put(url, page);
 					newPages.add(page);
-					log().info("Fetched: "+url);
+					log().info("Fetched: "+realURL);
 				}
 				catch (Exception e) {
 					log().warning("Failed fetching: "+url+", "+e.getMessage());
