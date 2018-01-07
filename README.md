@@ -41,7 +41,7 @@ TODO...
 ## Architecture
 This project has been developed with the actor model framework [Akka](https://akka.io). Here is a summary of the second phase crawler
 architecture showing the main components and messages.
-<br>
+<br><br><br>
 ![crawler architecture](./docs/architecture.png)
 
 ## Installation
