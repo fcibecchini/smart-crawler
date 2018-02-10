@@ -38,6 +38,12 @@ can be found in [form_actions_target.csv](src/main/resources/targets/form_action
 ## Navigation Model syntax
 TODO...
 
+### Model example
+Example of a navigation model of an e-commerce website
+<br><br>
+![model](./docs/navigation_model.png)
+
+
 ## Architecture
 This project has been developed with the actor model framework [Akka](https://akka.io). Here is a summary of the second phase crawler
 architecture showing the main components and messages.
