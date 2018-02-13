@@ -41,7 +41,7 @@ TODO...
 ### Model example
 Example of a navigation model of an e-commerce website
 <br><br>
-![model](./docs/navigation_model.png)
+![model](./docs/navigation_model1.png)
 
 
 ## Architecture
